@@ -1,0 +1,359 @@
+name: Build and Release Single Exe
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Run Unit Tests & Coverage
+    runs-on: windows-latest
+
+    outputs:
+      solution_file: ${{ steps.discover.outputs.SOLUTION_FILE }}
+      app_project: ${{ steps.discover.outputs.APP_PROJECT }}
+      app_name: ${{ steps.discover.outputs.APP_NAME }}
+      artifact_base_name: ${{ steps.discover.outputs.ARTIFACT_BASE_NAME }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Discover Solution and Projects
+        id: discover
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $solutions = @(Get-ChildItem -Path . -Recurse -Filter *.sln -File |
+            Where-Object {
+              $_.FullName -notmatch '\\bin\\' -and
+              $_.FullName -notmatch '\\obj\\'
+            })
+
+          if ($solutions.Count -eq 0) {
+            throw "No .sln file was found."
+          }
+
+          if ($solutions.Count -gt 1) {
+            Write-Host "Multiple .sln files were found:"
+            foreach ($solution in $solutions) {
+              Write-Host "  $($solution.FullName)"
+            }
+
+            throw "Automatic solution detection is ambiguous."
+          }
+
+          $solutionFile = $solutions[0]
+
+          $projects = @(Get-ChildItem -Path . -Recurse -Filter *.csproj -File |
+            Where-Object {
+              $_.FullName -notmatch '\\bin\\' -and
+              $_.FullName -notmatch '\\obj\\'
+            })
+
+          if ($projects.Count -eq 0) {
+            throw "No .csproj files were found."
+          }
+
+          Write-Host "Selected solution:"
+          Write-Host "  $($solutionFile.FullName)"
+          Write-Host ""
+
+          Write-Host "Discovered project files:"
+          foreach ($project in $projects) {
+            Write-Host "  $($project.FullName)"
+          }
+
+          $projectInfo = foreach ($project in $projects) {
+            $content = Get-Content $project.FullName -Raw
+
+            $isTestProject =
+              $content -match '<IsTestProject>\s*true\s*</IsTestProject>' -or
+              $content -match 'Microsoft\.NET\.Test\.Sdk' -or
+              $project.BaseName -match '(?i)(test|tests)$'
+
+            $isExecutableProject =
+              $content -match '<OutputType>\s*Exe\s*</OutputType>' -or
+              $content -match '<OutputType>\s*WinExe\s*</OutputType>'
+
+            [PSCustomObject]@{
+              File = $project
+              RelativePath = Resolve-Path $project.FullName -Relative
+              BaseName = $project.BaseName
+              IsTestProject = $isTestProject
+              IsExecutableProject = $isExecutableProject
+            }
+          }
+
+          $testProjects = @($projectInfo | Where-Object { $_.IsTestProject })
+          $appProjects = @($projectInfo | Where-Object { -not $_.IsTestProject -and $_.IsExecutableProject })
+
+          if ($testProjects.Count -eq 0) {
+            Write-Warning "No test projects were detected. The workflow will still build and release the app project."
+          } else {
+            Write-Host ""
+            Write-Host "Detected test projects:"
+            foreach ($testProject in $testProjects) {
+              Write-Host "  $($testProject.RelativePath)"
+            }
+          }
+
+          if ($appProjects.Count -eq 0) {
+            $nonTestProjects = @($projectInfo | Where-Object { -not $_.IsTestProject })
+
+            if ($nonTestProjects.Count -eq 1) {
+              $appProjects = $nonTestProjects
+              Write-Warning "No project with OutputType Exe or WinExe was found. Falling back to the only non-test project."
+            } else {
+              Write-Host ""
+              Write-Host "Non-test projects found:"
+              foreach ($nonTestProject in $nonTestProjects) {
+                Write-Host "  $($nonTestProject.RelativePath)"
+              }
+
+              throw "No executable app project was found. Expected exactly one non-test project with OutputType Exe or WinExe."
+            }
+          }
+
+          if ($appProjects.Count -gt 1) {
+            Write-Host ""
+            Write-Host "Multiple executable app projects were found:"
+            foreach ($appProject in $appProjects) {
+              Write-Host "  $($appProject.RelativePath)"
+            }
+
+            throw "Automatic app project detection is ambiguous."
+          }
+
+          $solutionPath = $solutionFile.FullName
+          $solutionRelativePath = Resolve-Path $solutionPath -Relative
+          $solutionRelativePath = $solutionRelativePath.TrimStart('.\')
+
+          $appProjectPath = $appProjects[0].RelativePath.TrimStart('.\')
+          $appName = $appProjects[0].BaseName
+
+          $artifactBaseName = $appName -replace '[^a-zA-Z0-9._-]', '_'
+
+          Write-Host ""
+          Write-Host "Selected app project:"
+          Write-Host "  $appProjectPath"
+          Write-Host ""
+          Write-Host "Application name:"
+          Write-Host "  $appName"
+          Write-Host ""
+          Write-Host "Artifact base name:"
+          Write-Host "  $artifactBaseName"
+
+          Write-Output "SOLUTION_FILE=$solutionRelativePath" >> $env:GITHUB_OUTPUT
+          Write-Output "APP_PROJECT=$appProjectPath" >> $env:GITHUB_OUTPUT
+          Write-Output "APP_NAME=$appName" >> $env:GITHUB_OUTPUT
+          Write-Output "ARTIFACT_BASE_NAME=$artifactBaseName" >> $env:GITHUB_OUTPUT
+
+      - name: Restore dependencies
+        run: dotnet restore "${{ steps.discover.outputs.SOLUTION_FILE }}"
+
+      - name: Build
+        run: dotnet build "${{ steps.discover.outputs.SOLUTION_FILE }}" --no-restore -c Release
+
+      - name: Run Tests with Coverage
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $testProjects = @(Get-ChildItem -Path . -Recurse -Filter *.csproj -File |
+            Where-Object {
+              $_.FullName -notmatch '\\bin\\' -and
+              $_.FullName -notmatch '\\obj\\' -and
+              (
+                (Get-Content $_.FullName -Raw) -match '<IsTestProject>\s*true\s*</IsTestProject>' -or
+                (Get-Content $_.FullName -Raw) -match 'Microsoft\.NET\.Test\.Sdk' -or
+                $_.BaseName -match '(?i)(test|tests)$'
+              )
+            })
+
+          if ($testProjects.Count -eq 0) {
+            Write-Warning "No test projects were found. Skipping test execution and coverage generation."
+            New-Item -ItemType Directory -Path ./coverage/report -Force | Out-Null
+            "No test projects were found." | Out-File ./coverage/report/SummaryGithub.md
+            exit 0
+          }
+
+          foreach ($testProject in $testProjects) {
+            $testProjectPath = Resolve-Path $testProject.FullName -Relative
+            $testProjectPath = $testProjectPath.TrimStart('.\')
+
+            Write-Host "Running tests for $testProjectPath"
+
+            dotnet test "$testProjectPath" `
+              --no-build `
+              -c Release `
+              --collect:"XPlat Code Coverage" `
+              --results-directory ./coverage `
+              --logger "console;verbosity=normal"
+          }
+
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Generate Coverage Report
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $coverageFiles = @(Get-ChildItem -Path ./coverage -Recurse -Filter coverage.cobertura.xml -File)
+
+          if ($coverageFiles.Count -eq 0) {
+            Write-Warning "No coverage.cobertura.xml files were found. Creating placeholder summary."
+            New-Item -ItemType Directory -Path ./coverage/report -Force | Out-Null
+            "No coverage files were generated." | Out-File ./coverage/report/SummaryGithub.md
+            exit 0
+          }
+
+          reportgenerator -reports:./coverage/**/coverage.cobertura.xml `
+                          -targetdir:./coverage/report `
+                          -reporttypes:"Html;MarkdownSummaryGithub"
+
+      - name: Publish Coverage Summary to Job Log
+        shell: pwsh
+        run: |
+          echo "## 📊 Code Coverage Report" >> $env:GITHUB_STEP_SUMMARY
+
+          if (Test-Path ./coverage/report/SummaryGithub.md) {
+            Get-Content ./coverage/report/SummaryGithub.md >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            echo "No coverage summary was generated." >> $env:GITHUB_STEP_SUMMARY
+          }
+
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload Full Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage-report
+          path: ./coverage/report
+          retention-days: 30
+
+  release:
+    name: Build & Release
+    runs-on: windows-latest
+    needs: test
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Determine Version
+        id: versioning
+        shell: pwsh
+        run: |
+          $global:LASTEXITCODE = 0
+
+          $latestTag = git describe --tags --abbrev=0 2>$null
+          $global:LASTEXITCODE = 0
+
+          if (-not $latestTag) {
+              $latestTag = "v1.0.0.0"
+          }
+
+          $baseVer = $latestTag.TrimStart('v')
+
+          $parts = $baseVer -split '\.'
+          while ($parts.Count -lt 4) { $parts += '0' }
+          if ($parts.Count -gt 4) { $parts = $parts[0..3] }
+
+          $major = [int]$parts[0]
+          $minor = [int]$parts[1]
+          $patch = [int]$parts[2]
+
+          $buildNum = [int]"${{ github.run_number }}"
+
+          $asmVer = "$major.$minor.$patch.$buildNum"
+          $fileVer = "$major.$minor.$patch.$buildNum"
+
+          Write-Output "VERSION=$asmVer" >> $env:GITHUB_OUTPUT
+          Write-Output "FILE_VERSION=$fileVer" >> $env:GITHUB_OUTPUT
+
+          Write-Host "Assembly/File Version: $asmVer"
+
+      - name: Dotnet Publish
+        run: |
+          dotnet publish "${{ needs.test.outputs.app_project }}" `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=${{ steps.versioning.outputs.VERSION }} `
+            -p:FileVersion=${{ steps.versioning.outputs.FILE_VERSION }} `
+            -p:AssemblyVersion=${{ steps.versioning.outputs.VERSION }} `
+            -o ./publish
+
+      - name: Prepare Artifacts
+        shell: pwsh
+        run: |
+          $artifactBaseName = "${{ needs.test.outputs.artifact_base_name }}"
+          $version = "${{ steps.versioning.outputs.VERSION }}"
+          $zipFileName = "${artifactBaseName}_v${version}.zip"
+
+          if (Test-Path "./publish/devices.json") {
+            Write-Warning "Unexpected devices.json in publish output — removing"
+            Remove-Item "./publish/devices.json" -Force
+          }
+
+          Compress-Archive -Path "./publish/*" -DestinationPath $zipFileName -Force
+
+          Write-Output "ZIP_FILE_NAME=$zipFileName" >> $env:GITHUB_ENV
+
+      - name: Create and Push Version Tag
+        shell: pwsh
+        run: |
+          $tagName = "v${{ steps.versioning.outputs.VERSION }}"
+
+          if (git rev-parse "refs/tags/$tagName" 2>$null) {
+              Write-Host "Tag $tagName already exists — skipping tag creation"
+          } else {
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+              git tag $tagName
+              git push origin $tagName
+
+              Write-Host "Created and pushed tag $tagName"
+          }
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.versioning.outputs.VERSION }}
+          name: ${{ needs.test.outputs.app_name }} v${{ steps.versioning.outputs.VERSION }}
+          body: |
+            Automated build from commit ${{ github.sha }}
+
+            ${{ github.event.head_commit.message || 'Manual trigger via workflow dispatch' }}
+          generate_release_notes: true
+          files: ${{ env.ZIP_FILE_NAME }}
+          draft: false
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
