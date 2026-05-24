@@ -96,18 +96,7 @@ jobs:
             }
           }
 
-          $testProjects = @($projectInfo | Where-Object { $_.IsTestProject })
           $appProjects = @($projectInfo | Where-Object { -not $_.IsTestProject -and $_.IsExecutableProject })
-
-          if ($testProjects.Count -eq 0) {
-            Write-Warning "No test projects were detected. The workflow will still build and release the app project."
-          } else {
-            Write-Host ""
-            Write-Host "Detected test projects:"
-            foreach ($testProject in $testProjects) {
-              Write-Host "  $($testProject.RelativePath)"
-            }
-          }
 
           if ($appProjects.Count -eq 0) {
             $nonTestProjects = @($projectInfo | Where-Object { -not $_.IsTestProject })
@@ -136,13 +125,11 @@ jobs:
             throw "Automatic app project detection is ambiguous."
           }
 
-          $solutionPath = $solutionFile.FullName
-          $solutionRelativePath = Resolve-Path $solutionPath -Relative
+          $solutionRelativePath = Resolve-Path $solutionFile.FullName -Relative
           $solutionRelativePath = $solutionRelativePath.TrimStart('.\')
 
           $appProjectPath = $appProjects[0].RelativePath.TrimStart('.\')
           $appName = $appProjects[0].BaseName
-
           $artifactBaseName = $appName -replace '[^a-zA-Z0-9._-]', '_'
 
           Write-Host ""
@@ -155,16 +142,20 @@ jobs:
           Write-Host "Artifact base name:"
           Write-Host "  $artifactBaseName"
 
-          Write-Output "SOLUTION_FILE=$solutionRelativePath" >> $env:GITHUB_OUTPUT
-          Write-Output "APP_PROJECT=$appProjectPath" >> $env:GITHUB_OUTPUT
-          Write-Output "APP_NAME=$appName" >> $env:GITHUB_OUTPUT
-          Write-Output "ARTIFACT_BASE_NAME=$artifactBaseName" >> $env:GITHUB_OUTPUT
+          "SOLUTION_FILE=$solutionRelativePath" >> $env:GITHUB_OUTPUT
+          "APP_PROJECT=$appProjectPath" >> $env:GITHUB_OUTPUT
+          "APP_NAME=$appName" >> $env:GITHUB_OUTPUT
+          "ARTIFACT_BASE_NAME=$artifactBaseName" >> $env:GITHUB_OUTPUT
 
       - name: Restore dependencies
-        run: dotnet restore "${{ steps.discover.outputs.SOLUTION_FILE }}"
+        shell: pwsh
+        run: |
+          dotnet restore "${{ steps.discover.outputs.SOLUTION_FILE }}"
 
       - name: Build
-        run: dotnet build "${{ steps.discover.outputs.SOLUTION_FILE }}" --no-restore -c Release
+        shell: pwsh
+        run: |
+          dotnet build "${{ steps.discover.outputs.SOLUTION_FILE }}" --no-restore -c Release
 
       - name: Run Tests with Coverage
         shell: pwsh
@@ -174,12 +165,18 @@ jobs:
           $testProjects = @(Get-ChildItem -Path . -Recurse -Filter *.csproj -File |
             Where-Object {
               $_.FullName -notmatch '\\bin\\' -and
-              $_.FullName -notmatch '\\obj\\' -and
-              (
-                (Get-Content $_.FullName -Raw) -match '<IsTestProject>\s*true\s*</IsTestProject>' -or
-                (Get-Content $_.FullName -Raw) -match 'Microsoft\.NET\.Test\.Sdk' -or
+              $_.FullName -notmatch '\\obj\\'
+            } |
+            ForEach-Object {
+              $content = Get-Content $_.FullName -Raw
+
+              if (
+                $content -match '<IsTestProject>\s*true\s*</IsTestProject>' -or
+                $content -match 'Microsoft\.NET\.Test\.Sdk' -or
                 $_.BaseName -match '(?i)(test|tests)$'
-              )
+              ) {
+                $_
+              }
             })
 
           if ($testProjects.Count -eq 0) {
@@ -204,14 +201,16 @@ jobs:
           }
 
       - name: Install ReportGenerator
-        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+        shell: pwsh
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool
 
       - name: Generate Coverage Report
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
 
-          $coverageFiles = @(Get-ChildItem -Path ./coverage -Recurse -Filter coverage.cobertura.xml -File)
+          $coverageFiles = @(Get-ChildItem -Path ./coverage -Recurse -Filter coverage.cobertura.xml -File -ErrorAction SilentlyContinue)
 
           if ($coverageFiles.Count -eq 0) {
             Write-Warning "No coverage.cobertura.xml files were found. Creating placeholder summary."
@@ -227,15 +226,15 @@ jobs:
       - name: Publish Coverage Summary to Job Log
         shell: pwsh
         run: |
-          echo "## 📊 Code Coverage Report" >> $env:GITHUB_STEP_SUMMARY
+          "## 📊 Code Coverage Report" >> $env:GITHUB_STEP_SUMMARY
 
           if (Test-Path ./coverage/report/SummaryGithub.md) {
             Get-Content ./coverage/report/SummaryGithub.md >> $env:GITHUB_STEP_SUMMARY
           } else {
-            echo "No coverage summary was generated." >> $env:GITHUB_STEP_SUMMARY
+            "No coverage summary was generated." >> $env:GITHUB_STEP_SUMMARY
           }
 
-          echo "" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
 
       - name: Upload Full Coverage Report
         uses: actions/upload-artifact@v4
@@ -267,6 +266,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+
+          git fetch --tags --force
           $global:LASTEXITCODE = 0
 
           $latestTag = git tag --list "v[0-9]*.[0-9]*.[0-9]*.[0-9]*" --sort=-v:refname | Select-Object -First 1
@@ -295,13 +296,14 @@ jobs:
           $asmVer = "$major.$minor.$patch.$revision"
           $fileVer = "$major.$minor.$patch.$revision"
 
-          Write-Output "VERSION=$asmVer" >> $env:GITHUB_OUTPUT
-          Write-Output "FILE_VERSION=$fileVer" >> $env:GITHUB_OUTPUT
+          "VERSION=$asmVer" >> $env:GITHUB_OUTPUT
+          "FILE_VERSION=$fileVer" >> $env:GITHUB_OUTPUT
 
           Write-Host "Latest existing tag: $latestTag"
           Write-Host "Next Assembly/File Version: $asmVer"
-          
+
       - name: Dotnet Publish
+        shell: pwsh
         run: |
           dotnet publish "${{ needs.test.outputs.app_project }}" `
             -c Release `
@@ -321,31 +323,43 @@ jobs:
           $version = "${{ steps.versioning.outputs.VERSION }}"
           $zipFileName = "${artifactBaseName}_v${version}.zip"
 
-          if (Test-Path "./publish/devices.json") {
-            Write-Warning "Unexpected devices.json in publish output — removing"
-            Remove-Item "./publish/devices.json" -Force
-          }
-
           Compress-Archive -Path "./publish/*" -DestinationPath $zipFileName -Force
 
-          Write-Output "ZIP_FILE_NAME=$zipFileName" >> $env:GITHUB_ENV
+          "ZIP_FILE_NAME=$zipFileName" >> $env:GITHUB_ENV
 
       - name: Create and Push Version Tag
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
+
           $tagName = "v${{ steps.versioning.outputs.VERSION }}"
 
-          if (git rev-parse "refs/tags/$tagName" 2>$null) {
+          git fetch --tags --force
+          $global:LASTEXITCODE = 0
+
+          git show-ref --tags --verify --quiet "refs/tags/$tagName"
+          $tagExists = ($global:LASTEXITCODE -eq 0)
+          $global:LASTEXITCODE = 0
+
+          if ($tagExists) {
               Write-Host "Tag $tagName already exists — skipping tag creation"
-          } else {
-              git config user.name "github-actions[bot]"
-              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-              git tag $tagName
-              git push origin $tagName
-
-              Write-Host "Created and pushed tag $tagName"
+              exit 0
           }
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git tag $tagName
+          if ($global:LASTEXITCODE -ne 0) {
+              throw "Failed to create local tag $tagName."
+          }
+
+          git push origin $tagName
+          if ($global:LASTEXITCODE -ne 0) {
+              throw "Failed to push tag $tagName."
+          }
+
+          Write-Host "Created and pushed tag $tagName"
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
