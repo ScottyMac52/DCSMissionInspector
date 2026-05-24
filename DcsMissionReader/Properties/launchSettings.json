@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DcsMissionReader": {
+      "commandName": "Project",
+      "commandLineArgs": "D:\\SavedGames\\DCS.openbeta\\Missions\\Vietnam\\Vietnam_01_.miz"
+    }
+  }
+}

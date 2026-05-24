@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Bomb the ground units_Report\**" />
+    <Compile Remove="F-16C Port Stanley Tank Attack Scttered_Report\**" />
+    <Compile Remove="Intruder Alert_Report\**" />
+    <Compile Remove="Maps\**" />
+    <Compile Remove="S3NTRY%27s Falklands Template - Night_Report\**" />
+    <Compile Remove="S3NTRY%27s Falklands Template - Summer_Report\**" />
+    <Compile Remove="Turkey Shoot_Report\**" />
+    <EmbeddedResource Remove="Bomb the ground units_Report\**" />
+    <EmbeddedResource Remove="F-16C Port Stanley Tank Attack Scttered_Report\**" />
+    <EmbeddedResource Remove="Intruder Alert_Report\**" />
+    <EmbeddedResource Remove="Maps\**" />
+    <EmbeddedResource Remove="S3NTRY%27s Falklands Template - Night_Report\**" />
+    <EmbeddedResource Remove="S3NTRY%27s Falklands Template - Summer_Report\**" />
+    <EmbeddedResource Remove="Turkey Shoot_Report\**" />
+    <None Remove="Bomb the ground units_Report\**" />
+    <None Remove="F-16C Port Stanley Tank Attack Scttered_Report\**" />
+    <None Remove="Intruder Alert_Report\**" />
+    <None Remove="Maps\**" />
+    <None Remove="S3NTRY%27s Falklands Template - Night_Report\**" />
+    <None Remove="S3NTRY%27s Falklands Template - Summer_Report\**" />
+    <None Remove="Turkey Shoot_Report\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
+    <PackageReference Include="MoonSharp" Version="2.0.0" />
+  </ItemGroup>
+
+</Project>
