@@ -1,4 +1,3 @@
-```markdown
 # DCS Mission Inspector
 
 **Inspects DCS World mission files (.miz) and generates rich reports, data exports, and visualizations.**
@@ -103,4 +102,3 @@ A Google Earth compatible file showing colored routes for Blue, Red, and Neutral
 Just run the executable with the flags you need and open the generated files. The HTML report is usually all most people want.
 
 Questions or suggestions? Open an issue on the GitHub repository.
-```
