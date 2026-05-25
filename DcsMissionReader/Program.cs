@@ -26,6 +26,7 @@ namespace DcsMissionReader
             // Register our injectable services
             services.AddSingleton<ICommandLineOptionsService, CommandLineOptionsService>();
             services.AddSingleton<IMissionProcessor, MissionProcessor>();
+            services.AddSingleton<IDcsDatabaseParserService, DcsDatabaseParserService>();
 
             using var serviceProvider = services.BuildServiceProvider();
 

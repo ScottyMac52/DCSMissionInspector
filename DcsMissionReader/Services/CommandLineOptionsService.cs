@@ -20,19 +20,19 @@ namespace DcsMissionReader.Services
         public AppOptions Parse(string[] args)
         {
             var switchMappings = new Dictionary<string, string>
-    {
-        { "-h", "create-html" },
-        { "--create-html", "create-html" },
-        { "--html", "create-html" },
-        { "-j", "json" },
-        { "--json", "json" },
-        { "--full-export", "full-export" },
-        { "--full", "full-export" },
-        { "--metric", "units" },
-        { "--real", "units" },
-        { "-k", "kml" },
-        { "--kml", "kml" }
-    };
+            {
+                { "-h", "create-html" },
+                { "--create-html", "create-html" },
+                { "--html", "create-html" },
+                { "-j", "json" },
+                { "--json", "json" },
+                { "--full-export", "full-export" },
+                { "--full", "full-export" },
+                { "--metric", "units" },
+                { "--real", "units" },
+                { "-k", "kml" },
+                { "--kml", "kml" }
+            };
 
             var config = new ConfigurationBuilder()
                 .AddCommandLine(args, switchMappings)
@@ -44,13 +44,11 @@ namespace DcsMissionReader.Services
                 CreateJson = config.GetValue<bool>("json"),
                 FullExport = config.GetValue<bool>("full-export"),
                 CreateKml = config.GetValue<bool>("kml"),
-                MissionFiles = args
-                    .Where(a => !a.StartsWith("-") && a.EndsWith(".miz", StringComparison.OrdinalIgnoreCase))
-                    .ToList()
+                MissionFiles = [.. args.Where(a => !a.StartsWith('-') && a.EndsWith(".miz", StringComparison.OrdinalIgnoreCase))]
             };
 
             // Units handling
-            string unitsStr = config["units"]?.ToLowerInvariant();
+            var unitsStr = config["units"]?.ToLowerInvariant();
             options.Units = unitsStr == "metric" ? UnitsSystem.Metric : UnitsSystem.Real;
 
             return options;

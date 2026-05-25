@@ -9,25 +9,49 @@
 
   <ItemGroup>
     <Compile Remove="Bomb the ground units_Report\**" />
+    <Compile Remove="Carrier Quals Marianas_Report\**" />
+    <Compile Remove="Eviction Notice_Report\**" />
+    <Compile Remove="F-14B or F-16C Port Stanley BTR-80 times 6 SA19 with TICO and chinese sub_Report\**" />
+    <Compile Remove="F-14B or F-16C Port Stanley BTR-80 times 6 SA19 with TICO_Report\**" />
+    <Compile Remove="F-14B or F-16C Port Stanley BTR-80 times 6 SA19_Report\**" />
+    <Compile Remove="F-14_Hormuz_Islands_Dispute_CAP_Supercarrier_save_2_Report\**" />
     <Compile Remove="F-16C Port Stanley Tank Attack Scttered_Report\**" />
     <Compile Remove="Intruder Alert_Report\**" />
     <Compile Remove="Maps\**" />
+    <Compile Remove="Operation Barfing Dog_Report\**" />
     <Compile Remove="S3NTRY%27s Falklands Template - Night_Report\**" />
     <Compile Remove="S3NTRY%27s Falklands Template - Summer_Report\**" />
+    <Compile Remove="SA-6 Novorossiysk with 2 ship F-16C Viper SEAD_Report\**" />
     <Compile Remove="Turkey Shoot_Report\**" />
     <EmbeddedResource Remove="Bomb the ground units_Report\**" />
+    <EmbeddedResource Remove="Carrier Quals Marianas_Report\**" />
+    <EmbeddedResource Remove="Eviction Notice_Report\**" />
+    <EmbeddedResource Remove="F-14B or F-16C Port Stanley BTR-80 times 6 SA19 with TICO and chinese sub_Report\**" />
+    <EmbeddedResource Remove="F-14B or F-16C Port Stanley BTR-80 times 6 SA19 with TICO_Report\**" />
+    <EmbeddedResource Remove="F-14B or F-16C Port Stanley BTR-80 times 6 SA19_Report\**" />
+    <EmbeddedResource Remove="F-14_Hormuz_Islands_Dispute_CAP_Supercarrier_save_2_Report\**" />
     <EmbeddedResource Remove="F-16C Port Stanley Tank Attack Scttered_Report\**" />
     <EmbeddedResource Remove="Intruder Alert_Report\**" />
     <EmbeddedResource Remove="Maps\**" />
+    <EmbeddedResource Remove="Operation Barfing Dog_Report\**" />
     <EmbeddedResource Remove="S3NTRY%27s Falklands Template - Night_Report\**" />
     <EmbeddedResource Remove="S3NTRY%27s Falklands Template - Summer_Report\**" />
+    <EmbeddedResource Remove="SA-6 Novorossiysk with 2 ship F-16C Viper SEAD_Report\**" />
     <EmbeddedResource Remove="Turkey Shoot_Report\**" />
     <None Remove="Bomb the ground units_Report\**" />
+    <None Remove="Carrier Quals Marianas_Report\**" />
+    <None Remove="Eviction Notice_Report\**" />
+    <None Remove="F-14B or F-16C Port Stanley BTR-80 times 6 SA19 with TICO and chinese sub_Report\**" />
+    <None Remove="F-14B or F-16C Port Stanley BTR-80 times 6 SA19 with TICO_Report\**" />
+    <None Remove="F-14B or F-16C Port Stanley BTR-80 times 6 SA19_Report\**" />
+    <None Remove="F-14_Hormuz_Islands_Dispute_CAP_Supercarrier_save_2_Report\**" />
     <None Remove="F-16C Port Stanley Tank Attack Scttered_Report\**" />
     <None Remove="Intruder Alert_Report\**" />
     <None Remove="Maps\**" />
+    <None Remove="Operation Barfing Dog_Report\**" />
     <None Remove="S3NTRY%27s Falklands Template - Night_Report\**" />
     <None Remove="S3NTRY%27s Falklands Template - Summer_Report\**" />
+    <None Remove="SA-6 Novorossiysk with 2 ship F-16C Viper SEAD_Report\**" />
     <None Remove="Turkey Shoot_Report\**" />
   </ItemGroup>
 

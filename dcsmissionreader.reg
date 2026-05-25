@@ -1,0 +1,25 @@
+Windows Registry Editor Version 5.00
+
+; 1. Create the Parent Menu
+[HKEY_CLASSES_ROOT\miz_auto_file\shell\DCS]
+"SubCommands"="DCS.HTML;DCS.KML;DCS.JSON"
+
+; 2. Define the individual sub-commands in the CommandStore
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.HTML]
+@="Create HTML"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.HTML\command]
+@="\"D:\\DcsMissionReader\\DcsMissionReader.exe\" \"%1\" --html true"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.KML]
+@="Export KML"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.KML\command]
+@="\"D:\\DcsMissionReader\\DcsMissionReader.exe\" \"%1\" --kml true"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.JSON]
+@="Export JSON"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.JSON\command]
+@="\"D:\\DcsMissionReader\\DcsMissionReader.exe\" \"%1\" --json true"
+	
