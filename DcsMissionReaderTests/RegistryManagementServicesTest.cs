@@ -2,10 +2,12 @@
 using DcsMissionReader.Services.Interfaces;
 using Microsoft.Win32;
 using Moq;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DcsMissionReaderTests
 {
 
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
     public class RegistryManagementServiceTests
     {
         [Fact]

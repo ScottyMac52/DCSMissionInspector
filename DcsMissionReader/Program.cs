@@ -1,4 +1,5 @@
 ﻿using DcsMissionReader.Services;
+using DcsMissionReader.Services.Generators;
 using DcsMissionReader.Services.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -22,6 +23,10 @@ namespace DcsMissionReader
             services.AddSingleton<IMissionArchiveService, MissionArchiveService>();
             services.AddSingleton<ICoordinateConverterService, CoordinateConverterService>();
             services.AddSingleton<IRegistryManagementService, RegistryManagementService>();
+            // Register each strategy individually
+            services.AddSingleton<IMissionExportStrategy, HtmlReportGenerator>();
+            services.AddSingleton<IMissionExportStrategy, JsonSummaryGenerator>();
+            services.AddSingleton<IMissionExportStrategy, KmlExportGenerator>();
 
             using var serviceProvider = services.BuildServiceProvider();
 

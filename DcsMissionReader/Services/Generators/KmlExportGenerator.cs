@@ -1,0 +1,283 @@
+﻿using DcsMissionReader.Models;
+using DcsMissionReader.Services.Interfaces;
+using MoonSharp.Interpreter;
+
+namespace DcsMissionReader.Services.Generators
+{
+    public class KmlExportGenerator(ICoordinateConverterService converter, IThreatDatabaseService threatService) : IMissionExportStrategy
+    {
+        public bool ShouldExport(AppOptions options) => options.CreateKml;
+
+        public void Export(MissionContext context)
+        {
+            GenerateKmlExport(context.ReportDir, context.Sortie, context.MissionTable, context.Theatre);
+        }
+
+        /// <summary>
+        /// Generates a KML file for Google Earth that visualizes the flight routes of aircraft groups in the DCS mission. 
+        /// The method extracts the route information from the mission table, including the waypoints for each group of planes and helicopters, 
+        /// and converts the DCS x/y coordinates to latitude and longitude based on the theatre. 
+        /// It then constructs a KML file with placemarks for each group and line strings representing their routes. 
+        /// The generated KML file is saved in the specified report directory with a name based on the sortie. 
+        /// This allows players to easily view and analyze the flight paths in Google Earth, providing a spatial understanding of the mission's air operations.
+        ///
+        /// UPDATED: Now also includes all ground targets (vehicles, ships, statics) as colored placemarks using the same coalition colors.
+        /// UPDATED: Reads ALL waypoints from every aircraft group.
+        /// UPDATED: Uses exact 90° CCW conversion calibrated to your points.
+        /// </summary>
+        /// <param name="reportDir">The directory where the KML file will be saved.</param>
+        /// <param name="sortie">The name of the sortie.</param>
+        /// <param name="mission">The mission table containing the mission data.</param>
+        /// <param name="theatre">The theatre of operations.</param>
+        private void GenerateKmlExport(string reportDir, string sortie, Table mission, string theatre)
+        {
+            string kmlPath = Path.Combine(reportDir, MissionUtils.SanitizeFileName(sortie) + ".kml");
+            var kml = new System.Text.StringBuilder();
+            kml.AppendLine(@"<?xml version=""1.0"" encoding=""UTF-8""?>");
+            kml.AppendLine(@"<kml xmlns=""http://www.opengis.net/kml/2.2"">");
+            kml.AppendLine("<Document>");
+            kml.AppendLine($"<name>{EscapeForKml(sortie + " - DCS Mission Routes & Targets")}</name>");
+
+            // Coalition-specific color palettes (ABGR format) - expanded for many routes
+            var blueColors = new[] {
+                "ff00ffff", "ff00b3ff", "ff0080ff", "ff0066ff", "ff0040ff",
+                "ff00ccff", "ff00aaff", "ff0099ff", "ff0077ff", "ff0055ff",
+                "ff3399ff", "ff66aaff", "ff99ccff"
+            };
+            var redColors = new[] {
+                "ff0000ff", "ff0066ff", "ff00a5ff", "ffff00ff", "ffff3399",
+                "ffff0066", "ffff3366", "ffff6633", "ffff9933", "ffffcc33",
+                "ffff6600", "ffff9900", "ffffcc00"
+            };
+            var neutralColors = new[] {
+                "ff00ff80", "ff80ff00", "ffccff00", "ffffff00", "ffccff66",
+                "ff99ff66", "ff66ff99", "ff33ffcc", "ff00ffcc", "ff66ffcc",
+                "ff99ffcc", "ffccffcc", "ffffffcc"
+            };
+
+            int blueIdx = 0, redIdx = 0, neutralIdx = 0;
+
+            // Waypoint placemark style
+            kml.AppendLine(@"<Style id=""wpStyle""><IconStyle><scale>1.2</scale><Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle><LabelStyle><scale>1.0</scale></LabelStyle></Style>");
+            // Ground target style
+            kml.AppendLine(@"<Style id=""groundStyle""><IconStyle><scale>1.0</scale><Icon><href>https://maps.google.com/mapfiles/kml/shapes/target.png</href></Icon></IconStyle><LabelStyle><scale>1.0</scale></LabelStyle></Style>");
+            // Coalition-colored ground unit markers
+            kml.AppendLine(@"<Style id=""blueGroundStyle""><IconStyle><scale>1.0</scale><color>ff00ffff</color><Icon><href>https://maps.google.com/mapfiles/kml/shapes/target.png</href></Icon></IconStyle><LabelStyle><scale>1.0</scale></LabelStyle></Style>");
+            kml.AppendLine(@"<Style id=""redGroundStyle""><IconStyle><scale>1.0</scale><color>ff0000ff</color><Icon><href>https://maps.google.com/mapfiles/kml/shapes/target.png</href></Icon></IconStyle><LabelStyle><scale>1.0</scale></LabelStyle></Style>");
+            kml.AppendLine(@"<Style id=""neutralGroundStyle""><IconStyle><scale>1.0</scale><color>ffffffff</color><Icon><href>https://maps.google.com/mapfiles/kml/shapes/target.png</href></Icon></IconStyle><LabelStyle><scale>1.0</scale></LabelStyle></Style>");
+            // Threat circle styles
+            kml.AppendLine(@"<Style id=""yellowCircleStyle""><LineStyle><color>ff00ffff</color><width>3</width></LineStyle><PolyStyle><color>2000ffff</color></PolyStyle></Style>");
+            kml.AppendLine(@"<Style id=""redCircleStyle""><LineStyle><color>ff0000ff</color><width>3</width></LineStyle><PolyStyle><color>200000ff</color></PolyStyle></Style>");
+
+            static string EscapeForKml(string text)
+            {
+                if (string.IsNullOrEmpty(text)) return string.Empty;
+                return text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;").Replace("'", "&apos;");
+            }
+
+            // === PROCESS ALL COALITIONS ===
+            var coalitionVal = mission.Get("coalition");
+            if (coalitionVal.Type == DataType.Table)
+            {
+                var coalition = coalitionVal.Table;
+                string[] sides = { "blue", "red", "neutrals" };
+                foreach (var side in sides)
+                {
+                    var sideVal = coalition.Get(side);
+                    if (sideVal.Type != DataType.Table) continue;
+
+                    var countryListVal = sideVal.Table.Get("country");
+                    if (countryListVal.Type != DataType.Table) continue;
+
+                    foreach (var countryPair in countryListVal.Table.Pairs)
+                    {
+                        if (countryPair.Value.Type != DataType.Table) continue;
+                        var country = countryPair.Value.Table;
+
+                        // === AIR ROUTES & ALL WAYPOINTS ===
+                        foreach (var cat in new[] { "plane", "helicopter" })
+                        {
+                            var catVal = country.Get(cat);
+                            if (catVal.Type != DataType.Table) continue;
+                            var groupListVal = catVal.Table.Get("group");
+                            if (groupListVal.Type != DataType.Table) continue;
+
+                            foreach (var groupPair in groupListVal.Table.Pairs)
+                            {
+                                if (groupPair.Value.Type != DataType.Table) continue;
+                                var group = groupPair.Value.Table;
+                                string groupName = group.Get("name")?.String ?? "Unknown Group";
+
+                                string color = side == "blue" ? blueColors[blueIdx++ % blueColors.Length] :
+                                               side == "red" ? redColors[redIdx++ % redColors.Length] :
+                                               neutralColors[neutralIdx++ % neutralColors.Length];
+
+                                var routeVal = group.Get("route");
+                                if (routeVal.Type != DataType.Table) continue;
+                                var pointsVal = routeVal.Table.Get("points");
+                                if (pointsVal.Type != DataType.Table || pointsVal.Table.Length == 0) continue;
+
+                                // Full route LineString
+                                kml.AppendLine("<Placemark>");
+                                kml.AppendLine($"<name>{EscapeForKml(groupName)} Route</name>");
+                                kml.AppendLine($@"<Style><LineStyle><color>{color}</color><width>5</width></LineStyle></Style>");
+                                kml.AppendLine("<LineString>");
+                                kml.AppendLine("<tessellate>1</tessellate>");
+                                kml.AppendLine("<coordinates>");
+                                for (int i = 1; i <= pointsVal.Table.Length; i++)
+                                {
+                                    var pt = pointsVal.Table.Get(i);
+                                    if (pt.Type != DataType.Table) continue;
+                                    double x = pt.Table.Get("x")?.Number ?? 0;
+                                    double y = pt.Table.Get("y")?.Number ?? 0;
+                                    double alt = pt.Table.Get("alt")?.Number ?? 0;
+
+                                    // Apply Origin Calibration
+                                    var (lat, lon) = GetLatLonFromDcs(x, y, theatre);
+                                    kml.AppendLine($" {lon:F8},{lat:F8},{alt:F0}");
+                                }
+                                kml.AppendLine("</coordinates>");
+                                kml.AppendLine("</LineString>");
+                                kml.AppendLine("</Placemark>");
+
+                                // Individual waypoint placemarks (ALL of them)
+                                for (int i = 1; i <= pointsVal.Table.Length; i++)
+                                {
+                                    var pt = pointsVal.Table.Get(i);
+                                    if (pt.Type != DataType.Table) continue;
+                                    double x = pt.Table.Get("x")?.Number ?? 0;
+                                    double y = pt.Table.Get("y")?.Number ?? 0;
+                                    double alt = pt.Table.Get("alt")?.Number ?? 0;
+                                    string wpName = pt.Table.Get("name")?.String ?? $"WP{i}";
+
+                                    // Apply Origin Calibration
+                                    var (lat, lon) = GetLatLonFromDcs(x, y, theatre);
+                                    kml.AppendLine("<Placemark>");
+                                    kml.AppendLine($"<name>{EscapeForKml(wpName)}</name>");
+                                    kml.AppendLine($"<description><![CDATA[Waypoint {i}<br/>Alt: {alt:F0} m]]></description>");
+                                    kml.AppendLine("<styleUrl>#wpStyle</styleUrl>");
+                                    kml.AppendLine("<Point>");
+                                    kml.AppendLine($"<coordinates>{lon:F8},{lat:F8},{alt:F0}</coordinates>");
+                                    kml.AppendLine("</Point>");
+                                    kml.AppendLine("</Placemark>");
+                                }
+                            }
+                        }
+
+                        // === GROUND TARGETS (vehicles, ships, statics) ===
+                        foreach (var cat in new[] { "vehicle", "ship", "static" })
+                        {
+                            var catVal = country.Get(cat);
+                            if (catVal.Type != DataType.Table) continue;
+                            var groupListVal = catVal.Table.Get("group");
+                            if (groupListVal.Type != DataType.Table) continue;
+
+                            foreach (var gPair in groupListVal.Table.Pairs)
+                            {
+                                if (gPair.Value.Type != DataType.Table) continue;
+                                var g = gPair.Value.Table;
+                                string groupName = g.Get("name")?.String ?? "Unknown Target";
+                                double gx = g.Get("x")?.Number ?? 0;
+                                double gy = g.Get("y")?.Number ?? 0;
+
+                                var unitCounts = new Dictionary<string, int>();
+                                var unitsVal = g.Get("units");
+                                if (unitsVal.Type == DataType.Table)
+                                {
+                                    for (int u = 1; u <= unitsVal.Table.Length; u++)
+                                    {
+                                        var unit = unitsVal.Table.Get(u);
+                                        if (unit.Type != DataType.Table) continue;
+                                        string uType = unit.Table.Get("type")?.String ?? "Unknown";
+                                        unitCounts[uType] = unitCounts.GetValueOrDefault(uType, 0) + 1;
+                                    }
+                                }
+                                string unitInfo = unitCounts.Count > 0
+                                    ? string.Join(", ", unitCounts.Select(kv => $"{kv.Key} ×{kv.Value}"))
+                                    : cat.ToUpper();
+
+                                var (lat, lon) = GetLatLonFromDcs(gx, gy, theatre);
+
+                                string markerStyle = side == "blue" ? "#blueGroundStyle" : side == "red" ? "#redGroundStyle" : "#neutralGroundStyle";
+
+                                kml.AppendLine("<Placemark>");
+                                kml.AppendLine($"<name>{EscapeForKml(groupName)}</name>");
+                                kml.AppendLine($"<description><![CDATA[{cat.ToUpper()} • {unitInfo}<br/>{gx:F0}, {gy:F0}]]></description>");
+                                kml.AppendLine($"<styleUrl>{markerStyle}</styleUrl>");
+                                kml.AppendLine("<Point>");
+                                kml.AppendLine($"<coordinates>{lon:F8},{lat:F8},0</coordinates>");
+                                kml.AppendLine("</Point>");
+                                kml.AppendLine("</Placemark>");
+
+                                // Threat circles
+                                bool hasThreat = false;
+                                double maxTrack = 0, maxFire = 0;
+                                foreach (var type in unitCounts.Keys)
+                                {
+                                    string key = type.ToLower().Replace(" ", "").Replace("-", "");
+                                    if (threatService.GetThreatRanges(key) is (double track, double fire))
+                                    {
+                                        hasThreat = true;
+                                        maxTrack = Math.Max(maxTrack, track);
+                                        maxFire = Math.Max(maxFire, fire);
+                                    }
+                                }
+                                if (hasThreat && maxTrack > 0)
+                                {
+                                    // Convert meters to NM (1 NM = 1852 meters)
+                                    double maxTrackNm = maxTrack / 1852.0;
+                                    double maxFireNm = maxFire / 1852.0;
+
+                                    string yellowCoords = GenerateCircle(lat, lon, maxTrackNm);
+                                    kml.AppendLine("<Placemark>");
+                                    kml.AppendLine($"<name>{EscapeForKml(groupName)} - Tracking Range</name>");
+                                    kml.AppendLine("<styleUrl>#yellowCircleStyle</styleUrl>");
+                                    kml.AppendLine("<Polygon><outerBoundaryIs><LinearRing><coordinates>" + yellowCoords + "</coordinates></LinearRing></outerBoundaryIs></Polygon>");
+                                    kml.AppendLine("</Placemark>");
+
+                                    if (maxFire > 0 && maxFire < maxTrack)
+                                    {
+                                        string redCoords = GenerateCircle(lat, lon, maxFireNm);
+                                        kml.AppendLine("<Placemark>");
+                                        kml.AppendLine($"<name>{EscapeForKml(groupName)} - Firing Range</name>");
+                                        kml.AppendLine("<styleUrl>#redCircleStyle</styleUrl>");
+                                        kml.AppendLine("<Polygon><outerBoundaryIs><LinearRing><coordinates>" + redCoords + "</coordinates></LinearRing></outerBoundaryIs></Polygon>");
+                                        kml.AppendLine("</Placemark>");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            kml.AppendLine("</Document>");
+            kml.AppendLine("</kml>");
+
+            File.WriteAllText(kmlPath, kml.ToString());
+            Console.WriteLine($" 🗺️ KML created with FULL routes + ALL waypoints + ground targets → {kmlPath}");
+        }
+
+        private static string GenerateCircle(double centerLat, double centerLon, double radiusNm, int segments = 36)
+        {
+            var sb = new System.Text.StringBuilder();
+            double radiusRad = radiusNm * 1852.0 / 6371000.0;
+            for (int i = 0; i <= segments; i++)
+            {
+                double angle = i * 2 * Math.PI / segments;
+                double dLat = radiusRad * Math.Cos(angle);
+                double dLon = radiusRad * Math.Sin(angle) / Math.Cos(centerLat * Math.PI / 180.0);
+                double lat = centerLat + dLat * (180.0 / Math.PI);
+                double lon = centerLon + dLon * (180.0 / Math.PI);
+                sb.Append($"{lon:F8},{lat:F8},0 ");
+            }
+            return sb.ToString().Trim();
+        }
+
+        private (double lat, double lon) GetLatLonFromDcs(double x, double y, string theatre)
+        {
+            return converter.Convert(x, y, theatre);
+        }
+
+    }
+}
