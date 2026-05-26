@@ -8,7 +8,7 @@ namespace DcsMissionReader.Services.Generators
     /// <summary>
     /// Implements the IMissionExportStrategy interface to generate an HTML report for a DCS mission. This class is responsible for gathering the necessary data from the mission, such as kneeboards and images, and then building an HTML string that represents the report. Finally, it writes the generated HTML to a file in the specified report directory. By implementing this strategy, the application can provide users with a visually appealing and easily accessible report of their DCS missions in HTML format.
     /// </summary>
-    public class HtmlReportGenerator(ICoordinateConverterService converter) : IMissionExportStrategy
+    public class HtmlReportGenerator(IFileManagementService fileManagementService) : IMissionExportStrategy
     {
         public bool ShouldExport(AppOptions options) => options.CreateHtml;
 
@@ -21,8 +21,8 @@ namespace DcsMissionReader.Services.Generators
             Directory.CreateDirectory(kneeboardsDir);
 
             // Re-use your existing copy logic (ensure these helpers are moved here too)
-            CopyImages(context.TempDir, imagesDir);
-            int kneeboardCount = CopyKneeboards(context.TempDir, kneeboardsDir);
+            fileManagementService.CopyImages(context.TempDir, imagesDir);
+            int kneeboardCount = fileManagementService.CopyKneeboards(context.TempDir, kneeboardsDir);
 
             // Fetch metadata
             string mapName = File.Exists(Path.Combine(context.TempDir, "theatre")) ? File.ReadAllText(Path.Combine(context.TempDir, "theatre")).Trim() : "Unknown";
@@ -88,161 +88,13 @@ namespace DcsMissionReader.Services.Generators
         }
 
         /// <summary>
-        /// Copies kneeboard images from the temporary directory to the report's kneeboards directory. It searches for any folders named "Kneeboard" (case-insensitive) within the extracted mission files and copies all image files (with extensions .jpg, .jpeg, .png, .pdf) while preserving the subfolder structure. The method returns the total count of kneeboard pages copied, which can be used for reporting purposes in the generated HTML and JSON outputs.    
-        /// </summary>
-        /// <param name="tempDir">The temporary directory containing the extracted mission files.</param>
-        /// <param name="kneeboardsDir">The destination directory for the kneeboard images.</param>
-        /// <returns>The total count of kneeboard pages copied.</returns>
-        private static int CopyKneeboards(string tempDir, string kneeboardsDir)
-        {
-            string[] kneeboardExts = { ".jpg", ".jpeg", ".png", ".pdf" };
-            var kneeboardFolders = Directory.GetDirectories(tempDir, "*", SearchOption.AllDirectories)
-                .Where(d => Path.GetFileName(d).Equals("Kneeboard", StringComparison.OrdinalIgnoreCase) ||
-                            Path.GetFileName(d).Equals("KNEEBOARD", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            int count = 0;
-            foreach (var kbFolder in kneeboardFolders)
-            {
-                var files = Directory.GetFiles(kbFolder, "*.*", SearchOption.AllDirectories)
-                    .Where(f => kneeboardExts.Contains(Path.GetExtension(f).ToLowerInvariant()));
-
-                foreach (var src in files)
-                {
-                    // Preserve subfolder structure (e.g. Kneeboard/IMAGES/F-16C/...)
-                    string relative = Path.GetRelativePath(kbFolder, src);
-                    string dest = Path.Combine(kneeboardsDir, relative);
-                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-                    File.Copy(src, dest, overwrite: true);
-                    count++;
-                }
-            }
-            return count;
-        }
-
-        /// <summary>
-        /// Copies image files from the temporary directory to the report's images directory.
-        /// </summary>
-        /// <param name="tempDir">The temporary directory containing the extracted mission files.</param>
-        /// <param name="imagesDir">The target directory for the images.</param>
-        private static void CopyImages(string tempDir, string imagesDir)
-        {
-            string[] imageExts = { ".jpg", ".jpeg", ".png", ".dds" };
-            var images = Directory.GetFiles(tempDir, "*.*", SearchOption.AllDirectories)
-                .Where(f => imageExts.Contains(Path.GetExtension(f).ToLowerInvariant()));
-
-            foreach (var src in images)
-            {
-                string dest = Path.Combine(imagesDir, Path.GetFileName(src));
-                File.Copy(src, dest, overwrite: true);
-            }
-        }
-
-        /// <summary>
-        /// Generates an HTML report for the mission briefing. The report includes the mission name, map, date, start time, version, briefing text, blue and red tasks (if available), and a gallery of briefing images. The HTML is styled using Tailwind CSS for a clean and modern look. The generated report is saved as "index.html" in the specified report directory, and the images are copied to an "images" subdirectory for display in the report.  
-        /// </summary>
-        /// <param name="reportDir">The directory where the report will be saved.</param>
-        /// <param name="imagesDir">The directory where the images will be saved.</param>
-        /// <param name="sortie">The mission sortie name.</param>
-        /// <param name="mapName">The name of the map.</param>
-        /// <param name="fullDate">The full date of the mission.</param>
-        /// <param name="startTime">The start time of the mission.</param>
-        /// <param name="version">The version of the mission.</param>
-        /// <param name="description">The briefing text of the mission.</param>
-        /// <param name="blueTask">The blue task description.</param>
-        /// <param name="redTask">The red task description.</param>
-        /// <param name="kneeboardsDir"> The directory where custom kneeboards are saved (for counting purposes).</param>
-        /// <param name="kneeboardCount">The number of custom kneeboards.</param>
-        /// <param name="mission">The mission table (for generating the ATO section).</param>
-        /// <param name="options">The application options (for generating the weather section).</param>
-        private void GenerateHtmlReport(string reportDir, string imagesDir, string kneeboardsDir, string sortie,
-            string mapName, string fullDate, string startTime, string version, string description,
-            string blueTask, string redTask, int kneeboardCount, Table mission, AppOptions options)
-        {
-            string htmlPath = Path.Combine(reportDir, "index.html");
-
-            // Kneeboard grid (unchanged)
-            string kneeboardHtml = "";
-            if (kneeboardCount > 0)
-            {
-                var kbFiles = Directory.GetFiles(kneeboardsDir, "*.*", SearchOption.AllDirectories)
-                    .OrderBy(f => f)
-                    .ToList();
-
-                kneeboardHtml = $@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">📋 Custom Kneeboards ({kneeboardCount} pages)</h2><div class=""image-grid"">";
-
-                foreach (var f in kbFiles)
-                {
-                    string ext = Path.GetExtension(f).ToLowerInvariant();
-                    string relativePath = Path.GetRelativePath(kneeboardsDir, f);
-                    string preview = ext == ".pdf"
-                        ? @"<div class=""h-64 flex items-center justify-center bg-gray-800 text-4xl"">📄</div>"
-                        : $@"<img src=""kneeboards/{relativePath}"" class=""w-full"">";
-
-                    kneeboardHtml += $@"<div class=""bg-gray-900 rounded-xl overflow-hidden border border-gray-700"">
-                        {preview}
-                        <div class=""px-4 py-2 text-xs text-gray-400 font-mono"">{relativePath}</div>
-                    </div>";
-                }
-                kneeboardHtml += "</div>";
-            }
-
-            string html = $@"<!DOCTYPE html>
-                <html lang=""en""><head><meta charset=""utf-8""><title>{sortie}</title>
-                <script src=""https://cdn.tailwindcss.com""></script>
-                <style>body{{font-family:system-ui,sans-serif;}}.image-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:1rem;}} table{{border-collapse:collapse;}} th,td{{padding:0.75rem;}}</style>
-                </head>
-                <body class=""bg-gray-950 text-gray-100"">
-                <div class=""max-w-5xl mx-auto p-8"">
-                <h1 class=""text-5xl font-bold mb-2"">{sortie}</h1>
-                <div class=""flex gap-6 text-sm text-gray-400 mb-8"">
-                <div><span class=""font-semibold"">Map:</span> {mapName}</div>
-                <div><span class=""font-semibold"">Date:</span> {fullDate}</div>
-                <div><span class=""font-semibold"">Start:</span> {startTime}</div>
-                <div><span class=""font-semibold"">Version:</span> {version}</div>
-                </div>
-
-                <h2 class=""text-2xl font-semibold mb-4 border-b border-gray-700 pb-2"">Briefing</h2>
-                <div class=""prose prose-invert max-w-none text-lg"">{(string.IsNullOrWhiteSpace(description) ? "<p class=\"text-gray-400\">No briefing text.</p>" : "<p>" + description.Replace("\n", "</p><p>") + "</p>")}</div>
-
-                {(string.IsNullOrWhiteSpace(blueTask) ? "" : $"<h2 class=\"text-2xl font-semibold mt-12 mb-4 border-b border-blue-700 pb-2\">Blue Task</h2><div class=\"prose prose-invert\">{blueTask.Replace("\n", "<br>")}</div>")}
-                {(string.IsNullOrWhiteSpace(redTask) ? "" : $"<h2 class=\"text-2xl font-semibold mt-12 mb-4 border-b border-red-700 pb-2\">Red Task</h2><div class=\"prose prose-invert\">{redTask.Replace("\n", "<br>")}</div>")}
-
-                <h2 class=""text-2xl font-semibold mt-16 mb-6"">📸 Briefing Images</h2>
-                <div class=""image-grid"">{string.Join("", Directory.GetFiles(imagesDir).Select(f => $@"<div class=""bg-gray-900 rounded-xl overflow-hidden border border-gray-700""><img src=""images/{Path.GetFileName(f)}"" class=""w-full""><div class=""px-4 py-2 text-xs text-gray-400 font-mono"">{Path.GetFileName(f)}</div></div>"))}</div>
-
-                {kneeboardHtml}
-
-                {GeneratePlayerSlotsHtmlSection(mission)}
-
-                {GenerateFlightsWithWaypointsHtmlSection(mission)}
-
-                {GenerateRequiredModsHtmlSection(mission)}
-
-                {GenerateAtoHtmlSection(mission)}
-
-                {GenerateUnitsAndTargetsHtmlSection(mission)}
-
-                {GenerateWeatherHtmlSection(mission, options.Units)}
-
-                {GenerateOrderOfBattleHtmlSection(mission)}
-
-                <div class=""mt-16 text-center text-xs text-gray-500"">
-                Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
-                </div>
-                </div></body></html>";
-
-            File.WriteAllText(htmlPath, html);
-        }
-
-        /// <summary>
         /// Generates ATO or Air Tasking Order section for the HTML report. This section lists the groups of aircraft assigned to various tasks for each coalition (Blue, Red, Neutral). It extracts the relevant information from the mission table, including group names, tasks, aircraft types, quantities, and start times, and formats it into an HTML table. The section is styled using Tailwind CSS to match the overall design of the report. This provides a clear and organized overview of the air operations planned in the mission briefing.
         /// </summary>
         /// <param name="mission">The mission table containing the ATO data.</param>
         /// <returns>The HTML string representing the ATO section.</returns>
         private static string GenerateAtoHtmlSection(Table mission)
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new StringBuilder();
             sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">✈️ Air Tasking Order (ATO)</h2>");
 
             var coalitionTable = mission.Get("coalition");

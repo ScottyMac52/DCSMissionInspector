@@ -27,6 +27,7 @@ namespace DcsMissionReader
             services.AddSingleton<IMissionExportStrategy, HtmlReportGenerator>();
             services.AddSingleton<IMissionExportStrategy, JsonSummaryGenerator>();
             services.AddSingleton<IMissionExportStrategy, KmlExportGenerator>();
+            services.AddSingleton<IFileManagementService, FileManagementService>();
 
             using var serviceProvider = services.BuildServiceProvider();
 

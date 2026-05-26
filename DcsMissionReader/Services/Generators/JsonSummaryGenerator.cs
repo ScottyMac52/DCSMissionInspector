@@ -23,7 +23,7 @@ namespace DcsMissionReader.Services.Generators
             string startTime = $"{(int)(startSec / 3600):D2}:{(int)((startSec % 3600) / 60):D2}";
             string version = context.MissionTable.Get("version").ToString();
             // We need a dictTable for Resolve if it exists
-            Table? dictTable = GetDictionary(context.TempDir);
+            Table? dictTable = MissionUtils.LoadDictionary(context.TempDir);
             string description = MissionUtils.Resolve(context.MissionTable.Get("descriptionText"), dictTable);
             string blueTask = MissionUtils.Resolve(context.MissionTable.Get("descriptionBlueTask"), dictTable);
             string redTask = MissionUtils.Resolve(context.MissionTable.Get("descriptionRedTask"), dictTable);
@@ -37,16 +37,6 @@ namespace DcsMissionReader.Services.Generators
             {
                 GenerateFullExport(context.ReportDir, context.MissionTable, dictTable, context.TempDir);
             }
-        }
-
-        private static Table? GetDictionary(string tempDir)
-        {
-            string dictPath = Path.Combine(tempDir, @"l10n\DEFAULT\dictionary");
-            if (!File.Exists(dictPath)) return null;
-
-            var script = new Script();
-            script.DoFile(dictPath);
-            return script.Globals.Get("dictionary").Table;
         }
 
         private static void GenerateJsonSummary(string reportDir, string sortie, string mapName, string fullDate,

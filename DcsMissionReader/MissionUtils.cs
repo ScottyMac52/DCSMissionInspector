@@ -52,6 +52,15 @@ namespace DcsMissionReader
             return name.Trim().TrimEnd('.');
         }
 
+        public static Table? LoadDictionary(string tempDir)
+        {
+            string dictPath = Path.Combine(tempDir, @"l10n\DEFAULT\dictionary");
+            if (!File.Exists(dictPath)) return null;
+            var script = new Script();
+            script.DoFile(dictPath);
+            return script.Globals.Get("dictionary").Table;
+        }
+
         /// <summary>
         /// Converts a MoonSharp Table into a C# dictionary, recursively processing nested tables.
         /// </summary>
