@@ -1,0 +1,4448 @@
+{
+  "redacted": {
+    "Type": "Redacted",
+    "DisplayName": "Redacted",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "train": {
+    "Type": "Train",
+    "DisplayName": "Train",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "as3231a": {
+    "Type": "AS32-31A",
+    "DisplayName": "AS32-31A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "as3232a": {
+    "Type": "AS32-32A",
+    "DisplayName": "AS32-32A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "as3236a": {
+    "Type": "AS32-36A",
+    "DisplayName": "AS32-36A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "as32p25": {
+    "Type": "AS32-p25",
+    "DisplayName": "AS32-P25",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cv59h60": {
+    "Type": "CV_59_H60",
+    "DisplayName": "CV-59 Hyster 60",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cv59largeforklift": {
+    "Type": "CV_59_Large_Forklift",
+    "DisplayName": "CV-59 Large Forklift",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cv59md3": {
+    "Type": "CV_59_MD3",
+    "DisplayName": "CV-59 MD-3 Mule (Early)",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cv59ns60": {
+    "Type": "CV_59_NS60",
+    "DisplayName": "CV-59 NS-60 Tilly",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "saskiramp": {
+    "Type": "SA Ski Ramp",
+    "DisplayName": "Skiramp02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "skiramp": {
+    "Type": "Ski Ramp",
+    "DisplayName": "Skiramp",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cow": {
+    "Type": "Cow",
+    "DisplayName": "Cow",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "463pallet": {
+    "Type": "463_Pallet",
+    "DisplayName": "463 Pallet",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ammocargo": {
+    "Type": "ammo_cargo",
+    "DisplayName": "Ammo",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "barrelscargo": {
+    "Type": "barrels_cargo",
+    "DisplayName": "Barrels",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cdsbarrels": {
+    "Type": "cds_barrels",
+    "DisplayName": "CDS Barrels",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cdscrate": {
+    "Type": "cds_crate",
+    "DisplayName": "CDS Crate",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "containercargo": {
+    "Type": "container_cargo",
+    "DisplayName": "Container",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "fueltankcargo": {
+    "Type": "fueltank_cargo",
+    "DisplayName": "Fueltank",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "fbarcargo": {
+    "Type": "f_bar_cargo",
+    "DisplayName": "F-shape barrier",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "gbu43bairdrop": {
+    "Type": "gbu_43b_airdrop",
+    "DisplayName": "GBU-43 MOAB",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "isocontainer": {
+    "Type": "iso_container",
+    "DisplayName": "ISO container",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "isocontainersmall": {
+    "Type": "iso_container_small",
+    "DisplayName": "ISO container small",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "l118": {
+    "Type": "l118",
+    "DisplayName": "L118 Light Artillery",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m117cargo": {
+    "Type": "m117_cargo",
+    "DisplayName": "M117 bombs",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m9210ftcontainer": {
+    "Type": "M92_10Ft_Container",
+    "DisplayName": "10ft Container",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m92ammopallet": {
+    "Type": "M92_Ammo_Pallet",
+    "DisplayName": "Ammo Pallet",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m92concretebarriercargo": {
+    "Type": "M92_Concrete_Barrier_Cargo",
+    "DisplayName": "Concrete Barrier",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m92mrepallet": {
+    "Type": "M92_MRE_Pallet",
+    "DisplayName": "MRE Pallet",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "oiltankcargo": {
+    "Type": "oiltank_cargo",
+    "DisplayName": "Oiltank",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "pipesbigcargo": {
+    "Type": "pipes_big_cargo",
+    "DisplayName": "Pipes big",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "pipessmallcargo": {
+    "Type": "pipes_small_cargo",
+    "DisplayName": "Pipes small",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tetrapodcargo": {
+    "Type": "tetrapod_cargo",
+    "DisplayName": "Tetrapod",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "trunkslongcargo": {
+    "Type": "trunks_long_cargo",
+    "DisplayName": "Trunks long",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "trunkssmallcargo": {
+    "Type": "trunks_small_cargo",
+    "DisplayName": "Trunks short",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "uh1hcargo": {
+    "Type": "uh1h_cargo",
+    "DisplayName": "UH-1H cargo",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "1l13ewr": {
+    "Type": "1L13 EWR",
+    "DisplayName": "EWR 1L13",
+    "DetectionRange": 300000,
+    "ThreatRange": 0
+  },
+  "2b11mortar": {
+    "Type": "2B11 mortar",
+    "DisplayName": "Mortar 2B11 120mm",
+    "DetectionRange": 0,
+    "ThreatRange": 7000
+  },
+  "2s6tunguska": {
+    "Type": "2S6 Tunguska",
+    "DisplayName": "SAM SA-19 Tunguska ",
+    "DetectionRange": 18000,
+    "ThreatRange": 8000
+  },
+  "55g6ewr": {
+    "Type": "55G6 EWR",
+    "DisplayName": "EWR 55G6",
+    "DetectionRange": 400000,
+    "ThreatRange": 0
+  },
+  "5p73s125ln": {
+    "Type": "5p73 s-125 ln",
+    "DisplayName": "SAM SA-3 S-125 ",
+    "DetectionRange": 0,
+    "ThreatRange": 18000
+  },
+  "aa8": {
+    "Type": "AA8",
+    "DisplayName": "Firefighter Vehicle AA-7.2/60",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "aav7": {
+    "Type": "AAV7",
+    "DisplayName": "APC AAV-7 Amphibious",
+    "DetectionRange": 0,
+    "ThreatRange": 1200
+  },
+  "alliesdirector": {
+    "Type": "Allies_Director",
+    "DisplayName": "Allies Rangefinder (DRT)",
+    "DetectionRange": 30000,
+    "ThreatRange": 0
+  },
+  "atmz5": {
+    "Type": "ATMZ-5",
+    "DisplayName": "Refueler ATMZ-5",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "atz10": {
+    "Type": "ATZ-10",
+    "DisplayName": "Refueler ATZ-10",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "atz5": {
+    "Type": "ATZ-5",
+    "DisplayName": "Refueler ATZ-5",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "atz60maz": {
+    "Type": "ATZ-60_Maz",
+    "DisplayName": "Refueler ATZ-60 Tractor (MAZ-7410)",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "b600drivable": {
+    "Type": "B600_drivable",
+    "DisplayName": "M92 B600 drivable",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "bedfordmwd": {
+    "Type": "Bedford_MWD",
+    "DisplayName": "Truck Bedford",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "blitz366700a": {
+    "Type": "Blitz_36-6700A",
+    "DisplayName": "Truck Opel Blitz",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "bmd1": {
+    "Type": "BMD-1",
+    "DisplayName": "IFV BMD-1",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "bmp1": {
+    "Type": "BMP-1",
+    "DisplayName": "IFV BMP-1",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "bmp2": {
+    "Type": "BMP-2",
+    "DisplayName": "IFV BMP-2",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "bmp3": {
+    "Type": "BMP-3",
+    "DisplayName": "IFV BMP-3",
+    "DetectionRange": 0,
+    "ThreatRange": 4000
+  },
+  "bofors40": {
+    "Type": "bofors40",
+    "DisplayName": "AAA Bofors 40mm",
+    "DetectionRange": 0,
+    "ThreatRange": 2000
+  },
+  "boxcartrinity": {
+    "Type": "Boxcartrinity",
+    "DisplayName": "Rwy. Flat Car",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "brdm2": {
+    "Type": "BRDM-2",
+    "DisplayName": "Scout BRDM-2",
+    "DetectionRange": 0,
+    "ThreatRange": 1600
+  },
+  "brdm2malyutka": {
+    "Type": "BRDM-2_malyutka",
+    "DisplayName": "ATGM AT-3 Sagger 9P133",
+    "DetectionRange": 5000,
+    "ThreatRange": 3000
+  },
+  "btr60": {
+    "Type": "BTR-60",
+    "DisplayName": "APC BTR-60",
+    "DetectionRange": 0,
+    "ThreatRange": 1600
+  },
+  "btr70": {
+    "Type": "BTR-70",
+    "DisplayName": "APC BTR-70",
+    "DetectionRange": 0,
+    "ThreatRange": 1600
+  },
+  "btr80": {
+    "Type": "BTR-80",
+    "DisplayName": "APC BTR-80",
+    "DetectionRange": 0,
+    "ThreatRange": 1600
+  },
+  "btr82a": {
+    "Type": "BTR-82A",
+    "DisplayName": "IFV BTR-82A",
+    "DetectionRange": 0,
+    "ThreatRange": 2000
+  },
+  "btrd": {
+    "Type": "BTR_D",
+    "DisplayName": "APC BTR-RD",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "bunker": {
+    "Type": "Bunker",
+    "DisplayName": "Bunker 2",
+    "DetectionRange": 0,
+    "ThreatRange": 800
+  },
+  "cckw353": {
+    "Type": "CCKW_353",
+    "DisplayName": "Truck GMC ",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "centauriv": {
+    "Type": "Centaur_IV",
+    "DisplayName": "Tk Centaur IV CS",
+    "DetectionRange": 0,
+    "ThreatRange": 6000
+  },
+  "challenger2": {
+    "Type": "Challenger2",
+    "DisplayName": "MBT Challenger II",
+    "DetectionRange": 0,
+    "ThreatRange": 3500
+  },
+  "chap9k720cluster": {
+    "Type": "CHAP_9K720_Cluster",
+    "DisplayName": "SRBM 9K720 Iskander CM [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 400000
+  },
+  "chap9k720he": {
+    "Type": "CHAP_9K720_HE",
+    "DisplayName": "SRBM 9K720 Iskander HE [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 400000
+  },
+  "chapbmpt": {
+    "Type": "CHAP_BMPT",
+    "DisplayName": "IFV BMPT Terminator [CH]",
+    "DetectionRange": 7000,
+    "ThreatRange": 6000
+  },
+  "chapfv101": {
+    "Type": "CHAP_FV101",
+    "DisplayName": "LT FV101 Scorpion [CH]",
+    "DetectionRange": 5000,
+    "ThreatRange": 5000
+  },
+  "chapfv107": {
+    "Type": "CHAP_FV107",
+    "DisplayName": "Scout FV107 Scimitar [CH]",
+    "DetectionRange": 6000,
+    "ThreatRange": 2500
+  },
+  "chapiristslmcp": {
+    "Type": "CHAP_IRISTSLM_CP",
+    "DisplayName": "SAM IRIS-T SLM C2 [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "chapiristslmln": {
+    "Type": "CHAP_IRISTSLM_LN",
+    "DisplayName": "SAM IRIS-T SLM LN [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 40000
+  },
+  "chapiristslmstr": {
+    "Type": "CHAP_IRISTSLM_STR",
+    "DisplayName": "SAM IRIS-T SLM STR [CH]",
+    "DetectionRange": 250000,
+    "ThreatRange": 0
+  },
+  "chapm1083": {
+    "Type": "CHAP_M1083",
+    "DisplayName": "Truck M1083 A1P2 MTV [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "chapm1130": {
+    "Type": "CHAP_M1130",
+    "DisplayName": "IFV M1130 Stryker CV [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 1200
+  },
+  "chapm142atacmsm39a1": {
+    "Type": "CHAP_M142_ATACMS_M39A1",
+    "DisplayName": "MLRS M142 HIMARS ATACMS CM [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 300000
+  },
+  "chapm142atacmsm48": {
+    "Type": "CHAP_M142_ATACMS_M48",
+    "DisplayName": "MLRS M142 HIMARS ATACMS HE [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 300000
+  },
+  "chapm142gmlrsm30": {
+    "Type": "CHAP_M142_GMLRS_M30",
+    "DisplayName": "MLRS M142 HIMARS GMLRS CM [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 70000
+  },
+  "chapm142gmlrsm31": {
+    "Type": "CHAP_M142_GMLRS_M31",
+    "DisplayName": "MLRS M142 HIMARS GMLRS HE [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 70000
+  },
+  "chapmatv": {
+    "Type": "CHAP_MATV",
+    "DisplayName": "APC MRAP M-ATV [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 1200
+  },
+  "chappantsirs1": {
+    "Type": "CHAP_PantsirS1",
+    "DisplayName": "SAM SA-22 Pantsir-S1 ",
+    "DetectionRange": 36000,
+    "ThreatRange": 20000
+  },
+  "chapt64bv": {
+    "Type": "CHAP_T64BV",
+    "DisplayName": "MBT T-64BV Type 2017 [CH]",
+    "DetectionRange": 5000,
+    "ThreatRange": 4000
+  },
+  "chapt84oplotm": {
+    "Type": "CHAP_T84OplotM",
+    "DisplayName": "MBT T-84 Oplot-M [CH]",
+    "DetectionRange": 8000,
+    "ThreatRange": 5000
+  },
+  "chapt90m": {
+    "Type": "CHAP_T90M",
+    "DisplayName": "MBT T-90M [CH]",
+    "DetectionRange": 8000,
+    "ThreatRange": 5000
+  },
+  "chaptorm2": {
+    "Type": "CHAP_TorM2",
+    "DisplayName": "SAM SA-15 Tor M2 ",
+    "DetectionRange": 32000,
+    "ThreatRange": 16000
+  },
+  "chaptos1a": {
+    "Type": "CHAP_TOS1A",
+    "DisplayName": "MLRS TOS-1A Solntsepyok [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 6000
+  },
+  "chieftainmk3": {
+    "Type": "Chieftain_mk3",
+    "DisplayName": "MBT Chieftain Mk.3",
+    "DetectionRange": 0,
+    "ThreatRange": 3500
+  },
+  "churchillvii": {
+    "Type": "Churchill_VII",
+    "DisplayName": "Tk Churchill VII",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "coachapassenger": {
+    "Type": "Coach a passenger",
+    "DisplayName": "Rwy. Passenger Car",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "coachaplatform": {
+    "Type": "Coach a platform",
+    "DisplayName": "Rwy. Coach Platform",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "coachatankblue": {
+    "Type": "Coach a tank blue",
+    "DisplayName": "Rwy. Tank Car blue",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "coachatankyellow": {
+    "Type": "Coach a tank yellow",
+    "DisplayName": "Rwy. Tank Car yellow",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "coachcargoopen": {
+    "Type": "Coach cargo open",
+    "DisplayName": "Rwy. Open Wagon",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "coachcargo": {
+    "Type": "Coach cargo",
+    "DisplayName": "Rwy. Freight Van",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cobra": {
+    "Type": "Cobra",
+    "DisplayName": "Scout Cobra",
+    "DetectionRange": 0,
+    "ThreatRange": 1200
+  },
+  "cromwelliv": {
+    "Type": "Cromwell_IV",
+    "DisplayName": "Tk Cromwell IV",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "daimlerac": {
+    "Type": "Daimler_AC",
+    "DisplayName": "Car Daimler Armored",
+    "DetectionRange": 0,
+    "ThreatRange": 2000
+  },
+  "dogearradar": {
+    "Type": "Dog Ear radar",
+    "DisplayName": "MCC-SR Sborka ",
+    "DetectionRange": 35000,
+    "ThreatRange": 0
+  },
+  "drgclass86": {
+    "Type": "DRG_Class_86",
+    "DisplayName": "Rwy. Loco DRG Class 86 (Germany, WWII)",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "dr50tonflatwagon": {
+    "Type": "DR_50Ton_Flat_Wagon",
+    "DisplayName": "DR 50-ton flat wagon",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "electriclocomotive": {
+    "Type": "Electric locomotive",
+    "DisplayName": "Rwy. Loco VL80 Electric",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "elefantsdkfz184": {
+    "Type": "Elefant_SdKfz_184",
+    "DisplayName": "SPG Elefant TD",
+    "DetectionRange": 0,
+    "ThreatRange": 6000
+  },
+  "es44ah": {
+    "Type": "ES44AH",
+    "DisplayName": "Rwy. Loco ES44AH",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "firecontrol": {
+    "Type": "fire_control",
+    "DisplayName": "Bunker with Fire Control Center",
+    "DetectionRange": 0,
+    "ThreatRange": 1100
+  },
+  "flak18": {
+    "Type": "flak18",
+    "DisplayName": "AAA 8,8cm Flak 18",
+    "DetectionRange": 0,
+    "ThreatRange": 5000
+  },
+  "flak30": {
+    "Type": "flak30",
+    "DisplayName": "AAA Flak 38 20mm",
+    "DetectionRange": 0,
+    "ThreatRange": 2500
+  },
+  "flak36": {
+    "Type": "flak36",
+    "DisplayName": "AAA 8,8cm Flak 36",
+    "DetectionRange": 0,
+    "ThreatRange": 5000
+  },
+  "flak37": {
+    "Type": "flak37",
+    "DisplayName": "AAA 8,8cm Flak 37",
+    "DetectionRange": 0,
+    "ThreatRange": 5000
+  },
+  "flak38": {
+    "Type": "flak38",
+    "DisplayName": "AAA Flak-Vierling 38 Quad 20mm",
+    "DetectionRange": 0,
+    "ThreatRange": 2500
+  },
+  "flak41": {
+    "Type": "flak41",
+    "DisplayName": "AAA 8,8cm Flak 41",
+    "DetectionRange": 0,
+    "ThreatRange": 5000
+  },
+  "flakscheinwerfer37": {
+    "Type": "Flakscheinwerfer_37",
+    "DisplayName": "SL Flakscheinwerfer 37",
+    "DetectionRange": 15000,
+    "ThreatRange": 15000
+  },
+  "fps117dome": {
+    "Type": "FPS-117 Dome",
+    "DisplayName": "EWR AN/FPS-117 Radar (domed)",
+    "DetectionRange": 400000,
+    "ThreatRange": 0
+  },
+  "fps117ecs": {
+    "Type": "FPS-117 ECS",
+    "DisplayName": "EWR AN/FPS-117 ECS",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "fps117": {
+    "Type": "FPS-117",
+    "DisplayName": "EWR AN/FPS-117 Radar",
+    "DetectionRange": 463000,
+    "ThreatRange": 0
+  },
+  "fumg401": {
+    "Type": "FuMG-401",
+    "DisplayName": "EWR FuMG-401 Freya LZ",
+    "DetectionRange": 160000,
+    "ThreatRange": 0
+  },
+  "fuse65": {
+    "Type": "FuSe-65",
+    "DisplayName": "EWR FuSe-65 W\u00FCrzburg-Riese",
+    "DetectionRange": 60000,
+    "ThreatRange": 0
+  },
+  "gaz3307": {
+    "Type": "GAZ-3307",
+    "DisplayName": "Truck GAZ-3307",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "gaz3308": {
+    "Type": "GAZ-3308",
+    "DisplayName": "Truck GAZ-3308",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "gaz66": {
+    "Type": "GAZ-66",
+    "DisplayName": "Truck GAZ-66",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "gaz66civil": {
+    "Type": "gaz-66_civil",
+    "DisplayName": "Truck GAZ-66 civil",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "gd20": {
+    "Type": "GD-20",
+    "DisplayName": "GD-20 Lift Truck",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "generator5i57": {
+    "Type": "generator_5i57",
+    "DisplayName": "Diesel Power Station 5I57A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "gepard": {
+    "Type": "Gepard",
+    "DisplayName": "SPAAA Gepard",
+    "DetectionRange": 15000,
+    "ThreatRange": 4000
+  },
+  "germancoveredwagong10": {
+    "Type": "German_covered_wagon_G10",
+    "DisplayName": "Rwy. Wagon G10 (Germany, WWII)",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "germantankwagon": {
+    "Type": "German_tank_wagon",
+    "DisplayName": "Rwy. Tank Car (Germany, WWII)",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "gpsspooferblue": {
+    "Type": "GPS_Spoofer_Blue",
+    "DisplayName": "GPS Spoofer NATO",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "gpsspooferred": {
+    "Type": "GPS_Spoofer_Red",
+    "DisplayName": "GPS Spoofer RF",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "gradural": {
+    "Type": "Grad-URAL",
+    "DisplayName": "MLRS BM-21 Grad 122mm",
+    "DetectionRange": 0,
+    "ThreatRange": 19000
+  },
+  "gradfddm": {
+    "Type": "Grad_FDDM",
+    "DisplayName": "Grad MRL FDDM (FC)",
+    "DetectionRange": 0,
+    "ThreatRange": 1000
+  },
+  "hawkcwar": {
+    "Type": "Hawk cwar",
+    "DisplayName": "SAM Hawk CWAR AN/MPQ-55",
+    "DetectionRange": 70000,
+    "ThreatRange": 0
+  },
+  "hawkln": {
+    "Type": "Hawk ln",
+    "DisplayName": "SAM Hawk LN M192",
+    "DetectionRange": 0,
+    "ThreatRange": 45000
+  },
+  "hawkpcp": {
+    "Type": "Hawk pcp",
+    "DisplayName": "SAM Hawk Platoon Command Post (PCP)",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hawksr": {
+    "Type": "Hawk sr",
+    "DisplayName": "SAM Hawk SR (AN/MPQ-50)",
+    "DetectionRange": 90000,
+    "ThreatRange": 0
+  },
+  "hawktr": {
+    "Type": "Hawk tr",
+    "DisplayName": "SAM Hawk TR (AN/MPQ-46)",
+    "DetectionRange": 90000,
+    "ThreatRange": 0
+  },
+  "hemtttfft": {
+    "Type": "HEMTT TFFT",
+    "DisplayName": "Firefighter HEMMT TFFT",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hemttcramphalanx": {
+    "Type": "HEMTT_C-RAM_Phalanx",
+    "DisplayName": "LPWS C-RAM",
+    "DetectionRange": 10000,
+    "ThreatRange": 2000
+  },
+  "hlb8m1": {
+    "Type": "HL_B8M1",
+    "DisplayName": "MLRS HL with B8M1 80mm",
+    "DetectionRange": 5000,
+    "ThreatRange": 5000
+  },
+  "hldshk": {
+    "Type": "HL_DSHK",
+    "DisplayName": "Scout HL with DSHK 12.7mm",
+    "DetectionRange": 5000,
+    "ThreatRange": 1200
+  },
+  "hlkord": {
+    "Type": "HL_KORD",
+    "DisplayName": "Scout HL with KORD 12.7mm",
+    "DetectionRange": 5000,
+    "ThreatRange": 1200
+  },
+  "hlzu23": {
+    "Type": "HL_ZU-23",
+    "DisplayName": "SPAAA HL with ZU-23",
+    "DetectionRange": 5000,
+    "ThreatRange": 2500
+  },
+  "horch901typ40kfz21": {
+    "Type": "Horch_901_typ_40_kfz_21",
+    "DisplayName": "LUV Horch 901 Staff Car",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "house1arm": {
+    "Type": "house1arm",
+    "DisplayName": "Barracks armed",
+    "DetectionRange": 0,
+    "ThreatRange": 800
+  },
+  "house2arm": {
+    "Type": "house2arm",
+    "DisplayName": "Watch tower armed",
+    "DetectionRange": 0,
+    "ThreatRange": 800
+  },
+  "houseaarm": {
+    "Type": "houseA_arm",
+    "DisplayName": "Building armed",
+    "DetectionRange": 0,
+    "ThreatRange": 800
+  },
+  "hq7lnp": {
+    "Type": "HQ-7_LN_P",
+    "DisplayName": "HQ-7 SHORAD TELAR (Player)",
+    "DetectionRange": 20000,
+    "ThreatRange": 15000
+  },
+  "hq7lnsp": {
+    "Type": "HQ-7_LN_SP",
+    "DisplayName": "HQ-7B SHORAD TELAR",
+    "DetectionRange": 20000,
+    "ThreatRange": 15000
+  },
+  "hq7strsp": {
+    "Type": "HQ-7_STR_SP",
+    "DisplayName": "HQ-7B SHORAD SR",
+    "DetectionRange": 30000,
+    "ThreatRange": 0
+  },
+  "hummer": {
+    "Type": "Hummer",
+    "DisplayName": "LUV HMMWV Jeep",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hylauncher": {
+    "Type": "hy_launcher",
+    "DisplayName": "AShM SS-N-2 Silkworm",
+    "DetectionRange": 100000,
+    "ThreatRange": 100000
+  },
+  "iglamanpadins": {
+    "Type": "Igla manpad INS",
+    "DisplayName": "MANPADS SA-18 Igla ",
+    "DetectionRange": 5000,
+    "ThreatRange": 5200
+  },
+  "ikarusbus": {
+    "Type": "IKARUS Bus",
+    "DisplayName": "Bus IKARUS-280",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "infantryakins": {
+    "Type": "Infantry AK Ins",
+    "DisplayName": "Insurgent AKM",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "infantryakver2": {
+    "Type": "Infantry AK ver2",
+    "DisplayName": "Infantry AK-74 Rus ver2",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "infantryakver3": {
+    "Type": "Infantry AK ver3",
+    "DisplayName": "Infantry AK-74 Rus ver3",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "infantryak": {
+    "Type": "Infantry AK",
+    "DisplayName": "Infantry AK-74 Rus ver1",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "jagdpantherg1": {
+    "Type": "Jagdpanther_G1",
+    "DisplayName": "SPG Jagdpanther TD",
+    "DetectionRange": 0,
+    "ThreatRange": 5000
+  },
+  "jagdpziv": {
+    "Type": "JagdPz_IV",
+    "DisplayName": "SPG Jagdpanzer IV TD",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "jtac": {
+    "Type": "JTAC",
+    "DisplayName": "JTAC",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "kamaztruck": {
+    "Type": "KAMAZ Truck",
+    "DisplayName": "Truck KAMAZ 43101",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "kamaztentcivil": {
+    "Type": "kamaz_tent_civil",
+    "DisplayName": "Truck KAMAZ-43101 civil",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "kdomod40": {
+    "Type": "KDO_Mod40",
+    "DisplayName": "AAA Kdo.G.40",
+    "DetectionRange": 30000,
+    "ThreatRange": 0
+  },
+  "kraz6322": {
+    "Type": "KrAZ6322",
+    "DisplayName": "Truck KrAZ-6322 6x6",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ks19": {
+    "Type": "KS-19",
+    "DisplayName": "AAA KS-19 100mm",
+    "DetectionRange": 0,
+    "ThreatRange": 20000
+  },
+  "kub1s91str": {
+    "Type": "Kub 1S91 str",
+    "DisplayName": "SAM SA-6 Kub ",
+    "DetectionRange": 70000,
+    "ThreatRange": 0
+  },
+  "kub2p25ln": {
+    "Type": "Kub 2P25 ln",
+    "DisplayName": "SAM SA-6 Kub ",
+    "DetectionRange": 0,
+    "ThreatRange": 25000
+  },
+  "kubelwagen82": {
+    "Type": "Kubelwagen_82",
+    "DisplayName": "LUV Kubelwagen Jeep",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "l118unit": {
+    "Type": "L118_Unit",
+    "DisplayName": "L118 Light Artillery Gun",
+    "DetectionRange": 17500,
+    "ThreatRange": 17200
+  },
+  "landrover101fc": {
+    "Type": "Land_Rover_101_FC",
+    "DisplayName": "Truck Land Rover 101 FC",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "landrover109s3": {
+    "Type": "Land_Rover_109_S3",
+    "DisplayName": "LUV Land Rover 109",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "larcv": {
+    "Type": "LARC-V",
+    "DisplayName": "Truck LARC-V",
+    "DetectionRange": 500,
+    "ThreatRange": 0
+  },
+  "lav25": {
+    "Type": "LAV-25",
+    "DisplayName": "IFV LAV-25",
+    "DetectionRange": 0,
+    "ThreatRange": 2500
+  },
+  "lazbus": {
+    "Type": "LAZ Bus",
+    "DisplayName": "Bus LAZ-695",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "leclerc": {
+    "Type": "Leclerc",
+    "DisplayName": "MBT Leclerc",
+    "DetectionRange": 0,
+    "ThreatRange": 3500
+  },
+  "lefh1840105": {
+    "Type": "LeFH_18-40-105",
+    "DisplayName": "FH LeFH-18 105mm",
+    "DetectionRange": 0,
+    "ThreatRange": 10500
+  },
+  "leopard2": {
+    "Type": "Leopard-2",
+    "DisplayName": "MBT Leopard-2A6M",
+    "DetectionRange": 0,
+    "ThreatRange": 3500
+  },
+  "leopard2a4": {
+    "Type": "leopard-2A4",
+    "DisplayName": "MBT Leopard-2A4",
+    "DetectionRange": 0,
+    "ThreatRange": 3500
+  },
+  "leopard2a4trs": {
+    "Type": "leopard-2A4_trs",
+    "DisplayName": "MBT Leopard-2A4 Trs",
+    "DetectionRange": 0,
+    "ThreatRange": 3500
+  },
+  "leopard2a5": {
+    "Type": "Leopard-2A5",
+    "DisplayName": "MBT Leopard-2A5",
+    "DetectionRange": 0,
+    "ThreatRange": 3500
+  },
+  "leopard1a3": {
+    "Type": "Leopard1A3",
+    "DisplayName": "MBT Leopard 1A3",
+    "DetectionRange": 0,
+    "ThreatRange": 2500
+  },
+  "liazbus": {
+    "Type": "LiAZ Bus",
+    "DisplayName": "Bus LiAZ-677",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "locomotive": {
+    "Type": "Locomotive",
+    "DisplayName": "Rwy. Loco CHME3T",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m818": {
+    "Type": "M 818",
+    "DisplayName": "Truck M939 Heavy",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m1abrams": {
+    "Type": "M-1 Abrams",
+    "DisplayName": "MBT M1A2 Abrams",
+    "DetectionRange": 0,
+    "ThreatRange": 3500
+  },
+  "m109": {
+    "Type": "M-109",
+    "DisplayName": "SPH M109 Paladin 155mm",
+    "DetectionRange": 0,
+    "ThreatRange": 22000
+  },
+  "m113": {
+    "Type": "M-113",
+    "DisplayName": "APC M113",
+    "DetectionRange": 0,
+    "ThreatRange": 1200
+  },
+  "m2bradley": {
+    "Type": "M-2 Bradley",
+    "DisplayName": "IFV M2A2 Bradley",
+    "DetectionRange": 0,
+    "ThreatRange": 3800
+  },
+  "m60": {
+    "Type": "M-60",
+    "DisplayName": "MBT M60A3 Patton",
+    "DetectionRange": 0,
+    "ThreatRange": 8000
+  },
+  "m1043hmmwvarmament": {
+    "Type": "M1043 HMMWV Armament",
+    "DisplayName": "Scout HMMWV",
+    "DetectionRange": 0,
+    "ThreatRange": 1200
+  },
+  "m1045hmmwvtow": {
+    "Type": "M1045 HMMWV TOW",
+    "DisplayName": "ATGM HMMWV",
+    "DetectionRange": 0,
+    "ThreatRange": 3800
+  },
+  "m1097avenger": {
+    "Type": "M1097 Avenger",
+    "DisplayName": "SAM Avenger (Stinger)",
+    "DetectionRange": 5200,
+    "ThreatRange": 4500
+  },
+  "m10gmc": {
+    "Type": "M10_GMC",
+    "DisplayName": "SPG M10 GMC TD",
+    "DetectionRange": 0,
+    "ThreatRange": 6000
+  },
+  "m1126strykericv": {
+    "Type": "M1126 Stryker ICV",
+    "DisplayName": "IFV M1126 Stryker ICV",
+    "DetectionRange": 0,
+    "ThreatRange": 1200
+  },
+  "m1128strykermgs": {
+    "Type": "M1128 Stryker MGS",
+    "DisplayName": "SPG Stryker MGS",
+    "DetectionRange": 0,
+    "ThreatRange": 4000
+  },
+  "m1134strykeratgm": {
+    "Type": "M1134 Stryker ATGM",
+    "DisplayName": "ATGM Stryker",
+    "DetectionRange": 0,
+    "ThreatRange": 3800
+  },
+  "m12gmc": {
+    "Type": "M12_GMC",
+    "DisplayName": "SPH M12 GMC 155mm",
+    "DetectionRange": 0,
+    "ThreatRange": 18300
+  },
+  "m1a2csepv3": {
+    "Type": "M1A2C_SEP_V3",
+    "DisplayName": "MBT M1A2C SEP v3 Abrams",
+    "DetectionRange": 0,
+    "ThreatRange": 3500
+  },
+  "m137mm": {
+    "Type": "M1_37mm",
+    "DisplayName": "AAA M1 37mm",
+    "DetectionRange": 0,
+    "ThreatRange": 5700
+  },
+  "m2a1105": {
+    "Type": "M2A1-105",
+    "DisplayName": "FH M2A1 105mm",
+    "DetectionRange": 0,
+    "ThreatRange": 11500
+  },
+  "m2a1halftrack": {
+    "Type": "M2A1_halftrack",
+    "DisplayName": "APC M2A1 Halftrack",
+    "DetectionRange": 0,
+    "ThreatRange": 1200
+  },
+  "m30cc": {
+    "Type": "M30_CC",
+    "DisplayName": "Ammo M30 Cargo Carrier",
+    "DetectionRange": 0,
+    "ThreatRange": 1200
+  },
+  "m45quadmount": {
+    "Type": "M45_Quadmount",
+    "DisplayName": "AAA M45 Quadmount HB 12.7mm",
+    "DetectionRange": 0,
+    "ThreatRange": 1500
+  },
+  "m48chaparral": {
+    "Type": "M48 Chaparral",
+    "DisplayName": "SAM Chaparral M48",
+    "DetectionRange": 10000,
+    "ThreatRange": 8500
+  },
+  "m4a4shermanff": {
+    "Type": "M4A4_Sherman_FF",
+    "DisplayName": "Tk M4A4 Sherman Firefly",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "m4sherman": {
+    "Type": "M4_Sherman",
+    "DisplayName": "Tk M4 Sherman",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "m4tractor": {
+    "Type": "M4_Tractor",
+    "DisplayName": "Tractor M4 High Speed",
+    "DetectionRange": 0,
+    "ThreatRange": 1200
+  },
+  "m6linebacker": {
+    "Type": "M6 Linebacker",
+    "DisplayName": "SAM Linebacker - Bradley M6",
+    "DetectionRange": 8000,
+    "ThreatRange": 4500
+  },
+  "m8greyhound": {
+    "Type": "M8_Greyhound",
+    "DisplayName": "Scout M8 Greyhound AC",
+    "DetectionRange": 0,
+    "ThreatRange": 2000
+  },
+  "m978hemtttanker": {
+    "Type": "M978 HEMTT Tanker",
+    "DisplayName": "Refueler M978 HEMTT",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "marder": {
+    "Type": "Marder",
+    "DisplayName": "IFV Marder",
+    "DetectionRange": 0,
+    "ThreatRange": 1500
+  },
+  "maschinensatz33": {
+    "Type": "Maschinensatz_33",
+    "DisplayName": "Maschinensatz 33 Gen",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "maxxpromrap": {
+    "Type": "MaxxPro_MRAP",
+    "DisplayName": "APC MRAP MaxxPro",
+    "DetectionRange": 0,
+    "ThreatRange": 1200
+  },
+  "maz6303": {
+    "Type": "MAZ-6303",
+    "DisplayName": "Truck MAZ-6303",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "mcv80": {
+    "Type": "MCV-80",
+    "DisplayName": "IFV Warrior ",
+    "DetectionRange": 0,
+    "ThreatRange": 2500
+  },
+  "merkavamk4": {
+    "Type": "Merkava_Mk4",
+    "DisplayName": "MBT Merkava IV",
+    "DetectionRange": 0,
+    "ThreatRange": 3500
+  },
+  "mj1drivable": {
+    "Type": "MJ-1_drivable",
+    "DisplayName": "M92 MJ-1 drivable",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "mlrsfddm": {
+    "Type": "MLRS FDDM",
+    "DisplayName": "MRLS FDDM (FC)",
+    "DetectionRange": 0,
+    "ThreatRange": 1200
+  },
+  "mlrs": {
+    "Type": "MLRS",
+    "DisplayName": "MLRS M270 227mm",
+    "DetectionRange": 0,
+    "ThreatRange": 32000
+  },
+  "mtlb": {
+    "Type": "MTLB",
+    "DisplayName": "APC MTLB",
+    "DetectionRange": 0,
+    "ThreatRange": 1000
+  },
+  "nasamscommandpost": {
+    "Type": "NASAMS_Command_Post",
+    "DisplayName": "SAM NASAMS C2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "nasamslnb": {
+    "Type": "NASAMS_LN_B",
+    "DisplayName": "SAM NASAMS LN AIM-120B",
+    "DetectionRange": 0,
+    "ThreatRange": 15000
+  },
+  "nasamslnc": {
+    "Type": "NASAMS_LN_C",
+    "DisplayName": "SAM NASAMS LN AIM-120C",
+    "DetectionRange": 0,
+    "ThreatRange": 15000
+  },
+  "nasamsradarmpq64f1": {
+    "Type": "NASAMS_Radar_MPQ64F1",
+    "DisplayName": "SAM NASAMS SR MPQ64F1",
+    "DetectionRange": 50000,
+    "ThreatRange": 0
+  },
+  "osa9a33ln": {
+    "Type": "Osa 9A33 ln",
+    "DisplayName": "SAM SA-8 Osa ",
+    "DetectionRange": 30000,
+    "ThreatRange": 10300
+  },
+  "outpost": {
+    "Type": "outpost",
+    "DisplayName": "Outpost",
+    "DetectionRange": 0,
+    "ThreatRange": 800
+  },
+  "outpostroad": {
+    "Type": "outpost_road",
+    "DisplayName": "Road outpost",
+    "DetectionRange": 0,
+    "ThreatRange": 800
+  },
+  "outpostroadl": {
+    "Type": "outpost_road_l",
+    "DisplayName": "Road outpost_L",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "outpostroadr": {
+    "Type": "outpost_road_r",
+    "DisplayName": "Road outpost-R",
+    "DetectionRange": 0,
+    "ThreatRange": 800
+  },
+  "p19s125sr": {
+    "Type": "p-19 s-125 sr",
+    "DisplayName": "SAM SA-2/3/5 P19 ",
+    "DetectionRange": 160000,
+    "ThreatRange": 0
+  },
+  "p14sr": {
+    "Type": "P14_SR",
+    "DisplayName": "SAM SA-5 S-200 P-14 \u0027Tall king\u0027 SR",
+    "DetectionRange": 400000,
+    "ThreatRange": 0
+  },
+  "p20drivable": {
+    "Type": "P20_drivable",
+    "DisplayName": "M92 P20 drivable",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "pak40": {
+    "Type": "Pak40",
+    "DisplayName": "FH Pak 40 75mm",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "paratrooperaks74": {
+    "Type": "Paratrooper AKS-74",
+    "DisplayName": "Paratrooper AKS",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "paratrooperrpg16": {
+    "Type": "Paratrooper RPG-16",
+    "DisplayName": "Paratrooper RPG-16",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "patriotamg": {
+    "Type": "Patriot AMG",
+    "DisplayName": "SAM Patriot CR (AMG AN/MRC-137)",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "patriotcp": {
+    "Type": "Patriot cp",
+    "DisplayName": "SAM Patriot C2 ICC",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "patriotecs": {
+    "Type": "Patriot ECS",
+    "DisplayName": "SAM Patriot ECS",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "patriotepp": {
+    "Type": "Patriot EPP",
+    "DisplayName": "SAM Patriot EPP-III",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "patriotln": {
+    "Type": "Patriot ln",
+    "DisplayName": "SAM Patriot LN",
+    "DetectionRange": 0,
+    "ThreatRange": 100000
+  },
+  "patriotstr": {
+    "Type": "Patriot str",
+    "DisplayName": "SAM Patriot STR",
+    "DetectionRange": 160000,
+    "ThreatRange": 0
+  },
+  "pl5eiiloadout": {
+    "Type": "PL5EII Loadout",
+    "DisplayName": "Payload PL-5EII",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "pl8loadout": {
+    "Type": "PL8 Loadout",
+    "DisplayName": "Payload PL-8",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "plz05": {
+    "Type": "PLZ05",
+    "DisplayName": "PLZ-05",
+    "DetectionRange": 0,
+    "ThreatRange": 23500
+  },
+  "predatorgcs": {
+    "Type": "Predator GCS",
+    "DisplayName": "MCC Predator UAV CP \u0026 GCS",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "predatortrojanspirit": {
+    "Type": "Predator TrojanSpirit",
+    "DisplayName": "MCC-COMM Predator UAV CL",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "prmggpbeacon": {
+    "Type": "prmg_gp_beacon",
+    "DisplayName": "PRMG Glidepath car",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "prmglocbeacon": {
+    "Type": "prmg_loc_beacon",
+    "DisplayName": "PRMG Localizer car",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "pt76": {
+    "Type": "PT_76",
+    "DisplayName": "LT PT-76",
+    "DetectionRange": 0,
+    "ThreatRange": 2000
+  },
+  "pzivh": {
+    "Type": "Pz_IV_H",
+    "DisplayName": "Tk PzIV H",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "pzvpantherg": {
+    "Type": "Pz_V_Panther_G",
+    "DisplayName": "Tk Panther G (Pz V)",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "qf37aa": {
+    "Type": "QF_37_AA",
+    "DisplayName": "AAA QF 3.7",
+    "DetectionRange": 0,
+    "ThreatRange": 9000
+  },
+  "r11volvodrivable": {
+    "Type": "r11_volvo_drivable",
+    "DisplayName": "M92 R11 Volvo drivable",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "rapierfsablindfireradar": {
+    "Type": "rapier_fsa_blindfire_radar",
+    "DisplayName": "SAM Rapier Blindfire TR",
+    "DetectionRange": 30000,
+    "ThreatRange": 0
+  },
+  "rapierfsalauncher": {
+    "Type": "rapier_fsa_launcher",
+    "DisplayName": "SAM Rapier LN",
+    "DetectionRange": 30000,
+    "ThreatRange": 6800
+  },
+  "rapierfsaopticaltrackerunit": {
+    "Type": "rapier_fsa_optical_tracker_unit",
+    "DisplayName": "SAM Rapier Tracker",
+    "DetectionRange": 20000,
+    "ThreatRange": 0
+  },
+  "rd75": {
+    "Type": "RD_75",
+    "DisplayName": "SAM SA-2 S-75 RD-75 Amazonka RF",
+    "DetectionRange": 100000,
+    "ThreatRange": 0
+  },
+  "rls19j6": {
+    "Type": "RLS_19J6",
+    "DisplayName": "SAM SA-5 S-200 ST-68U ",
+    "DetectionRange": 150000,
+    "ThreatRange": 0
+  },
+  "rolandads": {
+    "Type": "Roland ADS",
+    "DisplayName": "SAM Roland ADS",
+    "DetectionRange": 12000,
+    "ThreatRange": 8000
+  },
+  "rolandradar": {
+    "Type": "Roland Radar",
+    "DisplayName": "SAM Roland EWR",
+    "DetectionRange": 35000,
+    "ThreatRange": 0
+  },
+  "rpc5n62v": {
+    "Type": "RPC_5N62V",
+    "DisplayName": "SAM SA-5 S-200 ",
+    "DetectionRange": 400000,
+    "ThreatRange": 0
+  },
+  "rsbnbeacon": {
+    "Type": "rsbn_beacon",
+    "DisplayName": "RSBN car",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "s200launcher": {
+    "Type": "S-200_Launcher",
+    "DisplayName": "SAM SA-5 S-200 ",
+    "DetectionRange": 0,
+    "ThreatRange": 255000
+  },
+  "s300ps40b6mtr": {
+    "Type": "S-300PS 40B6M tr",
+    "DisplayName": "SAM SA-10 S-300 ",
+    "DetectionRange": 160000,
+    "ThreatRange": 0
+  },
+  "s300ps40b6mdsr": {
+    "Type": "S-300PS 40B6MD sr",
+    "DisplayName": "SAM SA-10 S-300 ",
+    "DetectionRange": 60000,
+    "ThreatRange": 0
+  },
+  "s300ps40b6mdsr19j6": {
+    "Type": "S-300PS 40B6MD sr_19J6",
+    "DisplayName": "SAM SA-10 S-300 ",
+    "DetectionRange": 150000,
+    "ThreatRange": 0
+  },
+  "s300ps54k6cp": {
+    "Type": "S-300PS 54K6 cp",
+    "DisplayName": "SAM SA-10 S-300 ",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "s300ps5h63c30h6tr": {
+    "Type": "S-300PS 5H63C 30H6_tr",
+    "DisplayName": "SAM SA-10 S-300 ",
+    "DetectionRange": 120000,
+    "ThreatRange": 0
+  },
+  "s300ps5p85cln": {
+    "Type": "S-300PS 5P85C ln",
+    "DisplayName": "SAM SA-10 S-300 ",
+    "DetectionRange": 0,
+    "ThreatRange": 120000
+  },
+  "s300ps5p85dln": {
+    "Type": "S-300PS 5P85D ln",
+    "DisplayName": "SAM SA-10 S-300 ",
+    "DetectionRange": 0,
+    "ThreatRange": 120000
+  },
+  "s300ps64h6esr": {
+    "Type": "S-300PS 64H6E sr",
+    "DisplayName": "SAM SA-10 S-300 ",
+    "DetectionRange": 160000,
+    "ThreatRange": 0
+  },
+  "s60type59artillery": {
+    "Type": "S-60_Type59_Artillery",
+    "DisplayName": "AAA S-60 57mm",
+    "DetectionRange": 5000,
+    "ThreatRange": 6000
+  },
+  "sa11bukcc9s470m1": {
+    "Type": "SA-11 Buk CC 9S470M1",
+    "DisplayName": "SAM SA-11 Buk ",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sa11bukln9a310m1": {
+    "Type": "SA-11 Buk LN 9A310M1",
+    "DisplayName": "SAM SA-11 Buk ",
+    "DetectionRange": 50000,
+    "ThreatRange": 50000
+  },
+  "sa11buksr9s18m1": {
+    "Type": "SA-11 Buk SR 9S18M1",
+    "DisplayName": "SAM SA-11 Buk ",
+    "DetectionRange": 100000,
+    "ThreatRange": 0
+  },
+  "sa18iglacomm": {
+    "Type": "SA-18 Igla comm",
+    "DisplayName": "MANPADS SA-18 Igla ",
+    "DetectionRange": 5000,
+    "ThreatRange": 0
+  },
+  "sa18iglamanpad": {
+    "Type": "SA-18 Igla manpad",
+    "DisplayName": "MANPADS SA-18 Igla ",
+    "DetectionRange": 5000,
+    "ThreatRange": 5200
+  },
+  "sa18iglascomm": {
+    "Type": "SA-18 Igla-S comm",
+    "DisplayName": "MANPADS SA-18 Igla-S ",
+    "DetectionRange": 5000,
+    "ThreatRange": 0
+  },
+  "sa18iglasmanpad": {
+    "Type": "SA-18 Igla-S manpad",
+    "DisplayName": "MANPADS SA-18 Igla-S ",
+    "DetectionRange": 5000,
+    "ThreatRange": 5200
+  },
+  "sandbox": {
+    "Type": "Sandbox",
+    "DisplayName": "Bunker 1",
+    "DetectionRange": 0,
+    "ThreatRange": 800
+  },
+  "sau2c9": {
+    "Type": "SAU 2-C9",
+    "DisplayName": "SPM 2S9 Nona 120mm M",
+    "DetectionRange": 0,
+    "ThreatRange": 7000
+  },
+  "sauakatsia": {
+    "Type": "SAU Akatsia",
+    "DisplayName": "SPH 2S3 Akatsia 152mm",
+    "DetectionRange": 0,
+    "ThreatRange": 17000
+  },
+  "saugvozdika": {
+    "Type": "SAU Gvozdika",
+    "DisplayName": "SPH 2S1 Gvozdika 122mm",
+    "DetectionRange": 0,
+    "ThreatRange": 15000
+  },
+  "saumsta": {
+    "Type": "SAU Msta",
+    "DisplayName": "SPH 2S19 Msta 152mm",
+    "DetectionRange": 0,
+    "ThreatRange": 23500
+  },
+  "scudb": {
+    "Type": "Scud_B",
+    "DisplayName": "SSM SS-1C Scud-B",
+    "DetectionRange": 0,
+    "ThreatRange": 285000
+  },
+  "sd10loadout": {
+    "Type": "SD10 Loadout",
+    "DisplayName": "Payload SD-10",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sdkfz2": {
+    "Type": "Sd_Kfz_2",
+    "DisplayName": "LUV Kettenrad",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sdkfz2342puma": {
+    "Type": "Sd_Kfz_234_2_Puma",
+    "DisplayName": "Scout Puma AC",
+    "DetectionRange": 0,
+    "ThreatRange": 2000
+  },
+  "sdkfz251": {
+    "Type": "Sd_Kfz_251",
+    "DisplayName": "APC Sd.Kfz.251 Halftrack",
+    "DetectionRange": 0,
+    "ThreatRange": 1100
+  },
+  "sdkfz7": {
+    "Type": "Sd_Kfz_7",
+    "DisplayName": "Tractor Sd.Kfz.7 Art\u0027y Tractor",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "silkwormsr": {
+    "Type": "Silkworm_SR",
+    "DisplayName": "AShM Silkworm SR",
+    "DetectionRange": 200000,
+    "ThreatRange": 0
+  },
+  "skp11": {
+    "Type": "SKP-11",
+    "DisplayName": "Truck SKP-11 Mobile ATC",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "skc28navalgun": {
+    "Type": "SK_C_28_naval_gun",
+    "DisplayName": "Gun 15cm SK C/28 Naval in Bunker",
+    "DetectionRange": 0,
+    "ThreatRange": 20000
+  },
+  "smerch": {
+    "Type": "Smerch",
+    "DisplayName": "MLRS 9A52 Smerch CM 300mm",
+    "DetectionRange": 0,
+    "ThreatRange": 70000
+  },
+  "smerchhe": {
+    "Type": "Smerch_HE",
+    "DisplayName": "MLRS 9A52 Smerch HE 300mm",
+    "DetectionRange": 0,
+    "ThreatRange": 70000
+  },
+  "snrs125tr": {
+    "Type": "snr s-125 tr",
+    "DisplayName": "SAM SA-3 S-125 ",
+    "DetectionRange": 100000,
+    "ThreatRange": 0
+  },
+  "snr75v": {
+    "Type": "SNR_75V",
+    "DisplayName": "SAM SA-2 S-75 ",
+    "DetectionRange": 100000,
+    "ThreatRange": 0
+  },
+  "soldierak": {
+    "Type": "Soldier AK",
+    "DisplayName": "Infantry AK-74",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "soldierm249": {
+    "Type": "Soldier M249",
+    "DisplayName": "Infantry M249",
+    "DetectionRange": 0,
+    "ThreatRange": 700
+  },
+  "soldierm4grg": {
+    "Type": "Soldier M4 GRG",
+    "DisplayName": "Infantry M4 Georgia",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "soldierm4": {
+    "Type": "Soldier M4",
+    "DisplayName": "Infantry M4",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "soldierrpg": {
+    "Type": "Soldier RPG",
+    "DisplayName": "Infantry RPG",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "soldierstinger": {
+    "Type": "Soldier stinger",
+    "DisplayName": "MANPADS Stinger",
+    "DetectionRange": 5000,
+    "ThreatRange": 4500
+  },
+  "soldiermauser98": {
+    "Type": "soldier_mauser98",
+    "DisplayName": "Infantry Mauser 98",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "soldierwwiibr01": {
+    "Type": "soldier_wwii_br_01",
+    "DisplayName": "Infantry SMLE No.4 Mk-1",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "soldierwwiius": {
+    "Type": "soldier_wwii_us",
+    "DisplayName": "Infantry M1 Garand",
+    "DetectionRange": 0,
+    "ThreatRange": 500
+  },
+  "son9": {
+    "Type": "SON_9",
+    "DisplayName": "AAA Fire Can SON-9",
+    "DetectionRange": 55000,
+    "ThreatRange": 0
+  },
+  "spghdana": {
+    "Type": "SpGH_Dana",
+    "DisplayName": "SPH Dana vz77 152mm",
+    "DetectionRange": 0,
+    "ThreatRange": 18700
+  },
+  "stingercommdsr": {
+    "Type": "Stinger comm dsr",
+    "DisplayName": "MANPADS Stinger C2 Desert",
+    "DetectionRange": 5000,
+    "ThreatRange": 0
+  },
+  "stingercomm": {
+    "Type": "Stinger comm",
+    "DisplayName": "MANPADS Stinger C2",
+    "DetectionRange": 5000,
+    "ThreatRange": 0
+  },
+  "strela19p31": {
+    "Type": "Strela-1 9P31",
+    "DisplayName": "SAM SA-9 Strela 1 ",
+    "DetectionRange": 5000,
+    "ThreatRange": 4200
+  },
+  "strela10m3": {
+    "Type": "Strela-10M3",
+    "DisplayName": "SAM SA-13 Strela 10M3 ",
+    "DetectionRange": 8000,
+    "ThreatRange": 5000
+  },
+  "stugiii": {
+    "Type": "Stug_III",
+    "DisplayName": "SPG StuG III G AG",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "stugiv": {
+    "Type": "Stug_IV",
+    "DisplayName": "SPG StuG IV AG",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "sturmpziv": {
+    "Type": "SturmPzIV",
+    "DisplayName": "SPG Brummbaer AG",
+    "DetectionRange": 0,
+    "ThreatRange": 4500
+  },
+  "suidae": {
+    "Type": "Suidae",
+    "DisplayName": "Suidae",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "s75mvolhov": {
+    "Type": "S_75M_Volhov",
+    "DisplayName": "SAM SA-2 S-75 ",
+    "DetectionRange": 0,
+    "ThreatRange": 43000
+  },
+  "s75zil": {
+    "Type": "S_75_ZIL",
+    "DisplayName": "S-75 Tractor (ZIL-131)",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "t3485": {
+    "Type": "T-34-85",
+    "DisplayName": "Tk T-34-85",
+    "DetectionRange": 0,
+    "ThreatRange": 5200
+  },
+  "t55": {
+    "Type": "T-55",
+    "DisplayName": "MBT T-55",
+    "DetectionRange": 0,
+    "ThreatRange": 2500
+  },
+  "t72b": {
+    "Type": "T-72B",
+    "DisplayName": "MBT T-72B",
+    "DetectionRange": 0,
+    "ThreatRange": 4000
+  },
+  "t72b3": {
+    "Type": "T-72B3",
+    "DisplayName": "MBT T-72B3",
+    "DetectionRange": 0,
+    "ThreatRange": 4000
+  },
+  "t80b": {
+    "Type": "T-80B",
+    "DisplayName": "MBT T-80B",
+    "DetectionRange": 0,
+    "ThreatRange": 5000
+  },
+  "t80ud": {
+    "Type": "T-80UD",
+    "DisplayName": "MBT T-80U",
+    "DetectionRange": 0,
+    "ThreatRange": 5000
+  },
+  "t90": {
+    "Type": "T-90",
+    "DisplayName": "MBT T-90A [CH]",
+    "DetectionRange": 6000,
+    "ThreatRange": 5000
+  },
+  "t155firtina": {
+    "Type": "T155_Firtina",
+    "DisplayName": "SPH T155 Firtina 155mm",
+    "DetectionRange": 0,
+    "ThreatRange": 41000
+  },
+  "t62m": {
+    "Type": "T62M",
+    "DisplayName": "MBT T-62M",
+    "DetectionRange": 0,
+    "ThreatRange": 5200
+  },
+  "tacanbeacon": {
+    "Type": "TACAN_beacon",
+    "DisplayName": "Beacon TACAN Portable TTS 3030",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tacr2a": {
+    "Type": "tacr2a",
+    "DisplayName": "Firefighter RAF Rescue",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tankcartrinity": {
+    "Type": "Tankcartrinity",
+    "DisplayName": "Rwy. Tank Cartrinity",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tetrarch": {
+    "Type": "Tetrarch",
+    "DisplayName": "Tk Tetrach",
+    "DetectionRange": 0,
+    "ThreatRange": 2000
+  },
+  "tigeri": {
+    "Type": "Tiger_I",
+    "DisplayName": "Tk Tiger 1",
+    "DetectionRange": 0,
+    "ThreatRange": 3000
+  },
+  "tigeriih": {
+    "Type": "Tiger_II_H",
+    "DisplayName": "Tk Tiger II",
+    "DetectionRange": 0,
+    "ThreatRange": 6000
+  },
+  "tigr233036": {
+    "Type": "Tigr_233036",
+    "DisplayName": "LUV Tigr",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tor9a331": {
+    "Type": "Tor 9A331",
+    "DisplayName": "SAM SA-15 Tor ",
+    "DetectionRange": 25000,
+    "ThreatRange": 12000
+  },
+  "tpz": {
+    "Type": "TPZ",
+    "DisplayName": "APC TPz Fuchs ",
+    "DetectionRange": 0,
+    "ThreatRange": 1000
+  },
+  "trolleybus": {
+    "Type": "Trolley bus",
+    "DisplayName": "ZIU-9 Trolley",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ttb8m1": {
+    "Type": "tt_B8M1",
+    "DisplayName": "MLRS LC with B8M1 80mm",
+    "DetectionRange": 5000,
+    "ThreatRange": 5000
+  },
+  "ttdshk": {
+    "Type": "tt_DSHK",
+    "DisplayName": "Scout LC with DSHK 12.7mm",
+    "DetectionRange": 5000,
+    "ThreatRange": 1200
+  },
+  "ttkord": {
+    "Type": "tt_KORD",
+    "DisplayName": "Scout LC with KORD 12.7mm",
+    "DetectionRange": 5000,
+    "ThreatRange": 1200
+  },
+  "ttzu23": {
+    "Type": "tt_ZU-23",
+    "DisplayName": "SPAAA LC with ZU-23",
+    "DetectionRange": 0,
+    "ThreatRange": 2500
+  },
+  "tugharlandrivable": {
+    "Type": "TugHarlan_drivable",
+    "DisplayName": "M92 Tug Harlan drivable",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "type59": {
+    "Type": "TYPE-59",
+    "DisplayName": "MT Type 59",
+    "DetectionRange": 0,
+    "ThreatRange": 2500
+  },
+  "type380mmaa": {
+    "Type": "Type_3_80mm_AA",
+    "DisplayName": "AAA 80mm Type 3 Flak",
+    "DetectionRange": 10000,
+    "ThreatRange": 3200
+  },
+  "type8875mmaa": {
+    "Type": "Type_88_75mm_AA",
+    "DisplayName": "AAA 75mm Type 88 Flak",
+    "DetectionRange": 10000,
+    "ThreatRange": 3500
+  },
+  "type89igo": {
+    "Type": "Type_89_I_Go",
+    "DisplayName": "Tk Type 89 I Go",
+    "DetectionRange": 5000,
+    "ThreatRange": 3000
+  },
+  "type9425mmaatruck": {
+    "Type": "Type_94_25mm_AA_Truck",
+    "DisplayName": "AAA 25mm x 2 Type 94 Truck",
+    "DetectionRange": 10000,
+    "ThreatRange": 3500
+  },
+  "type94truck": {
+    "Type": "Type_94_Truck",
+    "DisplayName": "Truck Type 94",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "type9625mmaa": {
+    "Type": "Type_96_25mm_AA",
+    "DisplayName": "AAA 25mm x 2 Type 96",
+    "DetectionRange": 10000,
+    "ThreatRange": 3500
+  },
+  "type98keni": {
+    "Type": "Type_98_Ke_Ni",
+    "DisplayName": "Tk Type 98 Ke Ni",
+    "DetectionRange": 5000,
+    "ThreatRange": 3000
+  },
+  "type98soda": {
+    "Type": "Type_98_So_Da",
+    "DisplayName": "APC Type 98 So Da",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tz22kraz": {
+    "Type": "TZ-22_KrAZ",
+    "DisplayName": "Refueler TZ-22 Tractor (KrAZ-258B1)",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "uaz469": {
+    "Type": "UAZ-469",
+    "DisplayName": "LUV UAZ-469 Jeep",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "uraganbm27": {
+    "Type": "Uragan_BM-27",
+    "DisplayName": "MLRS 9K57 Uragan BM-27 220mm",
+    "DetectionRange": 0,
+    "ThreatRange": 35800
+  },
+  "uralatsp6": {
+    "Type": "Ural ATsP-6",
+    "DisplayName": "Firefighter Ural ATsP-6",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ural375pbu": {
+    "Type": "Ural-375 PBU",
+    "DisplayName": "Truck Ural-4320 MCC",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ural375zu23insurgent": {
+    "Type": "Ural-375 ZU-23 Insurgent",
+    "DisplayName": "AAA ZU-23 on Ural-4320 Insurgent",
+    "DetectionRange": 5000,
+    "ThreatRange": 2500
+  },
+  "ural375zu23": {
+    "Type": "Ural-375 ZU-23",
+    "DisplayName": "AAA ZU-23 on Ural-4320",
+    "DetectionRange": 5000,
+    "ThreatRange": 2500
+  },
+  "ural375": {
+    "Type": "Ural-375",
+    "DisplayName": "Truck Ural-4320",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ural4320apa5d": {
+    "Type": "Ural-4320 APA-5D",
+    "DisplayName": "GPU APA-5D on Ural 4320",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ural432031": {
+    "Type": "Ural-4320-31",
+    "DisplayName": "Truck Ural-4320-31 Arm\u0027d",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ural4320t": {
+    "Type": "Ural-4320T",
+    "DisplayName": "Truck Ural-4320T",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ural4230civilb": {
+    "Type": "ural_4230_civil_b",
+    "DisplayName": "Truck Ural-4320 civil",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ural4230civilt": {
+    "Type": "ural_4230_civil_t",
+    "DisplayName": "Truck Ural-4320T civil",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "uralatz5civil": {
+    "Type": "ural_atz5_civil",
+    "DisplayName": "Refueler ATZ-5 civil",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "v1launcher": {
+    "Type": "v1_launcher",
+    "DisplayName": "V-1 Launch Ramp",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "vabmephisto": {
+    "Type": "VAB_Mephisto",
+    "DisplayName": "ATGM VAB Mephisto",
+    "DetectionRange": 0,
+    "ThreatRange": 3800
+  },
+  "vazcar": {
+    "Type": "VAZ Car",
+    "DisplayName": "Car VAZ-2109",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "vulcan": {
+    "Type": "Vulcan",
+    "DisplayName": "SPAAA Vulcan M163",
+    "DetectionRange": 5000,
+    "ThreatRange": 2000
+  },
+  "wellcarnsc": {
+    "Type": "Wellcarnsc",
+    "DisplayName": "Rwy. Well Car",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "wespe124": {
+    "Type": "Wespe124",
+    "DisplayName": "SPH Sd.Kfz.124 Wespe 105mm",
+    "DetectionRange": 0,
+    "ThreatRange": 10500
+  },
+  "willysmb": {
+    "Type": "Willys_MB",
+    "DisplayName": "Car Willys Jeep",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "zbd04a": {
+    "Type": "ZBD04A",
+    "DisplayName": "ZBD-04A",
+    "DetectionRange": 0,
+    "ThreatRange": 4800
+  },
+  "zil131apa80": {
+    "Type": "ZiL-131 APA-80",
+    "DisplayName": "GPU APA-80 on ZIL-131",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "zil131kung": {
+    "Type": "ZIL-131 KUNG",
+    "DisplayName": "Truck ZIL-131 (C2)",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "zil131civil": {
+    "Type": "zil-131_civil",
+    "DisplayName": "Truck ZiL-131 civil",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "zil135": {
+    "Type": "ZIL-135",
+    "DisplayName": "Truck ZIL-135",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "zil4331": {
+    "Type": "ZIL-4331",
+    "DisplayName": "Truck ZIL-4331",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "zsu234shilka": {
+    "Type": "ZSU-23-4 Shilka",
+    "DisplayName": "SPAAA ZSU-23-4 Shilka ",
+    "DetectionRange": 5000,
+    "ThreatRange": 2500
+  },
+  "zsu572": {
+    "Type": "ZSU_57_2",
+    "DisplayName": "SPAAA ZSU-57-2",
+    "DetectionRange": 5000,
+    "ThreatRange": 7000
+  },
+  "ztz96b": {
+    "Type": "ZTZ96B",
+    "DisplayName": "ZTZ-96B",
+    "DetectionRange": 0,
+    "ThreatRange": 5000
+  },
+  "zu23closedinsurgent": {
+    "Type": "ZU-23 Closed Insurgent",
+    "DisplayName": "AAA ZU-23 Insurgent Closed Emplacement",
+    "DetectionRange": 5000,
+    "ThreatRange": 2500
+  },
+  "zu23emplacementclosed": {
+    "Type": "ZU-23 Emplacement Closed",
+    "DisplayName": "AAA ZU-23 Closed Emplacement",
+    "DetectionRange": 5000,
+    "ThreatRange": 2500
+  },
+  "zu23emplacement": {
+    "Type": "ZU-23 Emplacement",
+    "DisplayName": "AAA ZU-23 Emplacement",
+    "DetectionRange": 5000,
+    "ThreatRange": 2500
+  },
+  "zu23insurgent": {
+    "Type": "ZU-23 Insurgent",
+    "DisplayName": "AAA ZU-23 Insurgent Emplacement",
+    "DetectionRange": 5000,
+    "ThreatRange": 2500
+  },
+  "bigsmoke": {
+    "Type": "big_smoke",
+    "DisplayName": "Big smoke",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "wpmarker": {
+    "Type": "wp_marker",
+    "DisplayName": "WP Marker",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "commandcenter": {
+    "Type": ".Command Center",
+    "DisplayName": "Command Center",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "345excavator": {
+    "Type": "345 Excavator",
+    "DisplayName": "Excavator",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "afhq": {
+    "Type": "af_hq",
+    "DisplayName": "HQ Building",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "airshowcone": {
+    "Type": "Airshow_Cone",
+    "DisplayName": "Airshow cone",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "airshowcrowd": {
+    "Type": "Airshow_Crowd",
+    "DisplayName": "Airshow Crowd",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "am32a6001": {
+    "Type": "AM32a-60_01",
+    "DisplayName": "M92 AM32a-60-01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "am32a6002": {
+    "Type": "AM32a-60_02",
+    "DisplayName": "M92 AM32a-60-02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "apfcfuel": {
+    "Type": "APFC fuel",
+    "DisplayName": "M92 APFC fuel",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "b600": {
+    "Type": "B600",
+    "DisplayName": "M92 B600",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "barracks2": {
+    "Type": "Barracks 2",
+    "DisplayName": "Barracks 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "barriera": {
+    "Type": "Barrier A",
+    "DisplayName": "M92 Barrier A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "barrierb": {
+    "Type": "Barrier B",
+    "DisplayName": "M92 Barrier B",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "barrierc": {
+    "Type": "Barrier C",
+    "DisplayName": "M92 Barrier C",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "barrierd": {
+    "Type": "Barrier D",
+    "DisplayName": "M92 Barrier D",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "beerbomb": {
+    "Type": "Beer Bomb",
+    "DisplayName": "Barrel",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "belgiangate": {
+    "Type": "Belgian gate",
+    "DisplayName": "Belgian gate",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "billboardmotorized": {
+    "Type": "billboard_motorized",
+    "DisplayName": "Billboard Motorized",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "blacktyre": {
+    "Type": "Black_Tyre",
+    "DisplayName": "Mark Tyre Black",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "blacktyrerf": {
+    "Type": "Black_Tyre_RF",
+    "DisplayName": "Mark Tyre with Red Flag",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "blacktyrewf": {
+    "Type": "Black_Tyre_WF",
+    "DisplayName": "Mark Tyre with White Flag",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "boilerhousea": {
+    "Type": "Boiler-house A",
+    "DisplayName": "Boiler-house A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "boombarrierclosed": {
+    "Type": "BoomBarrier_closed",
+    "DisplayName": "M92 Boom Barrier closed",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "boombarrieropen": {
+    "Type": "BoomBarrier_open",
+    "DisplayName": "M92 Boom Barrier open",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "building01pbr": {
+    "Type": "Building01_PBR",
+    "DisplayName": "M92 Building01 PBR",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "building02pbr": {
+    "Type": "Building02_PBR",
+    "DisplayName": "M92 Building02 PBR",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "building03pbr": {
+    "Type": "Building03_PBR",
+    "DisplayName": "M92 Building03 PBR",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "building04pbr": {
+    "Type": "Building04_PBR",
+    "DisplayName": "M92 Building04 PBR",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "building05pbr": {
+    "Type": "Building05_PBR",
+    "DisplayName": "M92 Building05 PBR",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "building06pbr": {
+    "Type": "Building06_PBR",
+    "DisplayName": "M92 Building06 PBR",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "building07pbr": {
+    "Type": "Building07_PBR",
+    "DisplayName": "M92 Building07 PBR",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "building08pbr": {
+    "Type": "Building08_PBR",
+    "DisplayName": "M92 Building08 PBR",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cafe": {
+    "Type": "Cafe",
+    "DisplayName": "Cafe",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "camouflage01": {
+    "Type": "Camouflage01",
+    "DisplayName": "M92 Camouflage 01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "camouflage02": {
+    "Type": "Camouflage02",
+    "DisplayName": "M92 Camouflage 02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "camouflage03": {
+    "Type": "Camouflage03",
+    "DisplayName": "M92 Camouflage 03",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "camouflage04": {
+    "Type": "Camouflage04",
+    "DisplayName": "M92 Camouflage 04",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "camouflage05": {
+    "Type": "Camouflage05",
+    "DisplayName": "M92 Camouflage 05",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "camouflage06": {
+    "Type": "Camouflage06",
+    "DisplayName": "M92 Camouflage 06",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "camouflage07": {
+    "Type": "Camouflage07",
+    "DisplayName": "M92 Camouflage 07",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cargo01": {
+    "Type": "Cargo01",
+    "DisplayName": "M92 Cargo 01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cargo02": {
+    "Type": "Cargo02",
+    "DisplayName": "M92 Cargo 02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cargo03": {
+    "Type": "Cargo03",
+    "DisplayName": "M92 Cargo 03",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cargo04": {
+    "Type": "Cargo04",
+    "DisplayName": "M92 Cargo 04",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cargo05": {
+    "Type": "Cargo05",
+    "DisplayName": "M92 Cargo 05",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cargo06": {
+    "Type": "Cargo06",
+    "DisplayName": "M92 Cargo 06",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "chemicaltanka": {
+    "Type": "Chemical tank A",
+    "DisplayName": "Chemical tank A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "commstowerm": {
+    "Type": "Comms tower M",
+    "DisplayName": "Comms tower M",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "concertinawire": {
+    "Type": "Concertina wire",
+    "DisplayName": "Concertina wire",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cone01": {
+    "Type": "Cone01",
+    "DisplayName": "M92 Cone 01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "cone02": {
+    "Type": "Cone02",
+    "DisplayName": "M92 Cone 02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "containerbrown": {
+    "Type": "Container brown",
+    "DisplayName": "Container brown",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "containerred1": {
+    "Type": "Container red 1",
+    "DisplayName": "Container red 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "containerred2": {
+    "Type": "Container red 2",
+    "DisplayName": "Container red 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "containerred3": {
+    "Type": "Container red 3",
+    "DisplayName": "Container red 3",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "containerwhite": {
+    "Type": "Container white",
+    "DisplayName": "Container white",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "container10ft": {
+    "Type": "Container_10ft",
+    "DisplayName": "M92 Container 10ft",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "container20ft": {
+    "Type": "container_20ft",
+    "DisplayName": "Container 20ft",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "container40ft": {
+    "Type": "container_40ft",
+    "DisplayName": "Container 40ft",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "containergenerator": {
+    "Type": "Container_generator",
+    "DisplayName": "M92 Container generator",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "containeroffice": {
+    "Type": "Container_office",
+    "DisplayName": "M92 Container office",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "containerwatchtower": {
+    "Type": "Container_watchtower",
+    "DisplayName": "M92 Container watchtower",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "containerwatchtowerlights": {
+    "Type": "Container_watchtower_lights",
+    "DisplayName": "M92 Container watchtower lights",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "czechhedgehogs1": {
+    "Type": "Czech hedgehogs 1",
+    "DisplayName": "Czech hedgehogs 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "czechhedgehogs2": {
+    "Type": "Czech hedgehogs 2",
+    "DisplayName": "Czech hedgehogs 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "dragonteeth1": {
+    "Type": "Dragonteeth 1",
+    "DisplayName": "Dragonteeth 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "dragonteeth2": {
+    "Type": "Dragonteeth 2",
+    "DisplayName": "Dragonteeth 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "dragonteeth3": {
+    "Type": "Dragonteeth 3",
+    "DisplayName": "Dragonteeth 3",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "dragonteeth4": {
+    "Type": "Dragonteeth 4",
+    "DisplayName": "Dragonteeth 4",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "dragonteeth5": {
+    "Type": "Dragonteeth 5",
+    "DisplayName": "Dragonteeth 5",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "dropzonemarkera": {
+    "Type": "Drop Zone Marker A",
+    "DisplayName": "Drop Zone Marker A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "dropzonemarkerb": {
+    "Type": "Drop Zone Marker B",
+    "DisplayName": "Drop Zone Marker B",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "dropzonemarkerc": {
+    "Type": "Drop Zone Marker C",
+    "DisplayName": "Drop Zone Marker C",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "dropzonemarkerd": {
+    "Type": "Drop Zone Marker D",
+    "DisplayName": "Drop Zone Marker D",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "dropzonemarkere": {
+    "Type": "Drop Zone Marker E",
+    "DisplayName": "Drop Zone Marker E",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "electricpowerbox": {
+    "Type": "Electric power box",
+    "DisplayName": "Electric power box",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "elevatedplatformdown": {
+    "Type": "ElevatedPlatform_down",
+    "DisplayName": "M92 Elevated Platform down",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "elevatedplatformup": {
+    "Type": "ElevatedPlatform_up",
+    "DisplayName": "M92 Elevated Platform up",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "farma": {
+    "Type": "Farm A",
+    "DisplayName": "Farm A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "farmb": {
+    "Type": "Farm B",
+    "DisplayName": "Farm B",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "farpammodumpcoating": {
+    "Type": "FARP Ammo Dump Coating",
+    "DisplayName": "FARP Ammo Storage",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "farpcpblindage": {
+    "Type": "FARP CP Blindage",
+    "DisplayName": "FARP Command Post",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "farpfueldepot": {
+    "Type": "FARP Fuel Depot",
+    "DisplayName": "FARP Fuel Depot",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "farptent": {
+    "Type": "FARP Tent",
+    "DisplayName": "FARP Tent",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "farphidedmed": {
+    "Type": "FarpHide_Dmed",
+    "DisplayName": "FARP Hide Double Med",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "farphidedsmall": {
+    "Type": "FarpHide_Dsmall",
+    "DisplayName": "FARP Hide Double Small",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "farphidemed": {
+    "Type": "FarpHide_Med",
+    "DisplayName": "FARP Hide Single Med",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "farphidesmall": {
+    "Type": "FarpHide_small",
+    "DisplayName": "FARP Hide Single Small",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "firecontrolbunker": {
+    "Type": "Fire Control Bunker",
+    "DisplayName": "Fire control bunker",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "fireextinguisher01": {
+    "Type": "FireExtinguisher01",
+    "DisplayName": "M92 Fire Extinguisher 01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "fireextinguisher02": {
+    "Type": "FireExtinguisher02",
+    "DisplayName": "M92 Fire Extinguisher 02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "fireextinguisher03": {
+    "Type": "FireExtinguisher03",
+    "DisplayName": "M92 Fire Extinguisher 03",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "flagpole": {
+    "Type": "FlagPole",
+    "DisplayName": "Flag Pole",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "freyashelterbrick": {
+    "Type": "Freya_Shelter_Brick",
+    "DisplayName": "Freya Shelter Brick",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "freyashelterconcrete": {
+    "Type": "Freya_Shelter_Concrete",
+    "DisplayName": "Freya Shelter Concrete",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "fueltank": {
+    "Type": "Fuel tank",
+    "DisplayName": "Fuel tank",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "garagea": {
+    "Type": "Garage A",
+    "DisplayName": "Garage A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "garageb": {
+    "Type": "Garage B",
+    "DisplayName": "Garage B",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "garagesmalla": {
+    "Type": "Garage small A",
+    "DisplayName": "Garage small A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "garagesmallb": {
+    "Type": "Garage small B",
+    "DisplayName": "Garage small B",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "generatorf": {
+    "Type": "GeneratorF",
+    "DisplayName": "GeneratorF",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hangara": {
+    "Type": "Hangar A",
+    "DisplayName": "Hangar A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hangarb": {
+    "Type": "Hangar B",
+    "DisplayName": "Hangar B",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "haystack1": {
+    "Type": "Haystack 1",
+    "DisplayName": "Haystack 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "haystack2": {
+    "Type": "Haystack 2",
+    "DisplayName": "Haystack 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "haystack3": {
+    "Type": "Haystack 3",
+    "DisplayName": "Haystack 3",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "haystack4": {
+    "Type": "Haystack 4",
+    "DisplayName": "Haystack 4",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hemmkurvenhindernis": {
+    "Type": "Hemmkurvenhindernis",
+    "DisplayName": "Hemmkurvenhindernis",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hescogenerator": {
+    "Type": "HESCO_generator",
+    "DisplayName": "M92 HESCO generator",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hescopost1": {
+    "Type": "HESCO_post_1",
+    "DisplayName": "M92 HESCO post 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hescowallperimeter1": {
+    "Type": "HESCO_wallperimeter_1",
+    "DisplayName": "M92 HESCO wallperimeter 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hescowallperimeter2": {
+    "Type": "HESCO_wallperimeter_2",
+    "DisplayName": "M92 HESCO wallperimeter 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hescowallperimeter3": {
+    "Type": "HESCO_wallperimeter_3",
+    "DisplayName": "M92 HESCO wallperimeter 3",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hescowallperimeter4": {
+    "Type": "HESCO_wallperimeter_4",
+    "DisplayName": "M92 HESCO wallperimeter 4",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hescowallperimeter5": {
+    "Type": "HESCO_wallperimeter_5",
+    "DisplayName": "M92 HESCO wallperimeter 5",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hescowatchtower1": {
+    "Type": "HESCO_watchtower_1",
+    "DisplayName": "M92 HESCO watchtower 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hescowatchtower2": {
+    "Type": "HESCO_watchtower_2",
+    "DisplayName": "M92 HESCO watchtower 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hescowatchtower3": {
+    "Type": "HESCO_watchtower_3",
+    "DisplayName": "M92 HESCO watchtower 3",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "iptower": {
+    "Type": "ip_tower",
+    "DisplayName": "IP Tower",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "jerrycan": {
+    "Type": "Jerrycan",
+    "DisplayName": "M92 Jerrycan",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ladder": {
+    "Type": "Ladder",
+    "DisplayName": "M92 Ladder",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "landmine": {
+    "Type": "Landmine",
+    "DisplayName": "Landmine",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "lhdlha": {
+    "Type": "LHD_LHA",
+    "DisplayName": "M92 LHD LHA",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "logposts1": {
+    "Type": "Log posts 1",
+    "DisplayName": "Log posts 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "logposts2": {
+    "Type": "Log posts 2",
+    "DisplayName": "Log posts 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "logposts3": {
+    "Type": "Log posts 3",
+    "DisplayName": "Log posts 3",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "logramps1": {
+    "Type": "Log ramps 1",
+    "DisplayName": "Log ramps 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "logramps2": {
+    "Type": "Log ramps 2",
+    "DisplayName": "Log ramps 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "logramps3": {
+    "Type": "Log ramps 3",
+    "DisplayName": "Log ramps 3",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m3210c01": {
+    "Type": "M32-10C_01",
+    "DisplayName": "M92 M32-10C 01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m3210c02": {
+    "Type": "M32-10C_02",
+    "DisplayName": "M92 M32-10C 02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m3210c03": {
+    "Type": "M32-10C_03",
+    "DisplayName": "M92 M32-10C 03",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m3210c04": {
+    "Type": "M32-10C_04",
+    "DisplayName": "M92 M32-10C 04",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "militarystaff": {
+    "Type": "Military staff",
+    "DisplayName": "Military staff",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "mj101": {
+    "Type": "MJ-1_01",
+    "DisplayName": "M92 MJ-1 01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "mj102": {
+    "Type": "MJ-1_02",
+    "DisplayName": "M92 MJ-1 02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "nf2lightoff01": {
+    "Type": "NF-2_LightOff01",
+    "DisplayName": "M92 NF-2 LightOff 01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "nf2lightoff02": {
+    "Type": "NF-2_LightOff02",
+    "DisplayName": "M92 NF-2 LightOff 02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "nf2lighton": {
+    "Type": "NF-2_LightOn",
+    "DisplayName": "M92 NF-2 LightOn",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "noddingdonkeypump": {
+    "Type": "Nodding_Donkey_Pump",
+    "DisplayName": "Nodding Donkey Pump",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "offshorewindturbine": {
+    "Type": "offshore WindTurbine",
+    "DisplayName": "Offshore Wind Turbine",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "offshorewindturbine2": {
+    "Type": "offshore WindTurbine2",
+    "DisplayName": "Offshore Wind Turbine 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "oilbarrel": {
+    "Type": "Oil Barrel",
+    "DisplayName": "M92 Oil barrel",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "oilderrick": {
+    "Type": "Oil derrick",
+    "DisplayName": "Oil derrick",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "oilplatform": {
+    "Type": "Oil platform",
+    "DisplayName": "Oil platform",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "orca": {
+    "Type": "Orca",
+    "DisplayName": "Orca Whale",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "p2001": {
+    "Type": "P20_01",
+    "DisplayName": "M92 P20 01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "pileofwoods": {
+    "Type": "Pile of Woods",
+    "DisplayName": "M92 Pile of woods",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "pumpstation": {
+    "Type": "Pump station",
+    "DisplayName": "Pump station",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "r11volvo": {
+    "Type": "r11_volvo",
+    "DisplayName": "M92 R11 Volvo",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "railwaycrossinga": {
+    "Type": "Railway crossing A",
+    "DisplayName": "Railway crossing A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "railwaycrossingb": {
+    "Type": "Railway crossing B",
+    "DisplayName": "Railway crossing B",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "railwaystation": {
+    "Type": "Railway station",
+    "DisplayName": "Railway station",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "redflag": {
+    "Type": "Red_Flag",
+    "DisplayName": "Mark Flag Red",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "repairworkshop": {
+    "Type": "Repair workshop",
+    "DisplayName": "Repair workshop",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "restaurant1": {
+    "Type": "Restaurant 1",
+    "DisplayName": "Restaurant 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "revetmentx4": {
+    "Type": "Revetment_x4",
+    "DisplayName": "M92 Revetment x4",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "revetmentx8": {
+    "Type": "Revetment_x8",
+    "DisplayName": "M92 Revetment x8",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag01": {
+    "Type": "Sandbag_01",
+    "DisplayName": "M92 Sandbag 01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag02": {
+    "Type": "Sandbag_02",
+    "DisplayName": "M92 Sandbag 02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag03": {
+    "Type": "Sandbag_03",
+    "DisplayName": "M92 Sandbag 03",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag04": {
+    "Type": "Sandbag_04",
+    "DisplayName": "M92 Sandbag 04",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag05": {
+    "Type": "Sandbag_05",
+    "DisplayName": "M92 Sandbag 05",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag06": {
+    "Type": "Sandbag_06",
+    "DisplayName": "M92 Sandbag 06",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag07": {
+    "Type": "Sandbag_07",
+    "DisplayName": "M92 Sandbag 07",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag08": {
+    "Type": "Sandbag_08",
+    "DisplayName": "M92 Sandbag 08",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag09": {
+    "Type": "Sandbag_09",
+    "DisplayName": "M92 Sandbag 09",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag10": {
+    "Type": "Sandbag_10",
+    "DisplayName": "M92 Sandbag 10",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag11": {
+    "Type": "Sandbag_11",
+    "DisplayName": "M92 Sandbag 11",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag12": {
+    "Type": "Sandbag_12",
+    "DisplayName": "M92 Sandbag 12",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag13": {
+    "Type": "Sandbag_13",
+    "DisplayName": "M92 Sandbag 13",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag15": {
+    "Type": "Sandbag_15",
+    "DisplayName": "M92 Sandbag 15",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag16": {
+    "Type": "Sandbag_16",
+    "DisplayName": "M92 Sandbag 16",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sandbag17": {
+    "Type": "Sandbag_17",
+    "DisplayName": "M92 Sandbag 17",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "shelterb": {
+    "Type": "Shelter B",
+    "DisplayName": "Shelter B",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "shelter": {
+    "Type": "Shelter",
+    "DisplayName": "Shelter",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "shelter01": {
+    "Type": "Shelter01",
+    "DisplayName": "M92 Shelter 01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "shelter02": {
+    "Type": "Shelter02",
+    "DisplayName": "M92 Shelter 02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "shop": {
+    "Type": "Shop",
+    "DisplayName": "Shop",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "siegfriedline": {
+    "Type": "Siegfried Line",
+    "DisplayName": "Siegfried line",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "smallhouse1aarea": {
+    "Type": "Small house 1A area",
+    "DisplayName": "Small house 1A area",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "smallhouse1a": {
+    "Type": "Small house 1A",
+    "DisplayName": "Small house 1A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "smallhouse1barea": {
+    "Type": "Small house 1B area",
+    "DisplayName": "Small house 1B area",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "smallhouse1b": {
+    "Type": "Small house 1B",
+    "DisplayName": "Small house 1B",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "smallhouse1carea": {
+    "Type": "Small house 1C area",
+    "DisplayName": "Small house 1C area",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "smallhouse2c": {
+    "Type": "Small house 2C",
+    "DisplayName": "Small house 2C",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "smallwerehouse1": {
+    "Type": "Small werehouse 1",
+    "DisplayName": "Small warehouse 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "smallwerehouse2": {
+    "Type": "Small werehouse 2",
+    "DisplayName": "Small warehouse 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "smallwerehouse3": {
+    "Type": "Small werehouse 3",
+    "DisplayName": "Small warehouse 3",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "smallwerehouse4": {
+    "Type": "Small werehouse 4",
+    "DisplayName": "Small warehouse 4",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "smalllighthouse": {
+    "Type": "Small_LightHouse",
+    "DisplayName": "Small_LightHouse",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "stanleylighthouse": {
+    "Type": "Stanley_LightHouse",
+    "DisplayName": "Stanley LightHouse",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "subsidiarystructure1": {
+    "Type": "Subsidiary structure 1",
+    "DisplayName": "Subsidiary structure 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "subsidiarystructure2": {
+    "Type": "Subsidiary structure 2",
+    "DisplayName": "Subsidiary structure 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "subsidiarystructure3": {
+    "Type": "Subsidiary structure 3",
+    "DisplayName": "Subsidiary structure 3",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "subsidiarystructurea": {
+    "Type": "Subsidiary structure A",
+    "DisplayName": "Subsidiary structure A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "subsidiarystructureb": {
+    "Type": "Subsidiary structure B",
+    "DisplayName": "Subsidiary structure B",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "subsidiarystructurec": {
+    "Type": "Subsidiary structure C",
+    "DisplayName": "Subsidiary structure C",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "subsidiarystructured": {
+    "Type": "Subsidiary structure D",
+    "DisplayName": "Subsidiary structure D",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "subsidiarystructuree": {
+    "Type": "Subsidiary structure E",
+    "DisplayName": "Subsidiary structure E",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "subsidiarystructuref": {
+    "Type": "Subsidiary structure F",
+    "DisplayName": "Subsidiary structure F",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "subsidiarystructureg": {
+    "Type": "Subsidiary structure G",
+    "DisplayName": "Subsidiary structure G",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "supermarketa": {
+    "Type": "Supermarket A",
+    "DisplayName": "Supermarket A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "techcombine": {
+    "Type": "Tech combine",
+    "DisplayName": "Tech combine",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "techhangara": {
+    "Type": "Tech hangar A",
+    "DisplayName": "Tech hangar A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tent01": {
+    "Type": "Tent01",
+    "DisplayName": "M92 Tent 01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tent02": {
+    "Type": "Tent02",
+    "DisplayName": "M92 Tent 02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tent03": {
+    "Type": "Tent03",
+    "DisplayName": "M92 Tent 03",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tent04": {
+    "Type": "Tent04",
+    "DisplayName": "M92 Tent 04",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tent05": {
+    "Type": "Tent05",
+    "DisplayName": "M92 Tent 05",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tetrahydra": {
+    "Type": "Tetrahydra",
+    "DisplayName": "Tetrahydra",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "toolbox01": {
+    "Type": "Toolbox01",
+    "DisplayName": "M92 Toolbox 01",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "toolbox02": {
+    "Type": "Toolbox02",
+    "DisplayName": "M92 Toolbox 02",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "towercrane": {
+    "Type": "Tower Crane",
+    "DisplayName": "TowerCrane",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tugharlan": {
+    "Type": "TugHarlan",
+    "DisplayName": "M92 Tug Harlan",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tvtower": {
+    "Type": "TV tower",
+    "DisplayName": "TV tower",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "twallx1": {
+    "Type": "Twall_x1",
+    "DisplayName": "M92 Twall x1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "twallx6": {
+    "Type": "Twall_x6",
+    "DisplayName": "M92 Twall x6",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "twallx63mts": {
+    "Type": "Twall_x6_3mts",
+    "DisplayName": "M92 Twall x6 3mts",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "warningboarda": {
+    "Type": "warning_board_a",
+    "DisplayName": "Warning Board: Spy Cannot Escape!",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "warningboardb": {
+    "Type": "warning_board_b",
+    "DisplayName": "Warning Board: Catch Spy!",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "watertowera": {
+    "Type": "Water tower A",
+    "DisplayName": "Water tower A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "wc": {
+    "Type": "WC",
+    "DisplayName": "WC",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "whiteflag": {
+    "Type": "White_Flag",
+    "DisplayName": "Mark Flag White",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "whitetyre": {
+    "Type": "White_Tyre",
+    "DisplayName": "Mark Tyre White",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "windsock": {
+    "Type": "Windsock",
+    "DisplayName": "Windsock",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "windturbine": {
+    "Type": "WindTurbine",
+    "DisplayName": "Wind Turbine",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "windturbine11": {
+    "Type": "WindTurbine_11",
+    "DisplayName": "Wind Turbine 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "workshopa": {
+    "Type": "Workshop A",
+    "DisplayName": "Workshop A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "grassairfield": {
+    "Type": "GrassAirfield",
+    "DisplayName": "Grass Airfield",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "bridge": {
+    "Type": "Bridge",
+    "DisplayName": "Bridge",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "building": {
+    "Type": "Building",
+    "DisplayName": "Building",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "transport": {
+    "Type": "Transport",
+    "DisplayName": "Transport",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "rifle": {
+    "Type": "rifle",
+    "DisplayName": "rifle",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "turboshaft": {
+    "Type": "TurboShaft",
+    "DisplayName": "UH-1H",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ah64a": {
+    "Type": "AH-64A",
+    "DisplayName": "AH-64A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ah64d": {
+    "Type": "AH-64D",
+    "DisplayName": "AH-64D",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ch47d": {
+    "Type": "CH-47D",
+    "DisplayName": "CH-47D",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "chaptigeruht": {
+    "Type": "CHAP_TigerUHT",
+    "DisplayName": "EC-665 Tiger UHT [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ka27": {
+    "Type": "Ka-27",
+    "DisplayName": "Ka-27",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "mi24v": {
+    "Type": "Mi-24V",
+    "DisplayName": "Mi-24V",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "mi26": {
+    "Type": "Mi-26",
+    "DisplayName": "Mi-26",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "mi28n": {
+    "Type": "Mi-28N",
+    "DisplayName": "Mi-28N [CH]",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "oh58d": {
+    "Type": "OH58D",
+    "DisplayName": "OH-58D(R)",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sa342l": {
+    "Type": "SA342L",
+    "DisplayName": "SA342L",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sa342m": {
+    "Type": "SA342M",
+    "DisplayName": "SA342M",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sa342minigun": {
+    "Type": "SA342Minigun",
+    "DisplayName": "SA342Minigun",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sa342mistral": {
+    "Type": "SA342Mistral",
+    "DisplayName": "SA342Mistral",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sh3w": {
+    "Type": "SH-3W",
+    "DisplayName": "SH-3W",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "sh60b": {
+    "Type": "SH-60B",
+    "DisplayName": "SH-60B",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "uh60a": {
+    "Type": "UH-60A",
+    "DisplayName": "UH-60A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "farp": {
+    "Type": "FARP",
+    "DisplayName": "FARP",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "farpsingle01": {
+    "Type": "FARP_SINGLE_01",
+    "DisplayName": "PAD Single",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "gasplatform": {
+    "Type": "Gas platform",
+    "DisplayName": "Gas platform",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "invisiblefarp": {
+    "Type": "Invisible FARP",
+    "DisplayName": "Invisible FARP",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "oilrig": {
+    "Type": "Oil rig",
+    "DisplayName": "Oil rig",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "singlehelipad": {
+    "Type": "SINGLE_HELIPAD",
+    "DisplayName": "Helipad Single",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m1vla": {
+    "Type": "m1_vla",
+    "DisplayName": "M1 barrage balloon",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "carrierairboss": {
+    "Type": "Carrier Airboss",
+    "DisplayName": "Carrier Airboss",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "carrierlsopersonell1": {
+    "Type": "Carrier LSO Personell 1",
+    "DisplayName": "Carrier LSO 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "carrierlsopersonell2": {
+    "Type": "Carrier LSO Personell 2",
+    "DisplayName": "Carrier LSO 3",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "carrierlsopersonell3": {
+    "Type": "Carrier LSO Personell 3",
+    "DisplayName": "Carrier LSO 4",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "carrierlsopersonell4": {
+    "Type": "Carrier LSO Personell 4",
+    "DisplayName": "Carrier LSO 5",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "carrierlsopersonell5": {
+    "Type": "Carrier LSO Personell 5",
+    "DisplayName": "Carrier LSO 6",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "carrierlsopersonell": {
+    "Type": "Carrier LSO Personell",
+    "DisplayName": "Carrier LSO 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "carrierseaman": {
+    "Type": "Carrier Seaman",
+    "DisplayName": "Carrier Seaman",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "uscarriershooter": {
+    "Type": "us carrier shooter",
+    "DisplayName": "Carrier Shooter",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "uscarriertech": {
+    "Type": "us carrier tech",
+    "DisplayName": "Carrier Technician",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "turbofan": {
+    "Type": "TurboFan",
+    "DisplayName": "Yak-40",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "radial": {
+    "Type": "Radial",
+    "DisplayName": "Yak-52",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "a6e": {
+    "Type": "A6E",
+    "DisplayName": "A-6E",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ajs37": {
+    "Type": "AJS37",
+    "DisplayName": "AJS37",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "turboprop": {
+    "Type": "TurboProp",
+    "DisplayName": "WingLoong-I",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "vtol": {
+    "Type": "VTOL",
+    "DisplayName": "AV-8B N/A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "turbojet": {
+    "Type": "TurboJet",
+    "DisplayName": "Tu-22M3",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "inline": {
+    "Type": "Inline",
+    "DisplayName": "MQ-1A Predator",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "3argprocblur": {
+    "Type": "3ARG_PROC_BLUR",
+    "DisplayName": "La-7",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "f14a135grearly": {
+    "Type": "F-14A-135-GR-Early",
+    "DisplayName": "F-14A-135-GR (Early)",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "f14a135gr": {
+    "Type": "F-14A-135-GR",
+    "DisplayName": "F-14A-135-GR",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "f14b": {
+    "Type": "F-14B",
+    "DisplayName": "F-14B",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "f4e45mc": {
+    "Type": "F-4E-45MC",
+    "DisplayName": "F-4E-45MC",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "piston": {
+    "Type": "Piston",
+    "DisplayName": "TF-51D",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "h6j": {
+    "Type": "H-6J",
+    "DisplayName": "H-6J",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "hawk": {
+    "Type": "Hawk",
+    "DisplayName": "Hawk",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "j11a": {
+    "Type": "J-11A",
+    "DisplayName": "J-11A",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "jf17": {
+    "Type": "JF-17",
+    "DisplayName": "JF-17",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "kj2000": {
+    "Type": "KJ-2000",
+    "DisplayName": "KJ-2000",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "m2000c": {
+    "Type": "M-2000C",
+    "DisplayName": "M-2000C",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "mig19p": {
+    "Type": "MiG-19P",
+    "DisplayName": "MiG-19P",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "mig21bis": {
+    "Type": "MiG-21Bis",
+    "DisplayName": "MiG-21Bis",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "qf4e": {
+    "Type": "QF-4E",
+    "DisplayName": "QF-4E",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "albatros": {
+    "Type": "ALBATROS",
+    "DisplayName": "Corvette 1124M Grisha [CH]",
+    "DetectionRange": 30000,
+    "ThreatRange": 16000
+  },
+  "aravdm": {
+    "Type": "ara_vdm",
+    "DisplayName": "ARA Veinticinco de Mayo",
+    "DetectionRange": 18000,
+    "ThreatRange": 5000
+  },
+  "atconveyor": {
+    "Type": "atconveyor",
+    "DisplayName": "SS Atlantic Conveyor",
+    "DetectionRange": 100000,
+    "ThreatRange": 74000
+  },
+  "bdk775": {
+    "Type": "BDK-775",
+    "DisplayName": "LS Ropucha",
+    "DetectionRange": 25000,
+    "ThreatRange": 6000
+  },
+  "castleclass01": {
+    "Type": "CastleClass_01",
+    "DisplayName": "Castle Class",
+    "DetectionRange": 25000,
+    "ThreatRange": 3000
+  },
+  "chapproject22160": {
+    "Type": "CHAP_Project22160",
+    "DisplayName": "Patrol Ship 22160 Vasily Bykov [CH]",
+    "DetectionRange": 80000,
+    "ThreatRange": 7000
+  },
+  "chapproject22160torm2km": {
+    "Type": "CHAP_Project22160_TorM2KM",
+    "DisplayName": "Patrol ship 22160 Vasily Bykov with Tor M2KM [CH]",
+    "DetectionRange": 80000,
+    "ThreatRange": 25000
+  },
+  "cvn71": {
+    "Type": "CVN_71",
+    "DisplayName": "CVN-71 Theodore Roosevelt",
+    "DetectionRange": 50000,
+    "ThreatRange": 25000
+  },
+  "cvn72": {
+    "Type": "CVN_72",
+    "DisplayName": "CVN-72 Abraham Lincoln",
+    "DetectionRange": 50000,
+    "ThreatRange": 25000
+  },
+  "cvn73": {
+    "Type": "CVN_73",
+    "DisplayName": "CVN-73 George Washington",
+    "DetectionRange": 50000,
+    "ThreatRange": 25000
+  },
+  "cvn75": {
+    "Type": "CVN_75",
+    "DisplayName": "CVN-75 Harry S. Truman",
+    "DetectionRange": 50000,
+    "ThreatRange": 25000
+  },
+  "cv11435": {
+    "Type": "CV_1143_5",
+    "DisplayName": "CV 1143.5 Admiral Kuznetsov(2017)",
+    "DetectionRange": 25000,
+    "ThreatRange": 12000
+  },
+  "drycargoship1": {
+    "Type": "Dry-cargo ship-1",
+    "DisplayName": "Bulker Yakushev",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "drycargoship2": {
+    "Type": "Dry-cargo ship-2",
+    "DisplayName": "Cargo Ivanov",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "elnya": {
+    "Type": "ELNYA",
+    "DisplayName": "Tanker Elnya 160",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "essex": {
+    "Type": "Essex",
+    "DisplayName": "Essex Class Carrier 1944",
+    "DetectionRange": 25000,
+    "ThreatRange": 15000
+  },
+  "forrestal": {
+    "Type": "Forrestal",
+    "DisplayName": "CV-59 Forrestal",
+    "DetectionRange": 50000,
+    "ThreatRange": 25000
+  },
+  "handywind": {
+    "Type": "HandyWind",
+    "DisplayName": "Bulker Handy Wind",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "harbortug": {
+    "Type": "HarborTug",
+    "DisplayName": "Harbor Tug",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "higginsboat": {
+    "Type": "Higgins_boat",
+    "DisplayName": "Boat LCVP Higgins",
+    "DetectionRange": 3000,
+    "ThreatRange": 1000
+  },
+  "hmsinvincible": {
+    "Type": "hms_invincible",
+    "DisplayName": "HMS Invincible (R05)",
+    "DetectionRange": 100000,
+    "ThreatRange": 74000
+  },
+  "improvedkilo": {
+    "Type": "IMPROVED_KILO",
+    "DisplayName": "SSK 636 Improved Kilo",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "kilo": {
+    "Type": "KILO",
+    "DisplayName": "SSK 877V Kilo",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "kuznecow": {
+    "Type": "KUZNECOW",
+    "DisplayName": "CV 1143.5 Admiral Kuznetsov",
+    "DetectionRange": 25000,
+    "ThreatRange": 12000
+  },
+  "lacombattanteii": {
+    "Type": "La_Combattante_II",
+    "DisplayName": "FAC La Combattante IIa",
+    "DetectionRange": 19000,
+    "ThreatRange": 4000
+  },
+  "leandergunachilles": {
+    "Type": "leander-gun-achilles",
+    "DisplayName": "HMS Achilles (F12)",
+    "DetectionRange": 180000,
+    "ThreatRange": 8000
+  },
+  "leandergunandromeda": {
+    "Type": "leander-gun-andromeda",
+    "DisplayName": "HMS Andromeda (F57)",
+    "DetectionRange": 180000,
+    "ThreatRange": 140000
+  },
+  "leandergunariadne": {
+    "Type": "leander-gun-ariadne",
+    "DisplayName": "HMS Ariadne (F72)",
+    "DetectionRange": 150000,
+    "ThreatRange": 100000
+  },
+  "leanderguncondell": {
+    "Type": "leander-gun-condell",
+    "DisplayName": "CNS Almirante Condell (PFG-06)",
+    "DetectionRange": 150000,
+    "ThreatRange": 100000
+  },
+  "leandergunlynch": {
+    "Type": "leander-gun-lynch",
+    "DisplayName": "CNS Almirante Lynch (PFG-07)",
+    "DetectionRange": 180000,
+    "ThreatRange": 140000
+  },
+  "lhatarawa": {
+    "Type": "LHA_Tarawa",
+    "DisplayName": "LHA-1 Tarawa",
+    "DetectionRange": 150000,
+    "ThreatRange": 20000
+  },
+  "lstmk2": {
+    "Type": "LST_Mk2",
+    "DisplayName": "LST Mk.II",
+    "DetectionRange": 0,
+    "ThreatRange": 4000
+  },
+  "molniya": {
+    "Type": "MOLNIYA",
+    "DisplayName": "Corvette 1241.1 Molniya",
+    "DetectionRange": 21000,
+    "ThreatRange": 2000
+  },
+  "moscow": {
+    "Type": "MOSCOW",
+    "DisplayName": "Cruiser 1164 Moskva",
+    "DetectionRange": 160000,
+    "ThreatRange": 75000
+  },
+  "neustrash": {
+    "Type": "NEUSTRASH",
+    "DisplayName": "Frigate 11540 Neustrashimy",
+    "DetectionRange": 27000,
+    "ThreatRange": 12000
+  },
+  "perry": {
+    "Type": "PERRY",
+    "DisplayName": "FFG Oliver Hazard Perry",
+    "DetectionRange": 150000,
+    "ThreatRange": 100000
+  },
+  "piotr": {
+    "Type": "PIOTR",
+    "DisplayName": "Battlecruiser 1144.2 Pyotr Velikiy",
+    "DetectionRange": 250000,
+    "ThreatRange": 190000
+  },
+  "rezky": {
+    "Type": "REZKY",
+    "DisplayName": "Frigate 1135M Rezky",
+    "DetectionRange": 30000,
+    "ThreatRange": 16000
+  },
+  "santafe": {
+    "Type": "santafe",
+    "DisplayName": "ARA Santa Fe S-21",
+    "DetectionRange": 450000,
+    "ThreatRange": 0
+  },
+  "schnellboottypes130": {
+    "Type": "Schnellboot_type_S130",
+    "DisplayName": "Boat Schnellboot type S130",
+    "DetectionRange": 10000,
+    "ThreatRange": 4000
+  },
+  "seawisegiant": {
+    "Type": "Seawise_Giant",
+    "DisplayName": "Tanker Seawise Giant",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "shiptildesupply": {
+    "Type": "Ship_Tilde_Supply",
+    "DisplayName": "Supply Ship MV Tilde",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "som": {
+    "Type": "SOM",
+    "DisplayName": "SSK 641B Tango",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "speedboat": {
+    "Type": "speedboat",
+    "DisplayName": "Boat Armed Hi-speed",
+    "DetectionRange": 5000,
+    "ThreatRange": 1000
+  },
+  "stennis": {
+    "Type": "Stennis",
+    "DisplayName": "CVN-74 John C. Stennis",
+    "DetectionRange": 50000,
+    "ThreatRange": 25000
+  },
+  "ticonderog": {
+    "Type": "TICONDEROG",
+    "DisplayName": "CG Ticonderoga",
+    "DetectionRange": 150000,
+    "ThreatRange": 100000
+  },
+  "type0211": {
+    "Type": "Type_021_1",
+    "DisplayName": "Type 021-1 Missile Boat",
+    "DetectionRange": 30000,
+    "ThreatRange": 4000
+  },
+  "type052b": {
+    "Type": "Type_052B",
+    "DisplayName": "Type 052B Destroyer",
+    "DetectionRange": 100000,
+    "ThreatRange": 30000
+  },
+  "type052c": {
+    "Type": "Type_052C",
+    "DisplayName": "Type 052C Destroyer",
+    "DetectionRange": 260000,
+    "ThreatRange": 150000
+  },
+  "type054a": {
+    "Type": "Type_054A",
+    "DisplayName": "Type 054A Frigate",
+    "DetectionRange": 160000,
+    "ThreatRange": 45000
+  },
+  "type071": {
+    "Type": "Type_071",
+    "DisplayName": "Type 071 Amphibious Transport Dock",
+    "DetectionRange": 300000,
+    "ThreatRange": 150000
+  },
+  "type093": {
+    "Type": "Type_093",
+    "DisplayName": "Type 093 Attack Submarine",
+    "DetectionRange": 42000,
+    "ThreatRange": 42000
+  },
+  "uboatviic": {
+    "Type": "Uboat_VIIC",
+    "DisplayName": "U-boat VIIC U-flak",
+    "DetectionRange": 20000,
+    "ThreatRange": 4000
+  },
+  "ussarleighburkeiia": {
+    "Type": "USS_Arleigh_Burke_IIa",
+    "DisplayName": "DDG Arleigh Burke IIa",
+    "DetectionRange": 150000,
+    "ThreatRange": 100000
+  },
+  "usssamuelchase": {
+    "Type": "USS_Samuel_Chase",
+    "DisplayName": "LS Samuel Chase",
+    "DetectionRange": 0,
+    "ThreatRange": 15000
+  },
+  "vinson": {
+    "Type": "VINSON",
+    "DisplayName": "CVN-70 Carl Vinson",
+    "DetectionRange": 30000,
+    "ThreatRange": 15000
+  },
+  "zwezdny": {
+    "Type": "ZWEZDNY",
+    "DisplayName": "Boat Zvezdny type",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "ammunitiondepot": {
+    "Type": ".Ammunition depot",
+    "DisplayName": "Ammunition depot",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tank2": {
+    "Type": "Tank 2",
+    "DisplayName": "Tank 2",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tank3": {
+    "Type": "Tank 3",
+    "DisplayName": "Tank 3",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "tank": {
+    "Type": "Tank",
+    "DisplayName": "Tank 1",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  },
+  "warehouse": {
+    "Type": "Warehouse",
+    "DisplayName": "Warehouse",
+    "DetectionRange": 0,
+    "ThreatRange": 0
+  }
+}

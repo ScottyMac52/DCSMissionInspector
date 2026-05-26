@@ -1,7 +1,8 @@
 ﻿using DcsMissionReader.Models;
 using DcsMissionReader.Services.Interfaces;
 using MoonSharp.Interpreter;
-using System.IO.Compression;
+using System;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.Json;
 
@@ -10,24 +11,14 @@ namespace DcsMissionReader.Services
     /// <summary>
     /// Implements the IMissionProcessor interface to process DCS mission files based on the provided options. This class is responsible for reading the mission files, extracting relevant data, and generating output in various formats (HTML, JSON) as specified by the command line options. It handles the core logic of processing each mission file, including error handling and cleanup of temporary files.
     /// </summary>
-    public class MissionProcessor : IMissionProcessor
+    /// <remarks>
+    /// Ctor
+    /// </remarks>
+    /// <param name="threatService">The threat database service used to retrieve threat ranges for units.</param>
+    /// <param name="archiveService"> The mission archive service used to read mission files and resources.</param>
+    /// <param name="converter">The coordinate converter service used to convert DCS coordinates to latitude and longitude.</param>
+    public class MissionProcessor(IThreatDatabaseService threatService, IMissionArchiveService archiveService, ICoordinateConverterService converter) : IMissionProcessor
     {
-        #region Fields and constructor
-        private readonly IDcsDatabaseParserService _databaseParser;
-
-        /// <summary>
-        /// Ctor
-        /// </summary>
-        /// <param name="databaseParser"></param>
-#pragma warning disable IDE0290 // Use primary constructor
-        public MissionProcessor(IDcsDatabaseParserService databaseParser)
-#pragma warning restore IDE0290 // Use primary constructor
-        {
-            _databaseParser = databaseParser;
-        }
-
-        #endregion Fields and constructor 
-
         #region IMissionProcessor implementation
 
         /// <summary>
@@ -50,7 +41,11 @@ namespace DcsMissionReader.Services
 
             foreach (var mizPath in options.MissionFiles)
             {
-                ProcessSingleMission(mizPath, options, anyExport);
+                Console.WriteLine($"📦 Processing: {Path.GetFileName(mizPath)}");
+                string missionData = archiveService.GetMissionContentAsync(mizPath).Result;
+
+                // FIX: Pass mizPath into the method
+                ProcessSingleMission(mizPath, missionData, options, anyExport);
                 Console.WriteLine(new string('-', 80));
             }
 
@@ -64,29 +59,21 @@ namespace DcsMissionReader.Services
         /// <summary>
         /// Processes a single mission file (.miz). It extracts the mission data, resolves localized strings, and generates output based on the specified options. The method handles the entire lifecycle of processing a mission file, including error handling and cleanup of temporary files.
         /// </summary>
-        /// <param name="mizPath">The path to the mission file (.miz) to process.</param>
+        /// <param name="mizPath">The file path of the mission file being processed, used for naming outputs and error messages.</param>
+        /// <param name="missionContent">The content of the mission file (.miz) to process.</param>
         /// <param name="options">The application options specifying what outputs to generate.</param>
         /// <param name="anyExport">Indicates whether any export option is enabled.</param>
-        private void ProcessSingleMission(string mizPath, AppOptions options, bool anyExport)
+        private void ProcessSingleMission(string mizPath, string missionContent, AppOptions options, bool anyExport)
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "DCSMission_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempDir);
 
             try
             {
-                Console.WriteLine($"📦 Processing: {Path.GetFileName(mizPath)}");
-                ZipFile.ExtractToDirectory(mizPath, tempDir, overwriteFiles: true);
-
-                string missionFile = Path.Combine(tempDir, "mission");
-                if (!File.Exists(missionFile))
-                {
-                    Console.WriteLine("⚠️  No 'mission' file found.");
-                    return;
-                }
-
                 var script = new Script();
-                script.DoFile(missionFile);
+                script.DoString(missionContent);
                 Table mission = script.Globals.Get("mission").Table;
+                string theatre = mission.Get("theatre")?.String ?? "caucasus";
 
                 Table dictTable = null;
                 string dictPath = Path.Combine(tempDir, @"l10n\DEFAULT\dictionary");
@@ -150,7 +137,7 @@ namespace DcsMissionReader.Services
                         GenerateFullExport(reportDir, mission, dictTable, tempDir);
 
                     if (options.CreateKml)
-                        GenerateKmlExport(reportDir, sortie, mission);
+                        GenerateKmlExport(reportDir, sortie, mission, theatre);
 
                     Console.WriteLine($"📁 Report folder created → {reportDir}");
                     if (kneeboardCount > 0)
@@ -254,7 +241,7 @@ namespace DcsMissionReader.Services
         /// <param name="kneeboardCount">The number of custom kneeboards.</param>
         /// <param name="mission">The mission table (for generating the ATO section).</param>
         /// <param name="options">The application options (for generating the weather section).</param>
-        private static void GenerateHtmlReport(string reportDir, string imagesDir, string kneeboardsDir, string sortie,
+        private void GenerateHtmlReport(string reportDir, string imagesDir, string kneeboardsDir, string sortie,
             string mapName, string fullDate, string startTime, string version, string description,
             string blueTask, string redTask, int kneeboardCount, Table mission, AppOptions options)
         {
@@ -288,49 +275,49 @@ namespace DcsMissionReader.Services
             }
 
             string html = $@"<!DOCTYPE html>
-<html lang=""en""><head><meta charset=""utf-8""><title>{sortie}</title>
-<script src=""https://cdn.tailwindcss.com""></script>
-<style>body{{font-family:system-ui,sans-serif;}}.image-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:1rem;}} table{{border-collapse:collapse;}} th,td{{padding:0.75rem;}}</style>
-</head>
-<body class=""bg-gray-950 text-gray-100"">
-<div class=""max-w-5xl mx-auto p-8"">
-<h1 class=""text-5xl font-bold mb-2"">{sortie}</h1>
-<div class=""flex gap-6 text-sm text-gray-400 mb-8"">
-<div><span class=""font-semibold"">Map:</span> {mapName}</div>
-<div><span class=""font-semibold"">Date:</span> {fullDate}</div>
-<div><span class=""font-semibold"">Start:</span> {startTime}</div>
-<div><span class=""font-semibold"">Version:</span> {version}</div>
-</div>
+                <html lang=""en""><head><meta charset=""utf-8""><title>{sortie}</title>
+                <script src=""https://cdn.tailwindcss.com""></script>
+                <style>body{{font-family:system-ui,sans-serif;}}.image-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:1rem;}} table{{border-collapse:collapse;}} th,td{{padding:0.75rem;}}</style>
+                </head>
+                <body class=""bg-gray-950 text-gray-100"">
+                <div class=""max-w-5xl mx-auto p-8"">
+                <h1 class=""text-5xl font-bold mb-2"">{sortie}</h1>
+                <div class=""flex gap-6 text-sm text-gray-400 mb-8"">
+                <div><span class=""font-semibold"">Map:</span> {mapName}</div>
+                <div><span class=""font-semibold"">Date:</span> {fullDate}</div>
+                <div><span class=""font-semibold"">Start:</span> {startTime}</div>
+                <div><span class=""font-semibold"">Version:</span> {version}</div>
+                </div>
 
-<h2 class=""text-2xl font-semibold mb-4 border-b border-gray-700 pb-2"">Briefing</h2>
-<div class=""prose prose-invert max-w-none text-lg"">{(string.IsNullOrWhiteSpace(description) ? "<p class=\"text-gray-400\">No briefing text.</p>" : "<p>" + description.Replace("\n", "</p><p>") + "</p>")}</div>
+                <h2 class=""text-2xl font-semibold mb-4 border-b border-gray-700 pb-2"">Briefing</h2>
+                <div class=""prose prose-invert max-w-none text-lg"">{(string.IsNullOrWhiteSpace(description) ? "<p class=\"text-gray-400\">No briefing text.</p>" : "<p>" + description.Replace("\n", "</p><p>") + "</p>")}</div>
 
-{(string.IsNullOrWhiteSpace(blueTask) ? "" : $"<h2 class=\"text-2xl font-semibold mt-12 mb-4 border-b border-blue-700 pb-2\">Blue Task</h2><div class=\"prose prose-invert\">{blueTask.Replace("\n", "<br>")}</div>")}
-{(string.IsNullOrWhiteSpace(redTask) ? "" : $"<h2 class=\"text-2xl font-semibold mt-12 mb-4 border-b border-red-700 pb-2\">Red Task</h2><div class=\"prose prose-invert\">{redTask.Replace("\n", "<br>")}</div>")}
+                {(string.IsNullOrWhiteSpace(blueTask) ? "" : $"<h2 class=\"text-2xl font-semibold mt-12 mb-4 border-b border-blue-700 pb-2\">Blue Task</h2><div class=\"prose prose-invert\">{blueTask.Replace("\n", "<br>")}</div>")}
+                {(string.IsNullOrWhiteSpace(redTask) ? "" : $"<h2 class=\"text-2xl font-semibold mt-12 mb-4 border-b border-red-700 pb-2\">Red Task</h2><div class=\"prose prose-invert\">{redTask.Replace("\n", "<br>")}</div>")}
 
-<h2 class=""text-2xl font-semibold mt-16 mb-6"">📸 Briefing Images</h2>
-<div class=""image-grid"">{string.Join("", Directory.GetFiles(imagesDir).Select(f => $@"<div class=""bg-gray-900 rounded-xl overflow-hidden border border-gray-700""><img src=""images/{Path.GetFileName(f)}"" class=""w-full""><div class=""px-4 py-2 text-xs text-gray-400 font-mono"">{Path.GetFileName(f)}</div></div>"))}</div>
+                <h2 class=""text-2xl font-semibold mt-16 mb-6"">📸 Briefing Images</h2>
+                <div class=""image-grid"">{string.Join("", Directory.GetFiles(imagesDir).Select(f => $@"<div class=""bg-gray-900 rounded-xl overflow-hidden border border-gray-700""><img src=""images/{Path.GetFileName(f)}"" class=""w-full""><div class=""px-4 py-2 text-xs text-gray-400 font-mono"">{Path.GetFileName(f)}</div></div>"))}</div>
 
-{kneeboardHtml}
+                {kneeboardHtml}
 
-{GeneratePlayerSlotsHtmlSection(mission)}
+                {GeneratePlayerSlotsHtmlSection(mission)}
 
-{GenerateFlightsWithWaypointsHtmlSection(mission)}
+                {GenerateFlightsWithWaypointsHtmlSection(mission)}
 
-{GenerateRequiredModsHtmlSection(mission)}
+                {GenerateRequiredModsHtmlSection(mission)}
 
-{GenerateAtoHtmlSection(mission)}
+                {GenerateAtoHtmlSection(mission)}
 
-{GenerateUnitsAndTargetsHtmlSection(mission)}
+                {GenerateUnitsAndTargetsHtmlSection(mission)}
 
-{GenerateWeatherHtmlSection(mission, options.Units)}
+                {GenerateWeatherHtmlSection(mission, options.Units)}
 
-{GenerateOrderOfBattleHtmlSection(mission)}
+                {GenerateOrderOfBattleHtmlSection(mission)}
 
-<div class=""mt-16 text-center text-xs text-gray-500"">
-Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
-</div>
-</div></body></html>";
+                <div class=""mt-16 text-center text-xs text-gray-500"">
+                Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
+                </div>
+                </div></body></html>";
 
             File.WriteAllText(htmlPath, html);
         }
@@ -461,7 +448,7 @@ Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
         {
             return Math.Abs(value % 1) < double.Epsilon;
         }
-        
+
         /// <summary>
         /// Sanitizes a file name by replacing invalid characters with underscores and trimming whitespace and trailing dots.
         /// </summary>
@@ -1068,7 +1055,7 @@ Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
         /// </summary>
         /// <param name="mission">The mission table containing coalition data.</param>
         /// <returns>An HTML string representing the flights and waypoints section.</returns>
-        private static string GenerateFlightsWithWaypointsHtmlSection(Table mission)
+        private string GenerateFlightsWithWaypointsHtmlSection(Table mission)
         {
             var coalitionVal = mission.Get("coalition");
             if (coalitionVal.Type != DataType.Table)
@@ -1223,81 +1210,9 @@ Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
             return sb.ToString();
         }
 
-        // CLEAN LAT/LONG CONVERSION
-        private static (double lat, double lon) GetLatLonFromDcs(double x, double y, string theatre)
+        private (double lat, double lon) GetLatLonFromDcs(double x, double y, string theatre)
         {
-            string t = theatre.ToLowerInvariant().Trim();
-
-            return t switch
-            {
-                "caucasus" => ConvertGeneric(x, y, 45.0355, 34.2287),
-                "persiangulf" => ConvertGeneric(x, y, 25.0, 55.0),
-                "syria" => ConvertGeneric(x, y, 34.0, 38.0),
-
-                // Marianas
-                "marianas" => ConvertGeneric(x, y, 13.5, 144.5),
-                "marianaislands" => ConvertGeneric(x, y, 13.5, 144.5),
-                "ww2marianas" => ConvertGeneric(x, y, 13.5, 144.5),
-                "marianaislands_ww2" => ConvertGeneric(x, y, 13.5, 144.5),
-
-                "normandy" => ConvertGeneric(x, y, 49.0, 0.0),
-                "thechannel" => ConvertGeneric(x, y, 51.0, 0.0),
-                "sinai" => ConvertGeneric(x, y, 29.0, 33.0),
-                "iraq" => ConvertGeneric(x, y, 33.0, 44.0),
-                "kola" => ConvertGeneric(x, y, 68.0, 30.0),
-                "afghanistan" => ConvertGeneric(x, y, 34.0, 66.0),
-                "germany" => ConvertGeneric(x, y, 50.0, 10.0),
-                "coldwargermany" => ConvertGeneric(x, y, 50.0, 10.0),
-
-                // Falklands / South Atlantic (Stanley Localized Anchor)
-                "southatlantic" => ConvertGeneric(x, y, -52.482100, -59.141840),
-                "south atlantic" => ConvertGeneric(x, y, -52.482100, -59.141840),
-                "falklands" => ConvertGeneric(x, y, -52.482100, -59.141840),
-
-                _ => ConvertGeneric(x, y, 42.0, 42.0)
-            };
-        }
-
-        /// <summary>
-        /// High-precision conversion using the WGS 84 Reference Ellipsoid.
-        /// Accounts for the Earth's oblateness (equatorial bulge) using Taylor Series trigonometric polynomials.
-        /// </summary>
-        /// <param name="dcsX">The DCS X coordinate (Northing).</param>
-        /// <param name="dcsY">The DCS Y coordinate (Easting).</param>
-        /// <param name="refLat">The reference latitude for the conversion.</param>
-        /// <param name="refLon">The reference longitude for the conversion.</param>
-        /// <param name="invertNorthing">Whether to invert the northing direction.</param>
-        /// <returns>A tuple containing the latitude and longitude.</returns>
-        public static (double lat, double lon) ConvertGeneric(double dcsX, double dcsY, double refLat, double refLon, bool invertNorthing = false)
-        {
-            // 1. Convert the reference latitude to radians for Math.Cos
-            double refLatRad = refLat * Math.PI / 180.0;
-
-            // 2. WGS 84 EXACT LATITUDE SCALE: Calculate the exact meters in one degree of Latitude
-            // at the reference point. (Accounts for the poles being flatter than the equator).
-            double metersPerDegLat = 111132.92
-                                   - (559.82 * Math.Cos(2 * refLatRad))
-                                   + (1.175 * Math.Cos(4 * refLatRad))
-                                   - (0.0023 * Math.Cos(6 * refLatRad));
-
-            double latSign = invertNorthing ? -1.0 : 1.0;
-
-            // Calculate the precise Target Latitude
-            double lat = refLat + latSign * (dcsX / metersPerDegLat);
-
-            // 3. Convert the NEW Target Latitude to radians
-            double targetLatRad = lat * Math.PI / 180.0;
-
-            // 4. WGS 84 EXACT LONGITUDE SCALE: Calculate the exact meters in one degree of Longitude
-            // at the specific target latitude. (Accounts for the convergence of meridians).
-            double metersPerDegLon = (111412.84 * Math.Cos(targetLatRad))
-                                   - (93.5 * Math.Cos(3 * targetLatRad))
-                                   + (0.118 * Math.Cos(5 * targetLatRad));
-
-            // Calculate the precise Target Longitude
-            double lon = refLon + (dcsY / metersPerDegLon);
-
-            return (lat, lon);
+            return converter.Convert(x, y, theatre);
         }
 
         /// <summary>
@@ -1312,9 +1227,12 @@ Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
         /// UPDATED: Reads ALL waypoints from every aircraft group.
         /// UPDATED: Uses exact 90° CCW conversion calibrated to your points.
         /// </summary>
-        private void GenerateKmlExport(string reportDir, string sortie, Table mission)
+        /// <param name="reportDir">The directory where the KML file will be saved.</param>
+        /// <param name="sortie">The name of the sortie.</param>
+        /// <param name="mission">The mission table containing the mission data.</param>
+        /// <param name="theatre">The theatre of operations.</param>
+       private void GenerateKmlExport(string reportDir, string sortie, Table mission, string theatre)
         {
-            string theatre = mission.Get("theatre")?.String ?? "caucasus";
             string kmlPath = Path.Combine(reportDir, SanitizeFileName(sortie) + ".kml");
             var kml = new System.Text.StringBuilder();
             kml.AppendLine(@"<?xml version=""1.0"" encoding=""UTF-8""?>");
@@ -1328,12 +1246,12 @@ Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
                 "ff00ccff", "ff00aaff", "ff0099ff", "ff0077ff", "ff0055ff",
                 "ff3399ff", "ff66aaff", "ff99ccff"
             };
-                    var redColors = new[] {
+            var redColors = new[] {
                 "ff0000ff", "ff0066ff", "ff00a5ff", "ffff00ff", "ffff3399",
                 "ffff0066", "ffff3366", "ffff6633", "ffff9933", "ffffcc33",
                 "ffff6600", "ffff9900", "ffffcc00"
             };
-                    var neutralColors = new[] {
+            var neutralColors = new[] {
                 "ff00ff80", "ff80ff00", "ffccff00", "ffffff00", "ffccff66",
                 "ff99ff66", "ff66ff99", "ff33ffcc", "ff00ffcc", "ff66ffcc",
                 "ff99ffcc", "ffccffcc", "ffffffcc"
@@ -1357,37 +1275,6 @@ Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
             {
                 if (string.IsNullOrEmpty(text)) return string.Empty;
                 return text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;").Replace("'", "&apos;");
-            }
-
-            // Threat range lookup (comprehensive)
-            var threatRanges = new Dictionary<string, (double trackNm, double fireNm)>
-            {
-                { "sa2", (25, 15) }, { "sa3", (18, 12) }, { "sa6", (20, 15) }, { "sa8", (10, 8) },
-                { "sa10", (45, 30) }, { "sa11", (28, 20) }, { "sa15", (12, 8) }, { "sa19", (8, 6) },
-                { "sa20", (80, 50) }, { "sa22", (15, 12) }, { "patriot", (80, 50) }, { "hawk", (45, 25) },
-                { "avenger", (5, 4) }, { "roland", (8, 6) }, { "zsu", (2.5, 1.5) }, { "shilka", (2.5, 1.5) },
-                { "tunguska", (8, 5) }, { "2s6", (8, 5) }, { "2s6tunguska", (8, 5) }, { "gepard", (4, 3) },
-                { "vulcan", (2, 1.5) }, { "zu23", (2, 1.5) }, { "stinger", (3, 3) }, { "igla", (3, 3) },
-                { "btr80", (2, 1) }, { "btr-80", (2, 1) }, { "bmp", (2, 1) }, { "tank", (2, 1) },
-                { "ticonderoga", (40, 20) }, { "cg47", (40, 20) }, { "arleighburke", (40, 20) },
-                { "type055", (50, 30) }, { "type_093", (5, 3) }, { "093", (5, 3) }, { "virginia", (5, 3) },
-                { "cv", (60, 40) }, { "cvn", (60, 40) }, { "default", (2, 1) }
-            };
-
-            static string GenerateCircle(double centerLat, double centerLon, double radiusNm, int segments = 36)
-            {
-                var sb = new System.Text.StringBuilder();
-                double radiusRad = radiusNm * 1852.0 / 6371000.0;
-                for (int i = 0; i <= segments; i++)
-                {
-                    double angle = i * 2 * Math.PI / segments;
-                    double dLat = radiusRad * Math.Cos(angle);
-                    double dLon = radiusRad * Math.Sin(angle) / Math.Cos(centerLat * Math.PI / 180.0);
-                    double lat = centerLat + dLat * (180.0 / Math.PI);
-                    double lon = centerLon + dLon * (180.0 / Math.PI);
-                    sb.Append($"{lon:F8},{lat:F8},0 ");
-                }
-                return sb.ToString().Trim();
             }
 
             // === PROCESS ALL COALITIONS ===
@@ -1446,6 +1333,8 @@ Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
                                     double x = pt.Table.Get("x")?.Number ?? 0;
                                     double y = pt.Table.Get("y")?.Number ?? 0;
                                     double alt = pt.Table.Get("alt")?.Number ?? 0;
+
+                                    // Apply Origin Calibration
                                     var (lat, lon) = GetLatLonFromDcs(x, y, theatre);
                                     kml.AppendLine($" {lon:F8},{lat:F8},{alt:F0}");
                                 }
@@ -1462,6 +1351,8 @@ Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
                                     double y = pt.Table.Get("y")?.Number ?? 0;
                                     double alt = pt.Table.Get("alt")?.Number ?? 0;
                                     string wpName = pt.Table.Get("name")?.String ?? $"WP{i}";
+
+                                    // Apply Origin Calibration
                                     var (lat, lon) = GetLatLonFromDcs(x, y, theatre);
                                     kml.AppendLine("<Placemark>");
                                     kml.AppendLine($"<name>{EscapeForKml(wpName)}</name>");
@@ -1526,16 +1417,20 @@ Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
                                 foreach (var type in unitCounts.Keys)
                                 {
                                     string key = type.ToLower().Replace(" ", "").Replace("-", "");
-                                    if (threatRanges.TryGetValue(key, out var ranges))
+                                    if (threatService.GetThreatRanges(key) is (double track, double fire))
                                     {
                                         hasThreat = true;
-                                        maxTrack = Math.Max(maxTrack, ranges.trackNm);
-                                        maxFire = Math.Max(maxFire, ranges.fireNm);
+                                        maxTrack = Math.Max(maxTrack, track);
+                                        maxFire = Math.Max(maxFire, fire);
                                     }
                                 }
                                 if (hasThreat && maxTrack > 0)
                                 {
-                                    string yellowCoords = GenerateCircle(lat, lon, maxTrack);
+                                    // Convert meters to NM (1 NM = 1852 meters)
+                                    double maxTrackNm = maxTrack / 1852.0;
+                                    double maxFireNm = maxFire / 1852.0;
+
+                                    string yellowCoords = GenerateCircle(lat, lon, maxTrackNm);
                                     kml.AppendLine("<Placemark>");
                                     kml.AppendLine($"<name>{EscapeForKml(groupName)} - Tracking Range</name>");
                                     kml.AppendLine("<styleUrl>#yellowCircleStyle</styleUrl>");
@@ -1544,7 +1439,7 @@ Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
 
                                     if (maxFire > 0 && maxFire < maxTrack)
                                     {
-                                        string redCoords = GenerateCircle(lat, lon, maxFire);
+                                        string redCoords = GenerateCircle(lat, lon, maxFireNm);
                                         kml.AppendLine("<Placemark>");
                                         kml.AppendLine($"<name>{EscapeForKml(groupName)} - Firing Range</name>");
                                         kml.AppendLine("<styleUrl>#redCircleStyle</styleUrl>");
@@ -1563,6 +1458,22 @@ Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}
 
             File.WriteAllText(kmlPath, kml.ToString());
             Console.WriteLine($" 🗺️ KML created with FULL routes + ALL waypoints + ground targets → {kmlPath}");
+        }
+
+        private static string GenerateCircle(double centerLat, double centerLon, double radiusNm, int segments = 36)
+        {
+            var sb = new System.Text.StringBuilder();
+            double radiusRad = radiusNm * 1852.0 / 6371000.0;
+            for (int i = 0; i <= segments; i++)
+            {
+                double angle = i * 2 * Math.PI / segments;
+                double dLat = radiusRad * Math.Cos(angle);
+                double dLon = radiusRad * Math.Sin(angle) / Math.Cos(centerLat * Math.PI / 180.0);
+                double lat = centerLat + dLat * (180.0 / Math.PI);
+                double lon = centerLon + dLon * (180.0 / Math.PI);
+                sb.Append($"{lon:F8},{lat:F8},0 ");
+            }
+            return sb.ToString().Trim();
         }
 
         #endregion Private helper methods
