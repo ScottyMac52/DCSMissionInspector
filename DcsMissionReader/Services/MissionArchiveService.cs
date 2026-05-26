@@ -16,13 +16,5 @@ namespace DcsMissionReader.Services
             using var reader = new StreamReader(entry.Open());
             return await reader.ReadToEndAsync();
         }
-
-        // Extracts a specific binary resource (e.g., images or other files)
-        public async Task<byte[]> GetResourceAsync(string resourcePath)
-        {
-            // Note: This assumes zipFilePath is passed or accessible. 
-            // Depending on your usage, you might want to pass the zipFilePath here as well.
-            throw new NotImplementedException("Resource path requires context of the specific .miz file.");
-        }
     }
 }

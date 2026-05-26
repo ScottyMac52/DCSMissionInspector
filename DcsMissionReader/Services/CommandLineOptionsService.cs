@@ -1,6 +1,5 @@
 ﻿using DcsMissionReader.Models;
 using DcsMissionReader.Services.Interfaces;
-using Microsoft.Extensions.Configuration;
 
 namespace DcsMissionReader.Services
 {
@@ -12,44 +11,44 @@ namespace DcsMissionReader.Services
     {
         #region ICommandLineOptionsService Implementation
 
-        /// <summary>
-        /// Parses the command line arguments into an AppOptions object.
-        /// </summary>
-        /// <param name="args">The command line arguments.</param>
-        /// <returns>An AppOptions object populated with the parsed values.</returns>
         public AppOptions Parse(string[] args)
         {
-            var switchMappings = new Dictionary<string, string>
-            {
-                { "-h", "create-html" },
-                { "--create-html", "create-html" },
-                { "--html", "create-html" },
-                { "-j", "json" },
-                { "--json", "json" },
-                { "--full-export", "full-export" },
-                { "--full", "full-export" },
-                { "--metric", "units" },
-                { "--real", "units" },
-                { "-k", "kml" },
-                { "--kml", "kml" }
-            };
-
-            var config = new ConfigurationBuilder()
-                .AddCommandLine(args, switchMappings)
-                .Build();
+            // Convert to a HashSet for O(1) lookup performance
+            var argSet = new HashSet<string>(args, StringComparer.OrdinalIgnoreCase);
 
             var options = new AppOptions
             {
-                CreateHtml = config.GetValue<bool>("create-html"),
-                CreateJson = config.GetValue<bool>("json"),
-                FullExport = config.GetValue<bool>("full-export"),
-                CreateKml = config.GetValue<bool>("kml"),
-                MissionFiles = [.. args.Where(a => !a.StartsWith('-') && a.EndsWith(".miz", StringComparison.OrdinalIgnoreCase))]
+                // Help flags
+                ShowHelp = argSet.Contains("-h") || argSet.Contains("--help") || argSet.Contains("-?"),
+
+                // Version flags
+                ShowVersion = argSet.Contains("-v") || argSet.Contains("--ver") || argSet.Contains("--version"),
+
+                // HTML
+                CreateHtml = argSet.Contains("--html") || argSet.Contains("--create-html") || argSet.Contains("--out-html"),
+
+                // JSON
+                CreateJson = argSet.Contains("-j") || argSet.Contains("--json") || argSet.Contains("--out-json"),
+
+                // Full
+                FullExport = argSet.Contains("-f") || argSet.Contains("--full-export") || argSet.Contains("--full"),
+
+                // KML
+                CreateKml = argSet.Contains("-k") || argSet.Contains("--kml") || argSet.Contains("--google-earth"),
+
+                // Registration
+                CheckRegistration = argSet.Contains("-c") || argSet.Contains("--check") || argSet.Contains("--check-registration"),
+                InstallRegistration = argSet.Contains("-i") || argSet.Contains("--install") || argSet.Contains("--install-registration"),
+                UninstallRegistration = argSet.Contains("-u") || argSet.Contains("--uninstall") || argSet.Contains("--uninstall-registration"),
+
+                // Files: Filter everything that doesn't start with '-' and ends in .miz
+                MissionFiles = args.Where(a => !a.StartsWith('-') && a.EndsWith(".miz", StringComparison.OrdinalIgnoreCase)).ToList()
             };
 
-            // Units handling
-            var unitsStr = config["units"]?.ToLowerInvariant();
-            options.Units = unitsStr == "metric" ? UnitsSystem.Metric : UnitsSystem.Real;
+            // Units handling: This remains the only part needing value-based logic
+            // We check if the user passed --metric, --real, or --imperial
+            if (argSet.Contains("--metric")) options.Units = UnitsSystem.Metric;
+            else options.Units = UnitsSystem.Real;
 
             return options;
         }
