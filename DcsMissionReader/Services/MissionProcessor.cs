@@ -1,8 +1,6 @@
 ﻿using DcsMissionReader.Models;
 using DcsMissionReader.Services.Interfaces;
 using MoonSharp.Interpreter;
-using System;
-using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.Json;
 
@@ -1231,7 +1229,7 @@ namespace DcsMissionReader.Services
         /// <param name="sortie">The name of the sortie.</param>
         /// <param name="mission">The mission table containing the mission data.</param>
         /// <param name="theatre">The theatre of operations.</param>
-       private void GenerateKmlExport(string reportDir, string sortie, Table mission, string theatre)
+        private void GenerateKmlExport(string reportDir, string sortie, Table mission, string theatre)
         {
             string kmlPath = Path.Combine(reportDir, SanitizeFileName(sortie) + ".kml");
             var kml = new System.Text.StringBuilder();
