@@ -50,5 +50,26 @@ namespace DcsMissionReaderTests
             // Cleanup
             if (Directory.Exists("test")) Directory.Delete("test", true);
         }
+
+        [Fact]
+        public void ParseWaypoints_ShouldExtractCorrectData_FromTable()
+        {
+            // Arrange: Create a minimal Lua table structure
+            var script = new Script();
+            var mission = new Table(script);
+            var points = new Table(script);
+            var wp1 = new Table(script);
+            wp1.Set("x", DynValue.NewNumber(100));
+            wp1.Set("y", DynValue.NewNumber(200));
+            points.Set(1, DynValue.NewTable(wp1));
+
+            // Act
+            var results = HtmlReportGenerator.ParseWaypoints(points, mission);
+
+            // Assert
+            Assert.Single(results);
+            Assert.Equal(100, results[0].x);
+            Assert.Equal(200, results[0].y);
+        }
     }
 }

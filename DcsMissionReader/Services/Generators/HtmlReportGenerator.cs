@@ -746,30 +746,13 @@ namespace DcsMissionReader.Services.Generators
                                 {
                                     sb.AppendLine(@"<div class=""mt-4""><table class=""w-full border-collapse text-xs""><thead><tr class=""bg-gray-800""><th class=""p-2 text-center"" style=""width: 5%"">#</th><th class=""p-2 text-left"" style=""width: 35%"">Action</th><th class=""p-2 text-right"" style=""width: 15%"">Alt (ft)</th><th class=""p-2 text-right"" style=""width: 15%"">Speed (kt)</th><th class=""p-2 text-left"" style=""width: 30%"">DCS (x, y)</th></tr></thead><tbody>");
 
-                                    var waypoints = new List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)>();
+                                    // Call the extracted helper here
+                                    var waypoints = ParseWaypoints(pointsVal.Table, mission);
                                     int idx = 1;
 
-                                    foreach (var pPair in pointsVal.Table.Pairs)
+                                    foreach (var wp in waypoints)
                                     {
-                                        var point = pPair.Value.Table;
-                                        double x = point.Get("x")?.Number ?? 0;
-                                        double y = point.Get("y")?.Number ?? 0;
-                                        double alt = point.Get("alt")?.Number ?? 0;
-                                        double speed = point.Get("speed")?.Number ?? 0;
-                                        string action = point.Get("action")?.String ?? "Turning Point";
-                                        string wpName = point.Get("name")?.String ?? $"WP{idx}";
-
-                                        var waypointTargets = new List<(double x, double y, string targetName)>();
-                                        var taskParams = point.Get("task")?.Table?.Get("params")?.Table;
-                                        if (taskParams != null)
-                                        {
-                                            var tasks = taskParams.Get("tasks")?.Table;
-                                            if (tasks != null) waypointTargets.AddRange(ProcessTargets(tasks, mission, wpName));
-                                        }
-
-                                        waypoints.Add((x, y, alt, speed, action, wpName, waypointTargets));
-
-                                        sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-2 text-center font-semibold"">{idx}</td><td class=""p-2 text-left"">{action}</td><td class=""p-2 text-right"">{(int)(alt * 3.28084)}</td><td class=""p-2 text-right"">{(int)(speed * 1.94384)}</td><td class=""p-2 text-left font-mono"">{x:F0}, {y:F0}</td></tr>");
+                                        sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-2 text-center font-semibold"">{idx}</td><td class=""p-2 text-left"">{wp.action}</td><td class=""p-2 text-right"">{(int)(wp.alt * 3.28084)}</td><td class=""p-2 text-right"">{(int)(wp.speed * 1.94384)}</td><td class=""p-2 text-left font-mono"">{wp.x:F0}, {wp.y:F0}</td></tr>");
                                         idx++;
                                     }
                                     sb.AppendLine("</tbody></table></div>");
@@ -931,6 +914,39 @@ namespace DcsMissionReader.Services.Generators
             }
             sb.AppendLine("</svg></details>");
             return sb.ToString();
+        }
+
+        public static List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> ParseWaypoints(Table pointsVal, Table mission)
+        {
+            var waypoints = new List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)>();
+            int idx = 1;
+
+            foreach (var pPair in pointsVal.Pairs)
+            {
+                var point = pPair.Value.Table;
+                double x = point.Get("x")?.Number ?? 0;
+                double y = point.Get("y")?.Number ?? 0;
+                double alt = point.Get("alt")?.Number ?? 0;
+                double speed = point.Get("speed")?.Number ?? 0;
+                string action = point.Get("action")?.String ?? "Turning Point";
+                string wpName = point.Get("name")?.String ?? $"WP{idx}";
+
+                var waypointTargets = new List<(double x, double y, string targetName)>();
+                var taskParams = point.Get("task")?.Table?.Get("params")?.Table;
+                if (taskParams != null)
+                {
+                    var tasks = taskParams.Get("tasks")?.Table;
+                    if (tasks != null)
+                    {
+                        // We use your existing ProcessTargets logic here
+                        waypointTargets.AddRange(new HtmlReportGenerator(null!).ProcessTargets(tasks, mission, wpName));
+                    }
+                }
+
+                waypoints.Add((x, y, alt, speed, action, wpName, waypointTargets));
+                idx++;
+            }
+            return waypoints;
         }
     }
 }

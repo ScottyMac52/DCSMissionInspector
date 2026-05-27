@@ -3,6 +3,7 @@ using DcsMissionReader.Services.Generators;
 using DcsMissionReader.Services.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.IO.Abstractions;
 
 namespace DcsMissionReader
 {
@@ -28,6 +29,7 @@ namespace DcsMissionReader
             services.AddSingleton<IMissionExportStrategy, JsonSummaryGenerator>();
             services.AddSingleton<IMissionExportStrategy, KmlExportGenerator>();
             services.AddSingleton<IFileManagementService, FileManagementService>();
+            services.AddSingleton<IFileSystem, FileSystem>();
 
             using var serviceProvider = services.BuildServiceProvider();
 
