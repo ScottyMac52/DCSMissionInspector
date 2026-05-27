@@ -258,68 +258,36 @@ namespace DcsMissionReader.Services.Generators
         /// </summary>
         /// <param name="mission">The mission table containing weather data.</param>
         /// <returns>A string containing the HTML representation of the weather section.</returns>
-        // UPDATED METHOD: GenerateWeatherHtmlSection
         private static string GenerateWeatherHtmlSection(Table mission, UnitsSystem units)
         {
             var weatherVal = mission.Get("weather");
             if (weatherVal.Type != DataType.Table)
                 return "<p class=\"text-yellow-400\">No weather data found.</p>";
 
-            var w = weatherVal.Table;
+            var data = GetWeatherData(mission, units);
+            var sb = new StringBuilder();
 
-            string clouds = w.Get("clouds")?.Table?.Get("preset")?.String ?? "Clear";
-            double cloudBaseM = w.Get("clouds")?.Table?.Get("base")?.Number ?? 0;
-            double cloudThicknessM = w.Get("clouds")?.Table?.Get("thickness")?.Number ?? 0;
-
-            var wind = w.Get("wind")?.Table;
-            string windSurface = GetWindString(wind?.Get("atGround"), units);
-            string wind2000 = GetWindString(wind?.Get("at2000"), units);
-            string wind8000 = GetWindString(wind?.Get("at8000"), units);
-
-            double visibilityM = w.Get("visibility")?.Table?.Get("distance")?.Number ?? 80000;
-            string visStr = GetVisibilityString(visibilityM, units);
-
-            double qnh = w.Get("qnh")?.Number ?? 760;
-            double tempC = w.Get("season")?.Table?.Get("temperature")?.Number ?? 15;
-
-            string cloudLine = "";
-            if (cloudBaseM > 0)
-            {
-                double baseVal = units == UnitsSystem.Metric ? cloudBaseM / 1000 : cloudBaseM * 3.28084;
-                double thickVal = units == UnitsSystem.Metric ? cloudThicknessM / 1000 : cloudThicknessM * 3.28084;
-                string unit = units == UnitsSystem.Metric ? "km" : "ft";
-                cloudLine = $"Base {baseVal:F1} {unit} • Thickness {thickVal:F1} {unit}";
-            }
-
-            var sb = new System.Text.StringBuilder();
             sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">🌤️ Weather</h2>");
             sb.AppendLine(@"<div class=""grid grid-cols-2 md:grid-cols-3 gap-6 text-sm"">");
 
-            sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-5"">
-        <div class=""text-gray-400 text-xs mb-1"">CLOUDS</div>
-        <div class=""text-2xl font-semibold"">{clouds}</div>");
-            if (!string.IsNullOrEmpty(cloudLine))
-                sb.AppendLine($@"<div class=""text-xs text-gray-400"">{cloudLine}</div>");
+            // Clouds
+            sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-5""><div class=""text-gray-400 text-xs mb-1"">CLOUDS</div><div class=""text-2xl font-semibold"">{data.Clouds}</div>");
+            if (!string.IsNullOrEmpty(data.CloudLine)) sb.AppendLine($@"<div class=""text-xs text-gray-400"">{data.CloudLine}</div>");
             sb.AppendLine("</div>");
 
-            sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-5"">
-        <div class=""text-gray-400 text-xs mb-1"">WIND</div>
-        <div>Surface: <span class=""font-semibold"">{windSurface}</span></div>
-        <div>2000 ft: <span class=""font-semibold"">{wind2000}</span></div>
-        <div>8000 ft: <span class=""font-semibold"">{wind8000}</span></div>
-    </div>");
+            // Wind
+            sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-5""><div class=""text-gray-400 text-xs mb-1"">WIND</div>
+        <div>Surface: <span class=""font-semibold"">{data.WindSurface}</span></div>
+        <div>2000 ft: <span class=""font-semibold"">{data.Wind2000}</span></div>
+        <div>8000 ft: <span class=""font-semibold"">{data.Wind8000}</span></div></div>");
 
+            // Visibility / QNH
             string pressureUnit = units == UnitsSystem.Metric ? "hPa" : "inHg";
-            double pressureVal = units == UnitsSystem.Metric ? qnh : qnh * 0.02953;
-            double tempVal = units == UnitsSystem.Metric ? tempC : (tempC * 9.0 / 5) + 32;
             string tempUnit = units == UnitsSystem.Metric ? "°C" : "°F";
-
-            sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-5"">
-        <div class=""text-gray-400 text-xs mb-1"">VISIBILITY / QNH</div>
-        <div>Visibility: <span class=""font-semibold"">{visStr}</span></div>
-        <div>QNH: <span class=""font-semibold"">{pressureVal:F2} {pressureUnit}</span></div>
-        <div>Temperature: <span class=""font-semibold"">{tempVal:F0} {tempUnit}</span></div>
-    </div>");
+            sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-5""><div class=""text-gray-400 text-xs mb-1"">VISIBILITY / QNH</div>
+        <div>Visibility: <span class=""font-semibold"">{data.Visibility}</span></div>
+        <div>QNH: <span class=""font-semibold"">{data.Qnh:F2} {pressureUnit}</span></div>
+        <div>Temperature: <span class=""font-semibold"">{data.Temp:F0} {tempUnit}</span></div></div>");
 
             sb.AppendLine("</div>");
             return sb.ToString();
@@ -822,27 +790,35 @@ namespace DcsMissionReader.Services.Generators
             return targets;
         }
 
-        private void DebugTaskStructure(Table tasks)
+        private static WeatherData GetWeatherData(Table mission, UnitsSystem units)
         {
-            System.Diagnostics.Debug.WriteLine($"--- DEBUGGING TASK STRUCTURE: {tasks.Pairs.Count()} tasks found ---");
-            foreach (var pair in tasks.Pairs)
-            {
-                var task = pair.Value.Table;
-                string id = task.Get("id")?.String ?? "Unknown";
-                System.Diagnostics.Debug.WriteLine($"Task ID: {id}");
+            var w = mission.Get("weather")?.Table ?? new Table(new Script());
+            var clouds = w.Get("clouds")?.Table;
+            var wind = w.Get("wind")?.Table;
+            var visibility = w.Get("visibility")?.Table;
+            var season = w.Get("season")?.Table;
 
-                var paramsTable = task.Get("params")?.Table;
-                if (paramsTable != null)
-                {
-                    var subTasks = paramsTable.Get("tasks")?.Table;
-                    System.Diagnostics.Debug.WriteLine($"  - Has nested sub-tasks: {subTasks != null}");
-                    if (subTasks != null)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"  - Sub-task count: {subTasks.Pairs.Count()}");
-                    }
-                }
-            }
+            string cloudStr = clouds?.Get("preset")?.String ?? "Clear";
+            double baseM = clouds?.Get("base")?.Number ?? 0;
+            double thickM = clouds?.Get("thickness")?.Number ?? 0;
+
+            // Logic for weather string formatting
+            string cloudLine = baseM > 0
+                ? $"Base {(units == UnitsSystem.Metric ? baseM / 1000 : baseM * 3.28084):F1} {(units == UnitsSystem.Metric ? "km" : "ft")} • Thickness {(units == UnitsSystem.Metric ? thickM / 1000 : thickM * 3.28084):F1} {(units == UnitsSystem.Metric ? "km" : "ft")}"
+                : "";
+
+            return new WeatherData(
+                cloudStr,
+                GetWindString(wind?.Get("atGround"), units),
+                GetWindString(wind?.Get("at2000"), units),
+                GetWindString(wind?.Get("at8000"), units),
+                GetVisibilityString(visibility?.Get("distance")?.Number ?? 80000, units),
+                units == UnitsSystem.Metric ? (w.Get("qnh")?.Number ?? 760) : (w.Get("qnh")?.Number ?? 760) * 0.02953,
+                units == UnitsSystem.Metric ? (season?.Get("temperature")?.Number ?? 15) : ((season?.Get("temperature")?.Number ?? 15) * 9.0 / 5) + 32,
+                cloudLine
+            );
         }
+
         private Table FindGroupById(Table mission, double groupId)
         {
             var coalition = mission.Get("coalition").Table;
