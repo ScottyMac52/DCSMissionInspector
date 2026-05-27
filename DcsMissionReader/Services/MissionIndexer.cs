@@ -74,6 +74,11 @@ namespace DcsMissionReader.Services
             }
         }
 
+        public Table? GetGroupByName(string groupName)
+        {
+            return GroupsByName.TryGetValue(groupName, out var group) ? group : null;
+        }
+
         public string ResolveNameFromGroupId(double groupId)
         {
             if (GroupsById.TryGetValue(groupId, out var group))

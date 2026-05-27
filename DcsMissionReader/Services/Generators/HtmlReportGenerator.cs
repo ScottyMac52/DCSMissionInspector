@@ -539,49 +539,29 @@ namespace DcsMissionReader.Services.Generators
 
         private static string GenerateFlightSvgMap(List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> waypoints, string groupName)
         {
-            if (waypoints == null || waypoints.Count == 0) return "";
-
-            double minX = waypoints.Min(p => p.x);
-            double maxX = waypoints.Max(p => p.x);
-            double minY = waypoints.Min(p => p.y);
-            double maxY = waypoints.Max(p => p.y);
-
-            double scale = Math.Max(maxY - minY, maxX - minX);
-            if (scale < 100) scale = 100;
-            double padding = scale * 0.15;
-            double effectiveScale = scale + (padding * 2);
-
-            double ProjectX(double y) => (y - minY + padding) / effectiveScale * 800;
-            double ProjectY(double x) => 500 - ((x - minX + padding) / effectiveScale * 500);
+            var data = CalculateSvgMapData(waypoints);
+            if (data.RoutePoints.Count == 0) return "";
 
             var sb = new StringBuilder();
             sb.AppendLine($@"<details class=""mt-6""><summary class=""cursor-pointer text-sm font-medium mb-2"">🗺️ Interactive Route Map for {groupName}</summary>");
             sb.AppendLine($@"<svg width=""800"" height=""500"" viewBox=""0 0 800 500"" class=""border border-gray-700 rounded-xl bg-gray-950"">");
 
             sb.Append(@"<polyline points=""");
-            foreach (var wp in waypoints) sb.Append($"{ProjectX(wp.y):F0},{ProjectY(wp.x):F0} ");
+            foreach (var pt in data.RoutePoints) sb.Append($"{pt.X:F0},{pt.Y:F0} ");
             sb.AppendLine(@""" fill=""none"" stroke=""#22d3ee"" stroke-width=""4"" />");
 
-            foreach (var wp in waypoints)
+            foreach (var t in data.Targets)
             {
-                foreach (var target in wp.targets)
-                {
-                    double tx = ProjectX(target.y);
-                    double ty = ProjectY(target.x);
-                    sb.AppendLine($@"<g><line x1=""{tx - 6}"" y1=""{ty - 6}"" x2=""{tx + 6}"" y2=""{ty + 6}"" stroke=""red"" stroke-width=""2""/><line x1=""{tx + 6}"" y1=""{ty - 6}"" x2=""{tx - 6}"" y2=""{ty + 6}"" stroke=""red"" stroke-width=""2""/>
-            <text x=""{tx + 8}"" y=""{ty - 8}"" fill=""red"" font-size=""10"" font-family=""monospace"" font-weight=""bold"">{target.targetName}</text></g>");
-                }
+                sb.AppendLine($@"<g><line x1=""{t.Target.X - 6:F0}"" y1=""{t.Target.Y - 6:F0}"" x2=""{t.Target.X + 6:F0}"" y2=""{t.Target.Y + 6:F0}"" stroke=""red"" stroke-width=""2""/><line x1=""{t.Target.X + 6:F0}"" y1=""{t.Target.Y - 6:F0}"" x2=""{t.Target.X - 6:F0}"" y2=""{t.Target.Y + 6:F0}"" stroke=""red"" stroke-width=""2""/>
+            <text x=""{t.Target.X + 8:F0}"" y=""{t.Target.Y - 8:F0}"" fill=""red"" font-size=""10"" font-family=""monospace"" font-weight=""bold"">{t.TargetName}</text></g>");
             }
 
-            foreach (var group in waypoints.Select((wp, i) => new { wp, idx = i + 1 }).GroupBy(p => $"{Math.Round(p.wp.x / 10)},{Math.Round(p.wp.y / 10)}"))
+            foreach (var m in data.Markers)
             {
-                var first = group.First();
-                double px = ProjectX(first.wp.y);
-                double py = ProjectY(first.wp.x);
-                string tooltip = string.Join("\n", group.Select(g => $"{g.wp.name}: {g.wp.action}"));
-                string label = string.Join("/", group.Select(g => g.wp.name));
-                sb.AppendLine($@"<g class=""cursor-pointer""><circle cx=""{px:F0}"" cy=""{py:F0}"" r=""8"" fill=""{(group.Count() > 1 ? "#f59e0b" : "#22d3ee")}""><title>{tooltip}</title></circle>
-        <text x=""{px + 12}"" y=""{py + 5}"" fill=""{(group.Count() > 1 ? "#f59e0b" : "#67e8f9")}"" font-size=""11"" font-family=""monospace"" pointer-events=""none"">{label}</text></g>");
+                string color = m.IsCluster ? "#f59e0b" : "#22d3ee";
+                string textColor = m.IsCluster ? "#f59e0b" : "#67e8f9";
+                sb.AppendLine($@"<g class=""cursor-pointer""><circle cx=""{m.Point.X:F0}"" cy=""{m.Point.Y:F0}"" r=""8"" fill=""{color}""><title>{m.Tooltip}</title></circle>
+        <text x=""{m.Point.X + 12:F0}"" y=""{m.Point.Y + 5:F0}"" fill=""{textColor}"" font-size=""11"" font-family=""monospace"" pointer-events=""none"">{m.Label}</text></g>");
             }
             sb.AppendLine("</svg></details>");
             return sb.ToString();
@@ -967,6 +947,51 @@ namespace DcsMissionReader.Services.Generators
                 }
             }
             return flights;
+        }
+
+        public static SvgMapData CalculateSvgMapData(List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> waypoints)
+        {
+            if (waypoints == null || waypoints.Count == 0) return new SvgMapData([], [], []);
+
+            double minX = waypoints.Min(p => p.x);
+            double maxX = waypoints.Max(p => p.x);
+            double minY = waypoints.Min(p => p.y);
+            double maxY = waypoints.Max(p => p.y);
+
+            double scale = Math.Max(maxY - minY, maxX - minX);
+            if (scale < 100) scale = 100;
+            double padding = scale * 0.15;
+            double effectiveScale = scale + (padding * 2);
+
+            double ProjectX(double y) => (y - minY + padding) / effectiveScale * 800.0;
+            double ProjectY(double x) => 500.0 - ((x - minX + padding) / effectiveScale * 500.0);
+
+            var routePoints = waypoints.Select(wp => new SvgPoint(ProjectX(wp.y), ProjectY(wp.x))).ToList();
+
+            var targetLines = new List<SvgTarget>();
+            foreach (var wp in waypoints)
+            {
+                var source = new SvgPoint(ProjectX(wp.y), ProjectY(wp.x));
+                foreach (var t in wp.targets)
+                {
+                    targetLines.Add(new SvgTarget(source, new SvgPoint(ProjectX(t.y), ProjectY(t.x)), t.targetName));
+                }
+            }
+
+            var markers = new List<SvgWaypointMarker>();
+            var grouped = waypoints.Select((wp, i) => new { wp, idx = i + 1 }).GroupBy(p => $"{Math.Round(p.wp.x / 10)},{Math.Round(p.wp.y / 10)}");
+
+            foreach (var group in grouped)
+            {
+                var first = group.First();
+                var pt = new SvgPoint(ProjectX(first.wp.y), ProjectY(first.wp.x));
+                bool isCluster = group.Count() > 1;
+                string tooltip = string.Join("&#10;", group.Select(g => $"{g.wp.name}: {g.wp.action}"));
+                string label = string.Join("/", group.Select(g => g.wp.name));
+                markers.Add(new SvgWaypointMarker(pt, isCluster, tooltip, label));
+            }
+
+            return new SvgMapData(routePoints, targetLines, markers);
         }
     }
 }

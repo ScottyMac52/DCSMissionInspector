@@ -61,42 +61,6 @@ namespace DcsMissionReader
             return script.Globals.Get("dictionary").Table;
         }
 
-        public static Table? FindGroupByName(Table mission, string groupName)
-        {
-            var coalition = mission.Get("coalition").Table;
-
-            // Scan all possible coalitions
-            foreach (var side in new[] { "blue", "red", "neutral" })
-            {
-                var sideVal = coalition.Get(side);
-                if (sideVal.Type != DataType.Table) continue;
-
-                var countries = sideVal.Table.Get("country").Table;
-                foreach (var cPair in countries.Pairs)
-                {
-                    var country = cPair.Value.Table;
-
-                    // Scan all possible group categories
-                    foreach (var cat in new[] { "plane", "helicopter", "vehicle", "ship", "static" })
-                    {
-                        var catVal = country.Get(cat);
-                        if (catVal.Type != DataType.Table) continue;
-
-                        var groups = catVal.Table.Get("group").Table;
-                        foreach (var gPair in groups.Pairs)
-                        {
-                            var group = gPair.Value.Table;
-                            if (group.Get("name")?.String == groupName)
-                            {
-                                return group;
-                            }
-                        }
-                    }
-                }
-            }
-            return null;
-        }
-
         /// <summary>
         /// Converts a MoonSharp Table into a C# dictionary, recursively processing nested tables.
         /// </summary>

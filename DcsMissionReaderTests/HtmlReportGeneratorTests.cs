@@ -514,5 +514,61 @@ namespace DcsMissionReaderTests
             Assert.Equal(105, targets[1].x);
             Assert.Equal(205, targets[1].y);
         }
+
+        [Fact]
+        public void GetGroupByName_WithValidName_ReturnsTableInstantly()
+        {
+            // Arrange
+            var script = new Script();
+            string luaMission = @"
+            return {
+                coalition = {
+                    blue = {
+                        country = {
+                            [1] = { plane = { group = { [1] = { name = 'Viper 1-1', groupId = 10 } } } }
+                        }
+                    }
+                }
+            }";
+            var missionTable = script.DoString(luaMission).Table;
+            var indexer = new MissionIndexer(missionTable);
+
+            // Act
+            var group = indexer.GetGroupByName("Viper 1-1");
+            var invalidGroup = indexer.GetGroupByName("NonExistentGroup");
+
+            // Assert
+            Assert.NotNull(group);
+            Assert.Equal(10, group.Get("groupId").Number);
+            Assert.Null(invalidGroup);
+        }
+
+        [Fact]
+        public void CalculateSvgMapData_WithValidWaypoints_ClustersAndProjectsCorrectly()
+        {
+            // Arrange
+            var waypoints = new List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)>
+            {
+                (0, 0, 5000, 250, "Turning Point", "WP1", new()),
+                (1000, 1000, 5000, 250, "Attack", "WP2", new() { (1500, 1500, "SA-10 Site") }),
+                (1005, 1005, 5000, 250, "Turning Point", "WP3", new()) // Within 10m, should cluster with WP2
+            };
+
+            // Act
+            var data = HtmlReportGenerator.CalculateSvgMapData(waypoints);
+
+            // Assert
+            Assert.Equal(3, data.RoutePoints.Count);
+
+            // Verify Target Line creation
+            Assert.Single(data.Targets);
+            Assert.Equal("SA-10 Site", data.Targets[0].TargetName);
+
+            // Verify Clustering Logic
+            Assert.Equal(2, data.Markers.Count); // WP2 and WP3 clustered into a single marker
+            Assert.False(data.Markers[0].IsCluster);
+            Assert.True(data.Markers[1].IsCluster);
+            Assert.Contains("WP2/WP3", data.Markers[1].Label);
+        }
     }
 }
