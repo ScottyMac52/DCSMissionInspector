@@ -340,5 +340,122 @@ namespace DcsMissionReaderTests
             Assert.Equal(1, stennis.UnitsCount);
             Assert.Equal(0, stennis.StartTimeSec);
         }
+
+        [Fact]
+        public void GetWeatherData_WithMetricUnits_ExtractsAndFormatsCorrectly()
+        {
+            // Arrange
+            var script = new Script();
+            string luaMission = @"
+            return {
+                weather = {
+                    clouds = { preset = 'Overcast', base = 2000, thickness = 1000 },
+                    wind = {
+                        atGround = { speed = 5, dir = 180 },
+                        at2000 = { speed = 10, dir = 190 },
+                        at8000 = { speed = 15, dir = 200 }
+                    },
+                    visibility = { distance = 5000 },
+                    season = { temperature = 20 },
+                    qnh = 760
+                }
+            }";
+
+            var missionTable = script.DoString(luaMission).Table;
+
+            // Act
+            var result = HtmlReportGenerator.GetWeatherData(missionTable, UnitsSystem.Metric);
+
+            // Assert
+            Assert.Equal("Overcast", result.Clouds);
+            Assert.Equal("180° / 5.0 m/s", result.WindSurface);
+            Assert.Equal("190° / 10.0 m/s", result.Wind2000);
+            Assert.Equal("200° / 15.0 m/s", result.Wind8000);
+            Assert.Equal("5 km", result.Visibility);
+            Assert.Equal(760, result.Qnh);
+            Assert.Equal(20, result.Temp);
+            Assert.Contains("Base 2.0 km", result.CloudLine);
+        }
+
+        [Fact]
+        public void GetWeatherData_WithRealUnits_ExtractsAndConvertsCorrectly()
+        {
+            // Arrange
+            var script = new Script();
+            string luaMission = @"
+            return {
+                weather = {
+                    clouds = { preset = 'Scattered', base = 3048, thickness = 1524 }, -- ~10k ft base, 5k ft thick
+                    wind = { atGround = { speed = 10.28, dir = 270 } }, -- ~20 knots
+                    visibility = { distance = 16093.4 }, -- ~10 miles
+                    season = { temperature = 15 }, -- 59F
+                    qnh = 760 -- 22.44 inHg
+                }
+            }";
+
+            var missionTable = script.DoString(luaMission).Table;
+
+            // Act
+            var result = HtmlReportGenerator.GetWeatherData(missionTable, UnitsSystem.Real);
+
+            // Assert
+            Assert.Equal("Scattered", result.Clouds);
+            Assert.Equal("270° / 20 kt", result.WindSurface);
+            Assert.Equal("10 mi", result.Visibility);
+            Assert.Equal(59, result.Temp); // (15 * 9/5) + 32 = 59, wait, your code says 15 default if null. The Lua provides 15.
+            Assert.Equal(22.443, result.Qnh, 3);
+            Assert.Contains("Base 10000.0 ft", result.CloudLine);
+        }
+
+        [Fact]
+        public void ExtractFlightWaypoints_ParsesMissionTable_ExtractsRoutesForAircraft()
+        {
+            // Arrange
+            var script = new Script();
+            string luaMission = @"
+            return {
+                coalition = {
+                    blue = {
+                        country = {
+                            [1] = {
+                                plane = {
+                                    group = {
+                                        [1] = {
+                                            name = 'Uzi 1',
+                                            task = 'SEAD',
+                                            units = { [1] = { type = 'F-16C_50' } },
+                                            route = {
+                                                points = {
+                                                    [1] = { x = 100, y = 200, alt = 5000, action = 'Turning Point', speed = 250 },
+                                                    [2] = { x = 300, y = 400, alt = 6000, action = 'Attack Group', speed = 300 }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    red = { country = {} },
+                    neutral = { country = {} }
+                }
+            }";
+
+            var missionTable = script.DoString(luaMission).Table;
+
+            // Act
+            var result = HtmlReportGenerator.ExtractFlightWaypoints(missionTable);
+
+            // Assert
+            Assert.Single(result);
+            var flight = result.First();
+            Assert.Equal("blue", flight.Coalition);
+            Assert.Equal("Uzi 1", flight.GroupName);
+            Assert.Equal("SEAD", flight.Task);
+            Assert.Equal("F-16C_50", flight.Aircraft);
+            Assert.Equal(1, flight.UnitCount);
+            Assert.NotNull(flight.RoutePoints);
+            Assert.Equal(2, flight.RoutePoints.Length);
+        }
     }
 }

@@ -255,7 +255,7 @@ namespace DcsMissionReader.Services.Generators
         /// <param name="windDyn">The dynamic value containing wind data.</param>
         /// <param name="units">The units system to use for the output.</param>
         /// <returns>A string representing the wind direction and speed.</returns>
-        private static string GetWindString(DynValue windDyn, UnitsSystem units)
+        internal static string GetWindString(DynValue windDyn, UnitsSystem units)
         {
             if (windDyn?.Type != DataType.Table) return "—";
             var t = windDyn.Table;
@@ -274,7 +274,7 @@ namespace DcsMissionReader.Services.Generators
         /// <param name="meters">The visibility distance in meters.</param>
         /// <param name="units">The units system to use for the output.</param>
         /// <returns>A string representing the visibility.</returns>    
-        private static string GetVisibilityString(double meters, UnitsSystem units)
+        internal static string GetVisibilityString(double meters, UnitsSystem units)
         {
             if (meters >= 80000) return "Unlimited";
 
@@ -430,72 +430,51 @@ namespace DcsMissionReader.Services.Generators
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Generates a section for flights and their waypoints based on the coalition data in the mission table. This section lists the groups of aircraft assigned to various tasks for each coalition (Blue, Red, Neutral), along with their flight routes and waypoints. The method extracts the relevant information from the mission data, including group names, tasks, aircraft types, quantities, and waypoint details such as actions, altitudes, speeds, and coordinates. It formats this information into an HTML layout using Tailwind CSS. If no flight waypoint data is found, it displays a warning message. This section provides players with a detailed overview of the air operations planned in the mission briefing.
+        /// </summary>
+        /// <param name="mission">The mission table containing coalition data.</param>
+        /// <returns>An HTML string representing the flights and their waypoints section.</returns>
         private string GenerateFlightsWithWaypointsHtmlSection(Table mission)
         {
-            var coalitionVal = mission.Get("coalition");
-            if (coalitionVal.Type != DataType.Table)
+            var flights = ExtractFlightWaypoints(mission);
+            if (flights.Count == 0)
                 return "<p class=\"text-yellow-400\">No flight waypoint data found.</p>";
 
-            var coalition = coalitionVal.Table;
             var sb = new StringBuilder();
             sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">🛫 Flights &amp; Waypoints</h2>");
 
             string[] sides = { "blue", "red", "neutral" };
             string[] sideNames = { "Blue", "Red", "Neutral" };
 
-            foreach (var side in sides)
+            for (int i = 0; i < sides.Length; i++)
             {
-                var sideVal = coalition.Get(side);
-                if (sideVal.Type != DataType.Table) continue;
-                var countryListVal = sideVal.Table.Get("country");
-                if (countryListVal.Type != DataType.Table) continue;
+                var sideFlights = flights.Where(f => f.Coalition == sides[i]).ToList();
+                if (sideFlights.Count == 0) continue;
 
-                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{side}-400"">{sideNames[sides.ToList().IndexOf(side)]} Coalition</h3>");
+                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
 
-                foreach (var countryPair in countryListVal.Table.Pairs)
+                foreach (var flight in sideFlights)
                 {
-                    var country = countryPair.Value.Table;
-                    foreach (var cat in new[] { "plane", "helicopter" })
+                    sb.AppendLine($@"<details class=""mb-8 bg-gray-900 rounded-2xl p-5""><summary class=""cursor-pointer font-medium text-lg flex items-center gap-3"">✈️ {flight.GroupName} — {flight.Aircraft} ({flight.UnitCount}×) • {flight.Task}</summary>");
+
+                    sb.AppendLine(@"<div class=""mt-4""><table class=""w-full border-collapse text-xs""><thead><tr class=""bg-gray-800""><th class=""p-2 text-center"" style=""width: 5%"">#</th><th class=""p-2 text-left"" style=""width: 35%"">Action</th><th class=""p-2 text-right"" style=""width: 15%"">Alt (ft)</th><th class=""p-2 text-right"" style=""width: 15%"">Speed (kt)</th><th class=""p-2 text-left"" style=""width: 30%"">DCS (x, y)</th></tr></thead><tbody>");
+
+                    // Call your extracted helper with the isolated Table
+                    var waypoints = ParseWaypoints(flight.RoutePoints, mission);
+                    int idx = 1;
+
+                    foreach (var wp in waypoints)
                     {
-                        var catVal = country.Get(cat);
-                        if (catVal.Type != DataType.Table) continue;
-                        var groupListVal = catVal.Table.Get("group");
-                        if (groupListVal.Type != DataType.Table) continue;
-
-                        foreach (var groupPair in groupListVal.Table.Pairs)
-                        {
-                            var group = groupPair.Value.Table;
-                            string groupName = group.Get("name")?.String ?? "Unknown";
-                            string task = group.Get("task")?.String ?? "None";
-                            int unitCount = group.Get("units")?.Table?.Length ?? 0;
-                            string aircraft = group.Get("units")?.Table?.Get(1)?.Table?.Get("type")?.String ?? "Unknown";
-
-                            sb.AppendLine($@"<details class=""mb-8 bg-gray-900 rounded-2xl p-5""><summary class=""cursor-pointer font-medium text-lg flex items-center gap-3"">✈️ {groupName} — {aircraft} ({unitCount}×) • {task}</summary>");
-
-                            var routeVal = group.Get("route");
-                            if (routeVal.Type == DataType.Table)
-                            {
-                                var pointsVal = routeVal.Table.Get("points");
-                                if (pointsVal.Type == DataType.Table && pointsVal.Table.Length > 0)
-                                {
-                                    sb.AppendLine(@"<div class=""mt-4""><table class=""w-full border-collapse text-xs""><thead><tr class=""bg-gray-800""><th class=""p-2 text-center"" style=""width: 5%"">#</th><th class=""p-2 text-left"" style=""width: 35%"">Action</th><th class=""p-2 text-right"" style=""width: 15%"">Alt (ft)</th><th class=""p-2 text-right"" style=""width: 15%"">Speed (kt)</th><th class=""p-2 text-left"" style=""width: 30%"">DCS (x, y)</th></tr></thead><tbody>");
-
-                                    // Call the extracted helper here
-                                    var waypoints = ParseWaypoints(pointsVal.Table, mission);
-                                    int idx = 1;
-
-                                    foreach (var wp in waypoints)
-                                    {
-                                        sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-2 text-center font-semibold"">{idx}</td><td class=""p-2 text-left"">{wp.action}</td><td class=""p-2 text-right"">{(int)(wp.alt * 3.28084)}</td><td class=""p-2 text-right"">{(int)(wp.speed * 1.94384)}</td><td class=""p-2 text-left font-mono"">{wp.x:F0}, {wp.y:F0}</td></tr>");
-                                        idx++;
-                                    }
-                                    sb.AppendLine("</tbody></table></div>");
-                                    if (waypoints.Count > 1) sb.AppendLine(GenerateFlightSvgMap(waypoints, groupName));
-                                }
-                            }
-                            sb.AppendLine("</details>");
-                        }
+                        sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-2 text-center font-semibold"">{idx}</td><td class=""p-2 text-left"">{wp.action}</td><td class=""p-2 text-right"">{(int)(wp.alt * 3.28084)}</td><td class=""p-2 text-right"">{(int)(wp.speed * 1.94384)}</td><td class=""p-2 text-left font-mono"">{wp.x:F0}, {wp.y:F0}</td></tr>");
+                        idx++;
                     }
+                    sb.AppendLine("</tbody></table></div>");
+
+                    if (waypoints.Count > 1)
+                        sb.AppendLine(GenerateFlightSvgMap(waypoints, flight.GroupName));
+
+                    sb.AppendLine("</details>");
                 }
             }
             return sb.ToString();
@@ -556,7 +535,7 @@ namespace DcsMissionReader.Services.Generators
             return targets;
         }
 
-        private static WeatherData GetWeatherData(Table mission, UnitsSystem units)
+        public static WeatherData GetWeatherData(Table mission, UnitsSystem units)
         {
             var w = mission.Get("weather")?.Table ?? new Table(new Script());
             var clouds = w.Get("clouds")?.Table;
@@ -978,6 +957,67 @@ namespace DcsMissionReader.Services.Generators
                 }
             }
             return atoList;
+        }
+
+        public static List<FlightWaypointGroup> ExtractFlightWaypoints(Table mission)
+        {
+            var flights = new List<FlightWaypointGroup>();
+            var coalitionVal = mission.Get("coalition");
+            if (coalitionVal.Type != DataType.Table) return flights;
+
+            var coalition = coalitionVal.Table;
+            string[] sides = { "blue", "red", "neutral" };
+
+            foreach (var side in sides)
+            {
+                var sideVal = coalition.Get(side);
+                if (sideVal.Type != DataType.Table) continue;
+
+                var countryListVal = sideVal.Table.Get("country");
+                if (countryListVal.Type != DataType.Table) continue;
+
+                foreach (var countryPair in countryListVal.Table.Pairs)
+                {
+                    if (countryPair.Value.Type != DataType.Table) continue;
+                    var country = countryPair.Value.Table;
+
+                    foreach (var cat in new[] { "plane", "helicopter" })
+                    {
+                        var catVal = country.Get(cat);
+                        if (catVal.Type != DataType.Table) continue;
+
+                        var groupListVal = catVal.Table.Get("group");
+                        if (groupListVal.Type != DataType.Table) continue;
+
+                        foreach (var groupPair in groupListVal.Table.Pairs)
+                        {
+                            if (groupPair.Value.Type != DataType.Table) continue;
+                            var group = groupPair.Value.Table;
+
+                            var routeVal = group.Get("route");
+                            if (routeVal.Type != DataType.Table) continue;
+
+                            var pointsVal = routeVal.Table.Get("points");
+                            if (pointsVal.Type != DataType.Table || pointsVal.Table.Length == 0) continue;
+
+                            string groupName = group.Get("name")?.String ?? "Unknown";
+                            string task = group.Get("task")?.String ?? "None";
+
+                            var unitsVal = group.Get("units");
+                            int unitCount = unitsVal?.Table?.Length ?? 0;
+
+                            string aircraft = "Unknown";
+                            if (unitCount > 0)
+                            {
+                                aircraft = unitsVal.Table.Get(1)?.Table?.Get("type")?.String ?? "Unknown";
+                            }
+
+                            flights.Add(new FlightWaypointGroup(side, groupName, aircraft, unitCount, task, pointsVal.Table));
+                        }
+                    }
+                }
+            }
+            return flights;
         }
     }
 }
