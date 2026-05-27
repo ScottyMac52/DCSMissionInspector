@@ -61,6 +61,122 @@ namespace DcsMissionReader
             return script.Globals.Get("dictionary").Table;
         }
 
+        public static string ResolveNameFromGroupId(Table mission, double groupId)
+        {
+            var coalition = mission.Get("coalition").Table;
+            // Iterate through all possible coalitions defined in the mission
+            foreach (var side in new[] { "blue", "red", "neutral" })
+            {
+                var sideVal = coalition.Get(side);
+                if (sideVal.Type != DataType.Table) continue;
+
+                var countries = sideVal.Table.Get("country").Table;
+                foreach (var cPair in countries.Pairs)
+                {
+                    var country = cPair.Value.Table;
+                    // Check all relevant unit categories
+                    foreach (var cat in new[] { "plane", "helicopter", "vehicle", "ship", "static" })
+                    {
+                        var catTable = country.Get(cat)?.Table;
+                        if (catTable == null) continue;
+
+                        var groups = catTable.Get("group").Table;
+                        foreach (var gPair in groups.Pairs)
+                        {
+                            var group = gPair.Value.Table;
+                            if (group.Get("groupId")?.Number == groupId)
+                            {
+                                // Found it! Return the name or fallback to type
+                                string name = group.Get("name")?.String;
+                                if (string.IsNullOrEmpty(name) || name.StartsWith("Group-"))
+                                {
+                                    return group.Get("units")?.Table?.Get(1)?.Table?.Get("type")?.String ?? "Target";
+                                }
+                                return name;
+                            }
+                        }
+                    }
+                }
+            }
+            return "Target"; // Final fallback
+        }
+
+        public static Table? FindGroupByName(Table mission, string groupName)
+        {
+            var coalition = mission.Get("coalition").Table;
+
+            // Scan all possible coalitions
+            foreach (var side in new[] { "blue", "red", "neutral" })
+            {
+                var sideVal = coalition.Get(side);
+                if (sideVal.Type != DataType.Table) continue;
+
+                var countries = sideVal.Table.Get("country").Table;
+                foreach (var cPair in countries.Pairs)
+                {
+                    var country = cPair.Value.Table;
+
+                    // Scan all possible group categories
+                    foreach (var cat in new[] { "plane", "helicopter", "vehicle", "ship", "static" })
+                    {
+                        var catVal = country.Get(cat);
+                        if (catVal.Type != DataType.Table) continue;
+
+                        var groups = catVal.Table.Get("group").Table;
+                        foreach (var gPair in groups.Pairs)
+                        {
+                            var group = gPair.Value.Table;
+                            if (group.Get("name")?.String == groupName)
+                            {
+                                return group;
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+        public static string FindUnitTypeAtLocation(Table mission, double taskX, double taskY)
+        {
+            const double tolerance = 50.0; // Meters, adjust based on your mission needs
+
+            var coalition = mission.Get("coalition").Table;
+            foreach (var side in new[] { "blue", "red", "neutral" })
+            {
+                var sideVal = coalition.Get(side);
+                if (sideVal.Type != DataType.Table) continue;
+
+                var countries = sideVal.Table.Get("country").Table;
+                foreach (var cPair in countries.Pairs)
+                {
+                    var country = cPair.Value.Table;
+                    foreach (var cat in new[] { "vehicle", "ship", "static" })
+                    {
+                        var catVal = country.Get(cat);
+                        if (catVal.Type != DataType.Table) continue;
+
+                        var groups = catVal.Table.Get("group").Table;
+                        foreach (var gPair in groups.Pairs)
+                        {
+                            var group = gPair.Value.Table;
+                            double gx = group.Get("x")?.Number ?? 0;
+                            double gy = group.Get("y")?.Number ?? 0;
+
+                            // Calculate distance squared to avoid Math.Sqrt
+                            double dx = gx - taskX;
+                            double dy = gy - taskY;
+                            if ((dx * dx + dy * dy) < (tolerance * tolerance))
+                            {
+                                // Found a group at this location, return the first unit's type
+                                return group.Get("units")?.Table?.Get(1)?.Table?.Get("type")?.String;
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
         /// <summary>
         /// Converts a MoonSharp Table into a C# dictionary, recursively processing nested tables.
         /// </summary>
@@ -107,5 +223,6 @@ namespace DcsMissionReader
         {
             return Math.Abs(value % 1) < double.Epsilon;
         }
+
     }
 }

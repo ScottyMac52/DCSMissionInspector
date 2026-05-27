@@ -56,10 +56,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="CSS\report.css" />
     <None Remove="Data\threats.json" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="CSS\report.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Data\threats.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

@@ -1,0 +1,40 @@
+﻿/* report.css */
+body {
+    font-family: system-ui, sans-serif;
+    background-color: #030712;
+    color: #f3f4f6;
+}
+
+.prose {
+    max-width: 100%;
+}
+
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1rem;
+}
+
+.card {
+    background-color: #111827;
+    border: 1px solid #374151;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+}
+
+.table-base {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.table-header {
+    background-color: #1f2937;
+    padding: 0.75rem;
+    text-align: left;
+}
+
+.table-cell {
+    padding: 0.75rem;
+    border-top: 1px solid #374151;
+}

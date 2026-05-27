@@ -2,7 +2,7 @@
   "profiles": {
     "DcsMissionReader": {
       "commandName": "Project",
-      "commandLineArgs": "--version"
+      "commandLineArgs": "--html --json --full --kml \"D:\\SavedGames\\DCS.openbeta\\Missions\\F-14B or F-16C Port Stanley BTR-80 times 6 SA19 with TICO and chinese sub.miz\""
     }
   }
 }
