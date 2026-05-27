@@ -97,7 +97,7 @@ namespace DcsMissionReader.Services.Generators
         <div class=""image-grid"">{string.Join("", Directory.GetFiles(imagesDir).Select(f => $@"<div class=""bg-gray-900 rounded-xl overflow-hidden border border-gray-700""><img src=""images/{Path.GetFileName(f)}"" class=""w-full""><div class=""px-4 py-2 text-xs text-gray-400 font-mono"">{Path.GetFileName(f)}</div></div>"))}</div>
         
         {kneeboardHtml}
-        
+        {GenerateRequiredModsHtmlSection(mission)}
         {GeneratePlayerSlotsHtmlSection(mission)}
         {GenerateFlightsWithWaypointsHtmlSection(mission)}
         {GenerateAtoHtmlSection(mission)}
@@ -205,57 +205,54 @@ namespace DcsMissionReader.Services.Generators
             return sb.ToString();
         }
 
-        /// <summary>
-        /// Generates the "Required Mods" section for the HTML report based on the "requiredModules" field in the mission table. This section lists any additional mods that are required to load the mission in DCS. The method checks if the "requiredModules" field is present and is a table, then extracts the mod names and formats them into a visually distinct section using Tailwind CSS. If no required mods are found, it displays a message indicating that no additional mods are needed. This section helps players understand if they need to install any specific mods to play the mission as intended.
-        /// </summary>
-        /// <param name="mission">The mission table containing the "requiredModules" field.</param>
-        /// <returns>A string containing the HTML representation of the required mods section.</returns>
         private static string GenerateRequiredModsHtmlSection(Table mission)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("<h2 id=\"required-mods\">Required Mods</h2>");
-
             var reqVal = mission.Get("requiredModules");
+
+            // Default case: No required modules found or invalid structure
+            bool hasMods = false;
+            List<string> mods = new();
+
             if (reqVal.Type == DataType.Table)
             {
-                var reqTable = reqVal.Table;
-                var mods = new List<string>();
-
-                // requiredModules is a string-keyed table (not numeric)
-                foreach (var pair in reqTable.Pairs)
+                foreach (var pair in reqVal.Table.Pairs)
                 {
-                    string modName = pair.Key?.ToString() ?? "";
+                    string modName = pair.Key?.ToString()?.Trim('"', ' ') ?? "";
                     if (!string.IsNullOrWhiteSpace(modName))
                         mods.Add(modName);
                 }
-
-                if (mods.Count > 0)
-                {
-                    sb.AppendLine("<div class=\"bg-amber-100 border border-amber-300 rounded-xl p-5\">");
-                    sb.AppendLine("<p class=\"font-semibold text-amber-800 mb-3\">This mission requires the following mods to load in DCS:</p>");
-                    sb.AppendLine("<ul class=\"list-disc pl-5 space-y-1 text-amber-700\">");
-
-                    foreach (var mod in mods.OrderBy(m => m))
-                    {
-                        sb.AppendLine($"<li><strong>{mod}</strong></li>");
-                    }
-
-                    sb.AppendLine("</ul>");
-                    sb.AppendLine("</div>");
-                }
-                else
-                {
-                    sb.AppendLine("<p class=\"text-green-600\"><em>No additional mods are required for this mission.</em></p>");
-                }
+                hasMods = mods.Count > 0;
             }
+
+            if (hasMods)
+            {
+                sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6 border-b border-gray-700 pb-2"">🧩 Required Mods</h2>");
+                sb.AppendLine(@"<div class=""bg-amber-900/20 border border-amber-700/50 rounded-2xl p-6"">");
+                sb.AppendLine(@"<p class=""font-semibold text-amber-500 mb-4 flex items-center gap-2"">");
+                sb.AppendLine(@"<span class=""text-2xl"">⚠️</span> This mission requires the following modules/mods to load correctly:</p>");
+                sb.AppendLine(@"<ul class=""grid grid-cols-1 md:grid-cols-2 gap-2"">");
+
+                foreach (var mod in mods.OrderBy(m => m))
+                {
+                    sb.AppendLine($@"<li class=""flex items-center gap-3 bg-amber-950/30 px-4 py-2 rounded-lg text-amber-200 border border-amber-800/30"">");
+                    sb.AppendLine($@"<span class=""text-amber-600 font-bold"">·</span> {mod}");
+                    sb.AppendLine(@"</li>");
+                }
+
+                sb.AppendLine(@"</ul></div>");
+            }
+            // Optional: Only output the "no mods needed" text if you specifically want that clutter in your report.
+            // Otherwise, you can just return an empty string if hasMods is false.
             else
             {
-                sb.AppendLine("<p class=\"text-green-600\"><em>No additional mods are required for this mission.</em></p>");
+                sb.AppendLine(@"<div class=""mt-16 p-4 rounded-xl bg-gray-900 border border-gray-800 text-gray-500 italic text-center"">");
+                sb.AppendLine(@"No additional mods required for this mission.");
+                sb.AppendLine(@"</div>");
             }
 
             return sb.ToString();
         }
-
         /// <summary>
         /// Generates a weather section for the HTML report based on the weather data available in the mission table. This section includes information about cloud conditions, wind at different altitudes, visibility, QNH (pressure), and temperature. The method extracts the relevant weather parameters from the mission data and formats them into a visually appealing layout using Tailwind CSS. If no weather data is found, it displays a warning message. This section provides valuable insights into the environmental conditions that players can expect during the mission.
         /// </summary>
