@@ -1,4 +1,5 @@
 ﻿using DcsMissionReader.Models;
+using DcsMissionReader.Services;
 using DcsMissionReader.Services.Generators;
 using DcsMissionReader.Services.Interfaces;
 using MoonSharp.Interpreter;
@@ -62,9 +63,10 @@ namespace DcsMissionReaderTests
             wp1.Set("x", DynValue.NewNumber(100));
             wp1.Set("y", DynValue.NewNumber(200));
             points.Set(1, DynValue.NewTable(wp1));
+            var indexer = new MissionIndexer(mission);
 
             // Act
-            var results = HtmlReportGenerator.ParseWaypoints(points, mission);
+            var results = HtmlReportGenerator.ParseWaypoints(points, indexer);
 
             // Assert
             Assert.Single(results);
