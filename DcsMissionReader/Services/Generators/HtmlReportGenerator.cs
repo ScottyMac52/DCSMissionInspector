@@ -117,89 +117,45 @@ namespace DcsMissionReader.Services.Generators
         /// <returns>The HTML string representing the ATO section.</returns>
         private static string GenerateAtoHtmlSection(Table mission)
         {
+            var atoData = ExtractAtoData(mission);
             var sb = new StringBuilder();
             sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">✈️ Air Tasking Order (ATO)</h2>");
 
-            var coalitionTable = mission.Get("coalition");
-            if (coalitionTable.Type != DataType.Table)
+            if (atoData.Count == 0)
             {
                 sb.AppendLine(@"<p class=""text-yellow-400"">No coalition data found.</p>");
                 return sb.ToString();
             }
 
-            var coalition = coalitionTable.Table;
-
             string[] sides = { "blue", "red", "neutral" };
             string[] sideNames = { "Blue", "Red", "Neutral" };
-            string[] colors = { "border-blue-700", "border-red-700", "border-gray-700" };
 
             for (int i = 0; i < sides.Length; i++)
             {
-                var sideVal = coalition.Get(sides[i]);
-                if (sideVal.Type != DataType.Table) continue;
-
-                var countryListVal = sideVal.Table.Get("country");
-                if (countryListVal.Type != DataType.Table) continue;
+                var sideGroups = atoData.Where(a => a.Coalition == sides[i]).ToList();
+                if (sideGroups.Count == 0) continue;
 
                 sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
                 sb.AppendLine(@"<table class=""w-full border-collapse text-sm"">");
                 sb.AppendLine(@"<thead><tr class=""bg-gray-800""><th class=""p-3 text-left"">Group</th><th class=""p-3 text-left"">Task</th><th class=""p-3 text-left"">Aircraft</th><th class=""p-3 text-center"">Qty</th><th class=""p-3 text-center"">Start Time</th></tr></thead><tbody>");
 
-                int groupCount = 0;
-
-                foreach (var countryPair in countryListVal.Table.Pairs)
+                foreach (var group in sideGroups)
                 {
-                    if (countryPair.Value.Type != DataType.Table) continue;
-                    var country = countryPair.Value.Table;
+                    string startStr = group.StartTimeSec > 0
+                        ? $"{(int)(group.StartTimeSec / 3600):D2}:{(int)((group.StartTimeSec % 3600) / 60):D2}"
+                        : "—";
 
-                    // Check plane, helicopter, and ship groups
-                    foreach (var category in new[] { "plane", "helicopter", "ship" })
-                    {
-                        var catVal = country.Get(category);
-                        if (catVal.Type != DataType.Table) continue;
-
-                        var groupListVal = catVal.Table.Get("group");   // note: singular "group" in current DCS
-                        if (groupListVal.Type != DataType.Table) continue;
-
-                        foreach (var groupPair in groupListVal.Table.Pairs)
-                        {
-                            if (groupPair.Value.Type != DataType.Table) continue;
-                            var group = groupPair.Value.Table;
-
-                            string groupName = group.Get("name")?.String ?? "Unknown";
-                            string task = group.Get("task")?.String ?? "None";
-                            string aircraftType = "Unknown";
-                            int unitsCount = 0;
-
-                            var unitsVal = group.Get("units");
-                            if (unitsVal.Type == DataType.Table && unitsVal.Table.Length > 0)
-                            {
-                                unitsCount = unitsVal.Table.Length;
-                                var firstUnit = unitsVal.Table.Get(1)?.Table;
-                                if (firstUnit != null)
-                                    aircraftType = firstUnit.Get("type")?.String ?? "Unknown";
-                            }
-
-                            double startTime = group.Get("start_time")?.Number ?? 0;
-                            string startStr = startTime > 0
-                                ? $"{(int)(startTime / 3600):D2}:{(int)((startTime % 3600) / 60):D2}"
-                                : "—";
-
-                            sb.AppendLine($@"<tr class=""border-t border-gray-700"">
-                        <td class=""p-3"">{groupName}</td>
-                        <td class=""p-3"">{task}</td>
-                        <td class=""p-3 font-mono"">{aircraftType}</td>
-                        <td class=""p-3 text-center"">{unitsCount}</td>
+                    sb.AppendLine($@"<tr class=""border-t border-gray-700"">
+                        <td class=""p-3"">{group.GroupName}</td>
+                        <td class=""p-3"">{group.Task}</td>
+                        <td class=""p-3 font-mono"">{group.AircraftType}</td>
+                        <td class=""p-3 text-center"">{group.UnitsCount}</td>
                         <td class=""p-3 text-center"">{startStr}</td>
                     </tr>");
-
-                            groupCount++;
-                        }
-                    }
                 }
 
                 sb.AppendLine("</tbody></table>");
-                Console.WriteLine($"   → {sideNames[i]} ATO: {groupCount} groups found");  // debug output
+                Console.WriteLine($"   → {sideNames[i]} ATO: {sideGroups.Count} groups found");  // debug output
             }
 
             return sb.ToString();
@@ -336,11 +292,9 @@ namespace DcsMissionReader.Services.Generators
         /// <returns>A string containing the HTML representation of the Order of Battle section.</returns>
         private static string GenerateOrderOfBattleHtmlSection(Table mission)
         {
-            var coalitionVal = mission.Get("coalition");
-            if (coalitionVal.Type != DataType.Table)
+            var oobList = ExtractOrderOfBattle(mission);
+            if (oobList.Count == 0)
                 return "<p class=\"text-yellow-400\">No coalition data found for OOB.</p>";
-
-            var coalition = coalitionVal.Table;
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">📊 Order of Battle (OOB)</h2>");
@@ -348,102 +302,28 @@ namespace DcsMissionReader.Services.Generators
             string[] sides = { "blue", "red", "neutral" };
             string[] sideNames = { "Blue", "Red", "Neutral" };
 
-            foreach (var side in sides)
+            for (int i = 0; i < sides.Length; i++)
             {
-                var sideVal = coalition.Get(side);
-                if (sideVal.Type != DataType.Table) continue;
-
-                var countryListVal = sideVal.Table.Get("country");
-                if (countryListVal.Type != DataType.Table) continue;
-
-                var aircraftCounts = new Dictionary<string, int>();
-                int totalAircraft = 0, totalHelos = 0, totalShips = 0, totalGround = 0, totalStatics = 0;
-
-                foreach (var countryPair in countryListVal.Table.Pairs)
-                {
-                    if (countryPair.Value.Type != DataType.Table) continue;
-                    var country = countryPair.Value.Table;
-
-                    // Aircraft & Helicopters
-                    foreach (var cat in new[] { "plane", "helicopter" })
-                    {
-                        var catVal = country.Get(cat);
-                        if (catVal.Type != DataType.Table) continue;
-
-                        var groupList = catVal.Table.Get("group");
-                        if (groupList.Type != DataType.Table) continue;
-
-                        foreach (var gPair in groupList.Table.Pairs)
-                        {
-                            if (gPair.Value.Type != DataType.Table) continue;
-                            var group = gPair.Value.Table;
-
-                            var unitsVal = group.Get("units");
-                            if (unitsVal.Type != DataType.Table) continue;
-
-                            foreach (var uPair in unitsVal.Table.Pairs)
-                            {
-                                if (uPair.Value.Type != DataType.Table) continue;
-                                var unit = uPair.Value.Table;
-                                string type = unit.Get("type")?.String ?? "Unknown";
-
-                                if (cat == "plane")
-                                {
-                                    aircraftCounts[type] = aircraftCounts.GetValueOrDefault(type) + 1;
-                                    totalAircraft++;
-                                }
-                                else
-                                {
-                                    aircraftCounts[type] = aircraftCounts.GetValueOrDefault(type) + 1;
-                                    totalHelos++;
-                                }
-                            }
-                        }
-                    }
-
-                    // Ships
-                    var shipVal = country.Get("ship");
-                    if (shipVal.Type == DataType.Table)
-                    {
-                        var shipGroups = shipVal.Table.Get("group");
-                        if (shipGroups.Type == DataType.Table)
-                            totalShips += shipGroups.Table.Length;
-                    }
-
-                    // Ground units (vehicle)
-                    var vehicleVal = country.Get("vehicle");
-                    if (vehicleVal.Type == DataType.Table)
-                    {
-                        var vehicleGroups = vehicleVal.Table.Get("group");
-                        if (vehicleGroups.Type == DataType.Table)
-                            totalGround += vehicleGroups.Table.Length;   // we count groups, not individual units here
-                    }
-
-                    // Statics
-                    var staticVal = country.Get("static");
-                    if (staticVal.Type == DataType.Table)
-                    {
-                        var staticGroups = staticVal.Table.Get("group");
-                        if (staticGroups.Type == DataType.Table)
-                            totalStatics += staticGroups.Table.Length;
-                    }
-                }
+                var sideData = oobList.FirstOrDefault(o => o.Coalition == sides[i]);
+                if (sideData == null) continue;
 
                 // Build HTML for this side
-                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{side}-400"">{sideNames[sides.ToList().IndexOf(side)]} Coalition</h3>");
+                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
                 sb.AppendLine(@"<div class=""grid grid-cols-5 gap-4 mb-6 text-center"">");
-                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">AIRCRAFT</div><div class=""text-3xl font-bold"">{totalAircraft + totalHelos}</div></div>");
-                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">SHIPS</div><div class=""text-3xl font-bold"">{totalShips}</div></div>");
-                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">GROUND</div><div class=""text-3xl font-bold"">{totalGround}</div></div>");
-                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">STATICS</div><div class=""text-3xl font-bold"">{totalStatics}</div></div>");
+                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">AIRCRAFT</div><div class=""text-3xl font-bold"">{sideData.TotalAircraft}</div></div>");
+                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">SHIPS</div><div class=""text-3xl font-bold"">{sideData.TotalShips}</div></div>");
+                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">GROUND</div><div class=""text-3xl font-bold"">{sideData.TotalGround}</div></div>");
+                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">STATICS</div><div class=""text-3xl font-bold"">{sideData.TotalStatics}</div></div>");
                 sb.AppendLine("</div>");
 
-                // Detailed Aircraft Breakdown (kept)
-                if (aircraftCounts.Count > 0)
+                // Detailed Aircraft Breakdown
+                if (sideData.AircraftBreakdown.Count > 0)
                 {
                     sb.AppendLine(@"<details class=""mb-8""><summary class=""cursor-pointer text-lg font-medium mb-2"">Aircraft Breakdown</summary><table class=""w-full border-collapse text-sm""><thead><tr class=""bg-gray-800""><th class=""p-3 text-left"">Type</th><th class=""p-3 text-center"">Count</th></tr></thead><tbody>");
-                    foreach (var kvp in aircraftCounts.OrderByDescending(k => k.Value))
+                    foreach (var kvp in sideData.AircraftBreakdown.OrderByDescending(k => k.Value))
+                    {
                         sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-3"">{kvp.Key}</td><td class=""p-3 text-center font-semibold"">{kvp.Value}</td></tr>");
+                    }
                     sb.AppendLine("</tbody></table></details>");
                 }
             }
@@ -459,112 +339,50 @@ namespace DcsMissionReader.Services.Generators
         /// <summary>
         private static string GenerateUnitsAndTargetsHtmlSection(Table mission)
         {
+            var targets = ExtractUnitsAndTargets(mission);
             var sb = new StringBuilder();
             sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">📦 Units & Targets</h2>");
 
-            var coalitionVal = mission.Get("coalition");
-            if (coalitionVal.Type != DataType.Table)
+            if (targets.Count == 0)
             {
                 sb.AppendLine(@"<p class=""text-emerald-400 italic"">No ground, sea, or static units found in this mission.</p>");
                 return sb.ToString();
             }
 
-            var coalition = coalitionVal.Table;
             string[] sides = { "blue", "red", "neutral" };
             string[] sideEmojis = { "🔵", "🔴", "⚪" };
             string[] sideNames = { "BLUE COALITION", "RED COALITION", "NEUTRAL COALITION" };
 
-            bool anyUnitsFound = false;
-
             for (int i = 0; i < sides.Length; i++)
             {
-                var side = sides[i];
-                var sideVal = coalition.Get(side);
-                if (sideVal.Type != DataType.Table) continue;
+                var sideTargets = targets.Where(t => t.Coalition == sides[i]).ToList();
+                if (sideTargets.Count == 0) continue;
 
-                var countryListVal = sideVal.Table.Get("country");
-                if (countryListVal.Type != DataType.Table) continue;
+                string colorClass = sides[i] == "blue" ? "blue" : sides[i] == "red" ? "red" : "slate";
 
-                var sideHtml = new StringBuilder();
-                bool hasUnitsForThisSide = false;
+                sb.AppendLine($@"<h3 class=""text-{colorClass}-400 text-lg font-semibold mt-10 mb-5 flex items-center gap-2"">
+                      <span class=""text-2xl"">{sideEmojis[i]}</span>
+                      {sideNames[i]}
+                    </h3>");
 
-                foreach (var countryPair in countryListVal.Table.Pairs)
+                foreach (var target in sideTargets)
                 {
-                    if (countryPair.Value.Type != DataType.Table) continue;
-                    var country = countryPair.Value.Table;
+                    string icon = target.Category == "ship" ? "⚓" : target.Category == "vehicle" ? "🪖" : "📦";
 
-                    foreach (var category in new[] { "ship", "vehicle", "static" })
-                    {
-                        var catVal = country.Get(category);
-                        if (catVal.Type != DataType.Table) continue;
-
-                        var groupListVal = catVal.Table.Get("group");
-                        if (groupListVal.Type != DataType.Table) continue;
-
-                        foreach (var gPair in groupListVal.Table.Pairs)
-                        {
-                            if (gPair.Value.Type != DataType.Table) continue;
-                            var g = gPair.Value.Table;
-
-                            string groupName = g.Get("name")?.String ?? "Unknown Group";
-                            double gx = g.Get("x")?.Number ?? 0;
-                            double gy = g.Get("y")?.Number ?? 0;
-
-                            var unitCounts = new Dictionary<string, int>();
-                            var unitsVal = g.Get("units");
-                            if (unitsVal.Type == DataType.Table)
-                            {
-                                for (int u = 1; u <= unitsVal.Table.Length; u++)
-                                {
-                                    var unit = unitsVal.Table.Get(u);
-                                    if (unit.Type != DataType.Table) continue;
-                                    string uType = unit.Table.Get("type")?.String ?? "Unknown";
-                                    unitCounts[uType] = unitCounts.GetValueOrDefault(uType, 0) + 1;
-                                }
-                            }
-
-                            int totalUnits = unitCounts.Values.Sum();
-                            var unitList = unitCounts.OrderByDescending(kv => kv.Value)
-                                                     .Select(kv => $"{kv.Key} ×{kv.Value}")
-                                                     .ToList();
-
-                            string unitInfo = unitList.Count > 0 ? string.Join(", ", unitList) : "No units listed";
-
-                            string icon = category == "ship" ? "⚓" : category == "vehicle" ? "🪖" : "📦";
-                            string colorClass = side == "blue" ? "blue" : side == "red" ? "red" : "slate";
-
-                            sideHtml.AppendLine($@"
+                    sb.AppendLine($@"
                         <div class=""flex items-start gap-6 p-6 bg-slate-800 border border-slate-700 rounded-3xl hover:border-{colorClass}-500 transition-all"">
                             <div class=""text-5xl flex-shrink-0 mt-1"">{icon}</div>
                             <div class=""flex-1"">
-                                <div class=""font-semibold text-slate-100 text-lg"">{groupName}</div>
-                                <div class=""text-xs font-mono text-slate-400 mt-1"">{gx:F0}, {gy:F0}</div>
-                                <div class=""text-sm text-slate-300 mt-3"">{unitInfo}</div>
+                                <div class=""font-semibold text-slate-100 text-lg"">{target.GroupName}</div>
+                                <div class=""text-xs font-mono text-slate-400 mt-1"">{target.X:F0}, {target.Y:F0}</div>
+                                <div class=""text-sm text-slate-300 mt-3"">{target.UnitInfo}</div>
                             </div>
                             <div class=""text-right text-xs font-medium text-slate-400"">
-                                {totalUnits}<br/><span class=""text-[10px]"">UNITS</span>
+                                {target.TotalUnits}<br/><span class=""text-[10px]"">UNITS</span>
                             </div>
                         </div>");
-
-                            hasUnitsForThisSide = true;
-                            anyUnitsFound = true;
-                        }
-                    }
-                }
-
-                if (hasUnitsForThisSide)
-                {
-                    // Clean single-line h3 (no more split AppendLine or escaping issues)
-                    sb.AppendLine($@"<h3 class=""text-{(side == "blue" ? "blue" : side == "red" ? "red" : "slate")}-400 text-lg font-semibold mt-10 mb-5 flex items-center gap-2"">
-                          <span class=""text-2xl"">{sideEmojis[i]}</span>
-                          {sideNames[i]}
-                        </h3>");
-                    sb.Append(sideHtml);
                 }
             }
-
-            if (!anyUnitsFound)
-                sb.AppendLine(@"<p class=""text-emerald-400 italic"">No ground, sea, or static units found in this mission.</p>");
 
             return sb.ToString();
         }
@@ -576,89 +394,37 @@ namespace DcsMissionReader.Services.Generators
         /// <returns>An HTML string representing the player and client spawn spots section.</returns>
         private static string GeneratePlayerSlotsHtmlSection(Table mission)
         {
-            var coalitionVal = mission.Get("coalition");
-            if (coalitionVal.Type != DataType.Table)
+            var slots = ExtractPlayerSlots(mission);
+            if (slots.Count == 0)
                 return "<p class=\"text-yellow-400\">No player slot data found.</p>";
 
-            var coalition = coalitionVal.Table;
-
-            var sb = new System.Text.StringBuilder();
+            var sb = new StringBuilder();
             sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">🧑‍✈️ Player &amp; Client Spawn Spots</h2>");
 
             string[] sides = { "blue", "red", "neutral" };
             string[] sideNames = { "Blue", "Red", "Neutral" };
 
-            foreach (var side in sides)
+            for (int i = 0; i < sides.Length; i++)
             {
-                var sideVal = coalition.Get(side);
-                if (sideVal.Type != DataType.Table) continue;
+                var sideSlots = slots.Where(s => s.Coalition == sides[i]).ToList();
+                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
 
-                var countryListVal = sideVal.Table.Get("country");
-                if (countryListVal.Type != DataType.Table) continue;
-
-                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{side}-400"">{sideNames[sides.ToList().IndexOf(side)]} Coalition</h3>");
-
-                bool hasSlots = false;
-
-                foreach (var countryPair in countryListVal.Table.Pairs)
+                if (sideSlots.Count > 0)
                 {
-                    if (countryPair.Value.Type != DataType.Table) continue;
-                    var country = countryPair.Value.Table;
-
-                    foreach (var cat in new[] { "plane", "helicopter" })
+                    foreach (var slot in sideSlots)
                     {
-                        var catVal = country.Get(cat);
-                        if (catVal.Type != DataType.Table) continue;
-
-                        var groupListVal = catVal.Table.Get("group");
-                        if (groupListVal.Type != DataType.Table) continue;
-
-                        foreach (var groupPair in groupListVal.Table.Pairs)
-                        {
-                            if (groupPair.Value.Type != DataType.Table) continue;
-                            var group = groupPair.Value.Table;
-
-                            string groupName = group.Get("name")?.String ?? "Unknown";
-                            string task = group.Get("task")?.String ?? "None";
-
-                            var unitsVal = group.Get("units");
-                            if (unitsVal.Type != DataType.Table) continue;
-
-                            int clientCount = 0;
-                            string aircraftType = "Unknown";
-
-                            foreach (var unitPair in unitsVal.Table.Pairs)
-                            {
-                                if (unitPair.Value.Type != DataType.Table) continue;
-                                var unit = unitPair.Value.Table;
-
-                                string skill = unit.Get("skill")?.String ?? "";
-                                bool isClient = skill == "Client" || unit.Get("playerCanDrive")?.Boolean == true;
-
-                                if (isClient)
-                                {
-                                    clientCount++;
-                                    if (aircraftType == "Unknown")
-                                        aircraftType = unit.Get("type")?.String ?? "Unknown";
-                                }
-                            }
-
-                            if (clientCount > 0)
-                            {
-                                hasSlots = true;
-                                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4 mb-4"">
+                        sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4 mb-4"">
                             <div class=""flex justify-between"">
-                                <div><span class=""font-semibold"">{groupName}</span> — {aircraftType}</div>
-                                <div class=""text-sm text-gray-400"">{task} • {clientCount} client slot{(clientCount > 1 ? "s" : "")}</div>
+                                <div><span class=""font-semibold"">{slot.GroupName}</span> — {slot.AircraftType}</div>
+                                <div class=""text-sm text-gray-400"">{slot.Task} • {slot.ClientCount} client slot{(slot.ClientCount > 1 ? "s" : "")}</div>
                             </div>
                         </div>");
-                            }
-                        }
                     }
                 }
-
-                if (!hasSlots)
+                else
+                {
                     sb.AppendLine(@"<p class=""text-gray-400 italic"">No player/client slots found for this coalition.</p>");
+                }
             }
 
             return sb.ToString();
@@ -892,6 +658,168 @@ namespace DcsMissionReader.Services.Generators
             return sb.ToString();
         }
 
+        public static List<PlayerSlotGroup> ExtractPlayerSlots(Table mission)
+        {
+            var slots = new List<PlayerSlotGroup>();
+            var coalitionVal = mission.Get("coalition");
+            if (coalitionVal.Type != DataType.Table) return slots;
+
+            var coalition = coalitionVal.Table;
+            string[] sides = { "blue", "red", "neutral" };
+
+            foreach (var side in sides)
+            {
+                var sideVal = coalition.Get(side);
+                if (sideVal.Type != DataType.Table) continue;
+
+                var countryListVal = sideVal.Table.Get("country");
+                if (countryListVal.Type != DataType.Table) continue;
+
+                foreach (var countryPair in countryListVal.Table.Pairs)
+                {
+                    if (countryPair.Value.Type != DataType.Table) continue;
+                    var country = countryPair.Value.Table;
+
+                    foreach (var cat in new[] { "plane", "helicopter" })
+                    {
+                        var catVal = country.Get(cat);
+                        if (catVal.Type != DataType.Table) continue;
+
+                        var groupListVal = catVal.Table.Get("group");
+                        if (groupListVal.Type != DataType.Table) continue;
+
+                        foreach (var groupPair in groupListVal.Table.Pairs)
+                        {
+                            if (groupPair.Value.Type != DataType.Table) continue;
+                            var group = groupPair.Value.Table;
+
+                            var unitsVal = group.Get("units");
+                            if (unitsVal.Type != DataType.Table) continue;
+
+                            int clientCount = 0;
+                            string aircraftType = "Unknown";
+
+                            foreach (var unitPair in unitsVal.Table.Pairs)
+                            {
+                                if (unitPair.Value.Type != DataType.Table) continue;
+                                var unit = unitPair.Value.Table;
+
+                                string skill = unit.Get("skill")?.String ?? "";
+                                bool isClient = skill == "Client" || unit.Get("playerCanDrive")?.Boolean == true;
+
+                                if (isClient)
+                                {
+                                    clientCount++;
+                                    if (aircraftType == "Unknown")
+                                        aircraftType = unit.Get("type")?.String ?? "Unknown";
+                                }
+                            }
+
+                            if (clientCount > 0)
+                            {
+                                slots.Add(new PlayerSlotGroup(
+                                    side,
+                                    group.Get("name")?.String ?? "Unknown",
+                                    aircraftType,
+                                    group.Get("task")?.String ?? "None",
+                                    clientCount
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            return slots;
+        }
+
+        public static List<OrderOfBattleSide> ExtractOrderOfBattle(Table mission)
+        {
+            var oobList = new List<OrderOfBattleSide>();
+            var coalitionVal = mission.Get("coalition");
+            if (coalitionVal.Type != DataType.Table) return oobList;
+
+            var coalition = coalitionVal.Table;
+            string[] sides = { "blue", "red", "neutral" };
+
+            foreach (var side in sides)
+            {
+                var sideVal = coalition.Get(side);
+                if (sideVal.Type != DataType.Table) continue;
+
+                var countryListVal = sideVal.Table.Get("country");
+                if (countryListVal.Type != DataType.Table) continue;
+
+                var aircraftCounts = new Dictionary<string, int>();
+                int totalAircraft = 0, totalShips = 0, totalGround = 0, totalStatics = 0;
+
+                foreach (var countryPair in countryListVal.Table.Pairs)
+                {
+                    if (countryPair.Value.Type != DataType.Table) continue;
+                    var country = countryPair.Value.Table;
+
+                    // Aircraft & Helicopters
+                    foreach (var cat in new[] { "plane", "helicopter" })
+                    {
+                        var catVal = country.Get(cat);
+                        if (catVal.Type != DataType.Table) continue;
+
+                        var groupList = catVal.Table.Get("group");
+                        if (groupList.Type != DataType.Table) continue;
+
+                        foreach (var gPair in groupList.Table.Pairs)
+                        {
+                            if (gPair.Value.Type != DataType.Table) continue;
+                            var group = gPair.Value.Table;
+
+                            var unitsVal = group.Get("units");
+                            if (unitsVal.Type != DataType.Table) continue;
+
+                            foreach (var uPair in unitsVal.Table.Pairs)
+                            {
+                                if (uPair.Value.Type != DataType.Table) continue;
+                                var unit = uPair.Value.Table;
+                                string type = unit.Get("type")?.String ?? "Unknown";
+
+                                aircraftCounts[type] = aircraftCounts.GetValueOrDefault(type) + 1;
+                                totalAircraft++; // We combine planes and helos for the top-level total
+                            }
+                        }
+                    }
+
+                    // Ships
+                    var shipVal = country.Get("ship");
+                    if (shipVal.Type == DataType.Table)
+                    {
+                        var shipGroups = shipVal.Table.Get("group");
+                        if (shipGroups.Type == DataType.Table)
+                            totalShips += shipGroups.Table.Length;
+                    }
+
+                    // Ground units (vehicle)
+                    var vehicleVal = country.Get("vehicle");
+                    if (vehicleVal.Type == DataType.Table)
+                    {
+                        var vehicleGroups = vehicleVal.Table.Get("group");
+                        if (vehicleGroups.Type == DataType.Table)
+                            totalGround += vehicleGroups.Table.Length;
+                    }
+
+                    // Statics
+                    var staticVal = country.Get("static");
+                    if (staticVal.Type == DataType.Table)
+                    {
+                        var staticGroups = staticVal.Table.Get("group");
+                        if (staticGroups.Type == DataType.Table)
+                            totalStatics += staticGroups.Table.Length;
+                    }
+                }
+
+                oobList.Add(new OrderOfBattleSide(side, totalAircraft, totalShips, totalGround, totalStatics, aircraftCounts));
+            }
+
+            return oobList;
+        }
+
         public static List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> ParseWaypoints(Table pointsVal, Table mission)
         {
             var waypoints = new List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)>();
@@ -923,6 +851,133 @@ namespace DcsMissionReader.Services.Generators
                 idx++;
             }
             return waypoints;
+        }
+
+        public static List<UnitTargetGroup> ExtractUnitsAndTargets(Table mission)
+        {
+            var targets = new List<UnitTargetGroup>();
+            var coalitionVal = mission.Get("coalition");
+            if (coalitionVal.Type != DataType.Table) return targets;
+
+            var coalition = coalitionVal.Table;
+            string[] sides = { "blue", "red", "neutral" };
+
+            foreach (var side in sides)
+            {
+                var sideVal = coalition.Get(side);
+                if (sideVal.Type != DataType.Table) continue;
+
+                var countryListVal = sideVal.Table.Get("country");
+                if (countryListVal.Type != DataType.Table) continue;
+
+                foreach (var countryPair in countryListVal.Table.Pairs)
+                {
+                    if (countryPair.Value.Type != DataType.Table) continue;
+                    var country = countryPair.Value.Table;
+
+                    foreach (var category in new[] { "ship", "vehicle", "static" })
+                    {
+                        var catVal = country.Get(category);
+                        if (catVal.Type != DataType.Table) continue;
+
+                        var groupListVal = catVal.Table.Get("group");
+                        if (groupListVal.Type != DataType.Table) continue;
+
+                        foreach (var gPair in groupListVal.Table.Pairs)
+                        {
+                            if (gPair.Value.Type != DataType.Table) continue;
+                            var g = gPair.Value.Table;
+
+                            string groupName = g.Get("name")?.String ?? "Unknown Group";
+                            double gx = g.Get("x")?.Number ?? 0;
+                            double gy = g.Get("y")?.Number ?? 0;
+
+                            var unitCounts = new Dictionary<string, int>();
+                            var unitsVal = g.Get("units");
+                            if (unitsVal.Type == DataType.Table)
+                            {
+                                for (int u = 1; u <= unitsVal.Table.Length; u++)
+                                {
+                                    var unit = unitsVal.Table.Get(u);
+                                    if (unit.Type != DataType.Table) continue;
+                                    string uType = unit.Table.Get("type")?.String ?? "Unknown";
+                                    unitCounts[uType] = unitCounts.GetValueOrDefault(uType, 0) + 1;
+                                }
+                            }
+
+                            int totalUnits = unitCounts.Values.Sum();
+                            var unitList = unitCounts.OrderByDescending(kv => kv.Value)
+                                                     .Select(kv => $"{kv.Key} ×{kv.Value}")
+                                                     .ToList();
+
+                            string unitInfo = unitList.Count > 0 ? string.Join(", ", unitList) : "No units listed";
+
+                            targets.Add(new UnitTargetGroup(side, category, groupName, gx, gy, totalUnits, unitInfo));
+                        }
+                    }
+                }
+            }
+            return targets;
+        }
+
+        public static List<AtoGroupData> ExtractAtoData(Table mission)
+        {
+            var atoList = new List<AtoGroupData>();
+            var coalitionVal = mission.Get("coalition");
+            if (coalitionVal.Type != DataType.Table) return atoList;
+
+            var coalition = coalitionVal.Table;
+            string[] sides = { "blue", "red", "neutral" };
+
+            foreach (var side in sides)
+            {
+                var sideVal = coalition.Get(side);
+                if (sideVal.Type != DataType.Table) continue;
+
+                var countryListVal = sideVal.Table.Get("country");
+                if (countryListVal.Type != DataType.Table) continue;
+
+                foreach (var countryPair in countryListVal.Table.Pairs)
+                {
+                    if (countryPair.Value.Type != DataType.Table) continue;
+                    var country = countryPair.Value.Table;
+
+                    // Check plane, helicopter, and ship groups
+                    foreach (var category in new[] { "plane", "helicopter", "ship" })
+                    {
+                        var catVal = country.Get(category);
+                        if (catVal.Type != DataType.Table) continue;
+
+                        var groupListVal = catVal.Table.Get("group");
+                        if (groupListVal.Type != DataType.Table) continue;
+
+                        foreach (var groupPair in groupListVal.Table.Pairs)
+                        {
+                            if (groupPair.Value.Type != DataType.Table) continue;
+                            var group = groupPair.Value.Table;
+
+                            string groupName = group.Get("name")?.String ?? "Unknown";
+                            string task = group.Get("task")?.String ?? "None";
+                            string aircraftType = "Unknown";
+                            int unitsCount = 0;
+
+                            var unitsVal = group.Get("units");
+                            if (unitsVal.Type == DataType.Table && unitsVal.Table.Length > 0)
+                            {
+                                unitsCount = unitsVal.Table.Length;
+                                var firstUnit = unitsVal.Table.Get(1)?.Table;
+                                if (firstUnit != null)
+                                    aircraftType = firstUnit.Get("type")?.String ?? "Unknown";
+                            }
+
+                            double startTime = group.Get("start_time")?.Number ?? 0;
+
+                            atoList.Add(new AtoGroupData(side, groupName, task, aircraftType, unitsCount, startTime));
+                        }
+                    }
+                }
+            }
+            return atoList;
         }
     }
 }

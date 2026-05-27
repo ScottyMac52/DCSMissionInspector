@@ -252,7 +252,7 @@ namespace DcsMissionReader.Services.Generators
             return text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;").Replace("'", "&apos;");
         }
 
-        private static List<MissionGroupData> GetAllGroups(Table mission)
+        public static List<MissionGroupData> GetAllGroups(Table mission)
         {
             var groups = new List<MissionGroupData>();
             var coalition = mission.Get("coalition").Table;

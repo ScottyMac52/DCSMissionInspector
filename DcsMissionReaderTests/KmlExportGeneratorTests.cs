@@ -171,5 +171,74 @@ namespace DcsMissionReaderTests
             // Assert
             Assert.Equal(string.Empty, kml.ToString());
         }
+
+        [Fact]
+        public void GetAllGroups_ParsesMissionTable_ReturnsMappedGroupData()
+        {
+            // Arrange
+            var script = new Script();
+
+            // NATIVE LEAP: Generate the 5-level deep DCS mission structure natively
+            string luaMission = @"
+                return {
+                    coalition = {
+                        blue = {
+                            country = {
+                                [1] = {
+                                    plane = {
+                                        group = {
+                                            [1] = {
+                                                name = 'Viper 1',
+                                                x = 1500.0,
+                                                y = 2500.0,
+                                                units = { [1] = { type = 'F-16C_50' } },
+                                                route = { points = { [1] = { x = 1500, y = 2500, alt = 6000, name = 'WP1' } } }
+                                            }
+                                        }
+                                    },
+                                    vehicle = {
+                                        group = {
+                                            [1] = {
+                                                name = 'Convoy Alpha',
+                                                x = 3000.0,
+                                                y = 4000.0,
+                                                units = { [1] = { type = 'M-1 Abrams' } }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        red = { country = {} },
+                        neutrals = { country = {} }
+                    }
+                }";
+
+            var missionTable = script.DoString(luaMission).Table;
+
+            // Act
+            var result = KmlExportGenerator.GetAllGroups(missionTable);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(2, result.Count);
+
+            // Verify Air Group parsing
+            var airGroup = result.Single(g => g.Name == "Viper 1");
+            Assert.Equal("plane", airGroup.Category);
+            Assert.Equal("blue", airGroup.Side);
+            Assert.Equal(1500.0, airGroup.X);
+            Assert.NotNull(airGroup.RoutePoints);
+            Assert.Equal(1, airGroup.RoutePoints.Length);
+
+            // Verify Ground Group parsing
+            var groundGroup = result.Single(g => g.Name == "Convoy Alpha");
+            Assert.Equal("vehicle", groundGroup.Category);
+            Assert.Equal("blue", groundGroup.Side);
+            Assert.Equal(3000.0, groundGroup.X);
+            Assert.Null(groundGroup.RoutePoints);
+            Assert.NotNull(groundGroup.Units);
+            Assert.Equal("M-1 Abrams", groundGroup.Units.Get(1).Table.Get("type").String);
+        }
     }
 }
