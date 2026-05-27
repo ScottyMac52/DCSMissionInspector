@@ -458,7 +458,7 @@ namespace DcsMissionReader.Services.Generators
             return sb.ToString();
         }
 
-        internal static List<(double x, double y, string name)> ProcessTargets(Table tasks, MissionIndexer indexer, string wpName)
+        public static List<(double x, double y, string name)> ProcessTargets(Table tasks, MissionIndexer indexer, string wpName)
         {
             var targets = new List<(double x, double y, string name)>();
 

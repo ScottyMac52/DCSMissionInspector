@@ -459,5 +459,60 @@ namespace DcsMissionReaderTests
             Assert.NotNull(flight.RoutePoints);
             Assert.Equal(2, flight.RoutePoints.Length);
         }
+
+        [Fact]
+        public void ProcessTargets_WithValidTasks_ResolvesNamesUsingIndexer()
+        {
+            // Arrange
+            var script = new Script();
+
+            // 1. Setup a fake indexer with some pre-loaded targets
+            string luaMission = @"
+            return {
+                coalition = {
+                    blue = {
+                        country = {
+                            [1] = {
+                                vehicle = {
+                                    group = {
+                                        [1] = { name = 'Convoy Bravo', groupId = 50, units = { [1] = { type = 'BTR-80', x = 100, y = 200 } } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }";
+            var missionTable = script.DoString(luaMission).Table;
+            var indexer = new MissionIndexer(missionTable);
+
+            // 2. Setup the Task data (what the waypoint tells the AI to attack)
+            string luaTasks = @"
+            return {
+                [1] = {
+                    params = { groupId = 50, x = 0, y = 0 } -- Attack specific group
+                },
+                [2] = {
+                    params = { x = 105, y = 205 } -- Attack coordinate (should snap to BTR-80)
+                }
+            }";
+            var tasksTable = script.DoString(luaTasks).Table;
+
+            // Act
+            var targets = HtmlReportGenerator.ProcessTargets(tasksTable, indexer, "WP2");
+
+            // Assert
+            Assert.Equal(2, targets.Count);
+
+            // First target should resolve by Group ID and pull coordinates from the unit
+            Assert.Equal("Convoy Bravo", targets[0].name);
+            Assert.Equal(100, targets[0].x);
+            Assert.Equal(200, targets[0].y);
+
+            // Second target should resolve by Coordinate Proximity
+            Assert.Equal("Strike: BTR-80", targets[1].name);
+            Assert.Equal(105, targets[1].x);
+            Assert.Equal(205, targets[1].y);
+        }
     }
 }
