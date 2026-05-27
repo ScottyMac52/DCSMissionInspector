@@ -16,7 +16,7 @@ namespace DcsMissionReaderTests
             _archiveService = new MissionArchiveService();
         }
 
-        [Theory]
+        [Theory(Skip = "Only a locally run test")]
         [InlineData(@"D:\SavedGames\DCS.openbeta\Missions\F-14B or F-16C Port Stanley BTR-80 times 6 SA19 with TICO and chinese sub.miz", "Ground-1", "red")]
         public void ResolveNameFromGroupId_ShouldReturnExpectedName(string fileName, string expectedGroupName, string coalition)
         {
@@ -39,7 +39,7 @@ namespace DcsMissionReaderTests
             Assert.Equal(expectedGroupName, actualName);
         }
 
-        [Fact]
+        [Fact(Skip = "Only a locally run test")]
         public void Verify_Tomcat_Target_Resolution_Directly()
         {
             // Arrange: Use the same setup as production
