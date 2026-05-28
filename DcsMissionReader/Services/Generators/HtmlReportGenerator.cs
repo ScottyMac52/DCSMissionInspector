@@ -1,13 +1,14 @@
 ﻿using DcsMissionReader.Models;
 using DcsMissionReader.Services.Interfaces;
 using MoonSharp.Interpreter;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace DcsMissionReader.Services.Generators
 {
-    /// <summary>
-    /// Implements the IMissionExportStrategy interface to generate an HTML report for a DCS mission. This class is responsible for gathering the necessary data from the mission, such as kneeboards and images, and then building an HTML string that represents the report. Finally, it writes the generated HTML to a file in the specified report directory. By implementing this strategy, the application can provide users with a visually appealing and easily accessible report of their DCS missions in HTML format.
-    /// </summary>
     public class HtmlReportGenerator(IFileManagementService fileManagementService) : IMissionExportStrategy
     {
         public bool ShouldExport(AppOptions options) => options.CreateHtml;
@@ -20,11 +21,9 @@ namespace DcsMissionReader.Services.Generators
             Directory.CreateDirectory(imagesDir);
             Directory.CreateDirectory(kneeboardsDir);
 
-            // Re-use your existing copy logic (ensure these helpers are moved here too)
             fileManagementService.CopyImages(context.TempDir, imagesDir);
             int kneeboardCount = fileManagementService.CopyKneeboards(context.TempDir, kneeboardsDir);
 
-            // Fetch metadata
             string mapName = File.Exists(Path.Combine(context.TempDir, "theatre")) ? File.ReadAllText(Path.Combine(context.TempDir, "theatre")).Trim() : "Unknown";
             string description = MissionUtils.Resolve(context.MissionTable.Get("descriptionText"), null);
             string blueTask = MissionUtils.Resolve(context.MissionTable.Get("descriptionBlueTask"), null);
@@ -33,28 +32,27 @@ namespace DcsMissionReader.Services.Generators
             string fullDate = $"{(int)dateTable.Get("Year").Number}-{(int)dateTable.Get("Month").Number:D2}-{(int)dateTable.Get("Day").Number:D2}";
             double startSec = context.MissionTable.Get("start_time").Number;
             string startTime = $"{(int)(startSec / 3600):D2}:{(int)((startSec % 3600) / 60):D2}";
-            string version = context.MissionTable.Get("version").ToString();    
+            string version = context.MissionTable.Get("version").ToString();
+
             string html = BuildHtml(imagesDir, kneeboardsDir, context.Sortie, mapName, fullDate, startTime, version, description, blueTask, redTask, kneeboardCount, context.MissionTable, context.Options);
             File.WriteAllText(Path.Combine(context.ReportDir, "index.html"), html);
         }
 
         private string BuildHtml(string imagesDir, string kneeboardsDir, string sortie, string mapName, string fullDate, string startTime, string version, string description, string blueTask, string redTask, int kneeboardCount, Table mission, AppOptions options)
         {
-            // The CSS logic that provides your layout containers, cards, and borders
+            var missionIndexer = new MissionIndexer(mission);
+
             string css = @"
     body { font-family: system-ui, sans-serif; }
     .image-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem; }
-    /* Force exact column sizing */
     table { border-collapse: collapse; table-layout: fixed; width: 100%; }
     th, td { padding: 0.75rem; overflow: hidden; }
-    th:nth-child(1), td:nth-child(1) { width: 5%; }  /* # */
-    th:nth-child(2), td:nth-child(2) { width: 35%; } /* Action */
-    th:nth-child(3), td:nth-child(3) { width: 15%; text-align: right; } /* Alt */
-    th:nth-child(4), td:nth-child(4) { width: 15%; text-align: right; } /* Speed */
-    th:nth-child(5), td:nth-child(5) { width: 30%; } /* DCS (x, y) */
+    th:nth-child(1), td:nth-child(1) { width: 5%; }
+    th:nth-child(2), td:nth-child(2) { width: 35%; }
+    th:nth-child(3), td:nth-child(3) { width: 15%; text-align: right; }
+    th:nth-child(4), td:nth-child(4) { width: 15%; text-align: right; }
+    th:nth-child(5), td:nth-child(5) { width: 30%; }
     .cursor-pointer { cursor: pointer; }";
-
-            var missionIndexer = new MissionIndexer(mission);
 
             string kneeboardHtml = "";
             if (kneeboardCount > 0)
@@ -72,70 +70,45 @@ namespace DcsMissionReader.Services.Generators
             }
 
             return $@"<!DOCTYPE html>
-            <html lang=""en"">
-                {kneeboardHtml}
-                {GenerateRequiredModsHtmlSection(mission)}
-                {GeneratePlayerSlotsHtmlSection(mission)}
-                {GenerateFlightsWithWaypointsHtmlSection(mission, missionIndexer)}
-                {GenerateAtoHtmlSection(mission)}
-                {GenerateUnitsAndTargetsHtmlSection(mission)}
-                {GenerateWeatherHtmlSection(mission, options.Units)}
-                {GenerateOrderOfBattleHtmlSection(mission)}
-                <div class=""mt-16 text-center text-xs text-gray-500"">Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}</div>
-                </div>
-            </body>
-            </html>";
+<html lang=""en"">
+<head>
+    <meta charset=""utf-8"">
+    <title>{sortie}</title>
+    <script src=""https://cdn.tailwindcss.com""></script>
+    <style>{css}</style>
+</head>
+<body class=""bg-gray-950 text-gray-100"">
+    <div class=""max-w-5xl mx-auto p-8"">
+        <h1 class=""text-5xl font-bold mb-2"">{sortie}</h1>
+        <div class=""flex gap-6 text-sm text-gray-400 mb-8"">
+            <div><span class=""font-semibold"">Map:</span> {mapName}</div>
+            <div><span class=""font-semibold"">Date:</span> {fullDate}</div>
+            <div><span class=""font-semibold"">Start:</span> {startTime}</div>
+            <div><span class=""font-semibold"">Version:</span> {version}</div>
+        </div>
 
-        }
-        /// <summary>
-        /// Generates ATO or Air Tasking Order section for the HTML report. This section lists the groups of aircraft assigned to various tasks for each coalition (Blue, Red, Neutral). It extracts the relevant information from the mission table, including group names, tasks, aircraft types, quantities, and start times, and formats it into an HTML table. The section is styled using Tailwind CSS to match the overall design of the report. This provides a clear and organized overview of the air operations planned in the mission briefing.
-        /// </summary>
-        /// <param name="mission">The mission table containing the ATO data.</param>
-        /// <returns>The HTML string representing the ATO section.</returns>
-        private static string GenerateAtoHtmlSection(Table mission)
-        {
-            var atoData = ExtractAtoData(mission);
-            var sb = new StringBuilder();
-            sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">✈️ Air Tasking Order (ATO)</h2>");
+        <h2 class=""text-2xl font-semibold mb-4 border-b border-gray-700 pb-2"">Briefing</h2>
+        <div class=""prose prose-invert max-w-none text-lg"">{(string.IsNullOrWhiteSpace(description) ? "<p class=\"text-gray-400\">No briefing text.</p>" : "<p>" + description.Replace("\n", "</p><p>") + "</p>")}</div>
 
-            if (atoData.Count == 0)
-            {
-                sb.AppendLine(@"<p class=""text-yellow-400"">No coalition data found.</p>");
-                return sb.ToString();
-            }
+        {(string.IsNullOrWhiteSpace(blueTask) ? "" : $@"<h2 class=""text-2xl font-semibold mt-12 mb-4 border-b border-blue-700 pb-2"">Blue Task</h2><div class=""prose prose-invert"">{blueTask.Replace("\n", "<br>")}</div>")}
+        {(string.IsNullOrWhiteSpace(redTask) ? "" : $@"<h2 class=""text-2xl font-semibold mt-12 mb-4 border-b border-red-700 pb-2"">Red Task</h2><div class=""prose prose-invert"">{redTask.Replace("\n", "<br>")}</div>")}
 
-            string[] sides = { "blue", "red", "neutral" };
-            string[] sideNames = { "Blue", "Red", "Neutral" };
+        <h2 class=""text-2xl font-semibold mt-16 mb-6"">📸 Briefing Images</h2>
+        <div class=""image-grid"">{string.Join("", Directory.GetFiles(imagesDir).Select(f => $@"<div class=""bg-gray-900 rounded-xl overflow-hidden border border-gray-700""><img src=""images/{Path.GetFileName(f)}"" class=""w-full""><div class=""px-4 py-2 text-xs text-gray-400 font-mono"">{Path.GetFileName(f)}</div></div>"))}</div>
+        
+        {kneeboardHtml}
+        {GenerateRequiredModsHtmlSection(mission)}
+        {GeneratePlayerSlotsHtmlSection(mission)}
+        {GenerateFlightsWithWaypointsHtmlSection(mission, missionIndexer)}
+        {GenerateAtoHtmlSection(mission)}
+        {GenerateUnitsAndTargetsHtmlSection(mission)}
+        {GenerateWeatherHtmlSection(mission, options.Units)}
+        {GenerateOrderOfBattleHtmlSection(mission)}
 
-            for (int i = 0; i < sides.Length; i++)
-            {
-                var sideGroups = atoData.Where(a => a.Coalition == sides[i]).ToList();
-                if (sideGroups.Count == 0) continue;
-
-                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
-                sb.AppendLine(@"<table class=""w-full border-collapse text-sm"">");
-                sb.AppendLine(@"<thead><tr class=""bg-gray-800""><th class=""p-3 text-left"">Group</th><th class=""p-3 text-left"">Task</th><th class=""p-3 text-left"">Aircraft</th><th class=""p-3 text-center"">Qty</th><th class=""p-3 text-center"">Start Time</th></tr></thead><tbody>");
-
-                foreach (var group in sideGroups)
-                {
-                    string startStr = group.StartTimeSec > 0
-                        ? $"{(int)(group.StartTimeSec / 3600):D2}:{(int)((group.StartTimeSec % 3600) / 60):D2}"
-                        : "—";
-
-                    sb.AppendLine($@"<tr class=""border-t border-gray-700"">
-                        <td class=""p-3"">{group.GroupName}</td>
-                        <td class=""p-3"">{group.Task}</td>
-                        <td class=""p-3 font-mono"">{group.AircraftType}</td>
-                        <td class=""p-3 text-center"">{group.UnitsCount}</td>
-                        <td class=""p-3 text-center"">{startStr}</td>
-                    </tr>");
-                }
-
-                sb.AppendLine("</tbody></table>");
-                Console.WriteLine($"   → {sideNames[i]} ATO: {sideGroups.Count} groups found");  // debug output
-            }
-
-            return sb.ToString();
+        <div class=""mt-16 text-center text-xs text-gray-500"">Generated by DCS Mission Reader • {DateTime.Now:yyyy-MM-dd HH:mm}</div>
+    </div>
+</body>
+</html>";
         }
 
         private static string GenerateRequiredModsHtmlSection(Table mission)
@@ -143,7 +116,6 @@ namespace DcsMissionReader.Services.Generators
             var sb = new StringBuilder();
             var reqVal = mission.Get("requiredModules");
 
-            // Default case: No required modules found or invalid structure
             bool hasMods = false;
             List<string> mods = new();
 
@@ -152,8 +124,7 @@ namespace DcsMissionReader.Services.Generators
                 foreach (var pair in reqVal.Table.Pairs)
                 {
                     string modName = pair.Key?.ToString()?.Trim('"', ' ') ?? "";
-                    if (!string.IsNullOrWhiteSpace(modName))
-                        mods.Add(modName);
+                    if (!string.IsNullOrWhiteSpace(modName)) mods.Add(modName);
                 }
                 hasMods = mods.Count > 0;
             }
@@ -162,416 +133,28 @@ namespace DcsMissionReader.Services.Generators
             {
                 sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6 border-b border-gray-700 pb-2"">🧩 Required Mods</h2>");
                 sb.AppendLine(@"<div class=""bg-amber-900/20 border border-amber-700/50 rounded-2xl p-6"">");
-                sb.AppendLine(@"<p class=""font-semibold text-amber-500 mb-4 flex items-center gap-2"">");
-                sb.AppendLine(@"<span class=""text-2xl"">⚠️</span> This mission requires the following modules/mods to load correctly:</p>");
-                sb.AppendLine(@"<ul class=""grid grid-cols-1 md:grid-cols-2 gap-2"">");
-
+                sb.AppendLine(@"<p class=""font-semibold text-amber-500 mb-4 flex items-center gap-2""><span class=""text-2xl"">⚠️</span> This mission requires the following modules/mods to load correctly:</p><ul class=""grid grid-cols-1 md:grid-cols-2 gap-2"">");
                 foreach (var mod in mods.OrderBy(m => m))
                 {
-                    sb.AppendLine($@"<li class=""flex items-center gap-3 bg-amber-950/30 px-4 py-2 rounded-lg text-amber-200 border border-amber-800/30"">");
-                    sb.AppendLine($@"<span class=""text-amber-600 font-bold"">·</span> {mod}");
-                    sb.AppendLine(@"</li>");
+                    sb.AppendLine($@"<li class=""flex items-center gap-3 bg-amber-950/30 px-4 py-2 rounded-lg text-amber-200 border border-amber-800/30""><span class=""text-amber-600 font-bold"">·</span> {mod}</li>");
                 }
-
                 sb.AppendLine(@"</ul></div>");
             }
-            // Optional: Only output the "no mods needed" text if you specifically want that clutter in your report.
-            // Otherwise, you can just return an empty string if hasMods is false.
             else
             {
-                sb.AppendLine(@"<div class=""mt-16 p-4 rounded-xl bg-gray-900 border border-gray-800 text-gray-500 italic text-center"">");
-                sb.AppendLine(@"No additional mods required for this mission.");
-                sb.AppendLine(@"</div>");
-            }
-
-            return sb.ToString();
-        }
-        /// <summary>
-        /// Generates a weather section for the HTML report based on the weather data available in the mission table. This section includes information about cloud conditions, wind at different altitudes, visibility, QNH (pressure), and temperature. The method extracts the relevant weather parameters from the mission data and formats them into a visually appealing layout using Tailwind CSS. If no weather data is found, it displays a warning message. This section provides valuable insights into the environmental conditions that players can expect during the mission.
-        /// </summary>
-        /// <param name="mission">The mission table containing weather data.</param>
-        /// <returns>A string containing the HTML representation of the weather section.</returns>
-        private static string GenerateWeatherHtmlSection(Table mission, UnitsSystem units)
-        {
-            var weatherVal = mission.Get("weather");
-            if (weatherVal.Type != DataType.Table)
-                return "<p class=\"text-yellow-400\">No weather data found.</p>";
-
-            var data = GetWeatherData(mission, units);
-            var sb = new StringBuilder();
-
-            sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">🌤️ Weather</h2>");
-            sb.AppendLine(@"<div class=""grid grid-cols-2 md:grid-cols-3 gap-6 text-sm"">");
-
-            // Clouds
-            sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-5""><div class=""text-gray-400 text-xs mb-1"">CLOUDS</div><div class=""text-2xl font-semibold"">{data.Clouds}</div>");
-            if (!string.IsNullOrEmpty(data.CloudLine)) sb.AppendLine($@"<div class=""text-xs text-gray-400"">{data.CloudLine}</div>");
-            sb.AppendLine("</div>");
-
-            // Wind
-            sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-5""><div class=""text-gray-400 text-xs mb-1"">WIND</div>
-        <div>Surface: <span class=""font-semibold"">{data.WindSurface}</span></div>
-        <div>2000 ft: <span class=""font-semibold"">{data.Wind2000}</span></div>
-        <div>8000 ft: <span class=""font-semibold"">{data.Wind8000}</span></div></div>");
-
-            // Visibility / QNH
-            string pressureUnit = units == UnitsSystem.Metric ? "hPa" : "inHg";
-            string tempUnit = units == UnitsSystem.Metric ? "°C" : "°F";
-            sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-5""><div class=""text-gray-400 text-xs mb-1"">VISIBILITY / QNH</div>
-        <div>Visibility: <span class=""font-semibold"">{data.Visibility}</span></div>
-        <div>QNH: <span class=""font-semibold"">{data.Qnh:F2} {pressureUnit}</span></div>
-        <div>Temperature: <span class=""font-semibold"">{data.Temp:F0} {tempUnit}</span></div></div>");
-
-            sb.AppendLine("</div>");
-            return sb.ToString();
-        }
-
-        /// <summary>
-        /// Generates a string representation of the wind conditions based on the provided wind data and units system.
-        /// </summary>
-        /// <param name="windDyn">The dynamic value containing wind data.</param>
-        /// <param name="units">The units system to use for the output.</param>
-        /// <returns>A string representing the wind direction and speed.</returns>
-        internal static string GetWindString(DynValue windDyn, UnitsSystem units)
-        {
-            if (windDyn?.Type != DataType.Table) return "—";
-            var t = windDyn.Table;
-            double speedMs = t.Get("speed")?.Number ?? 0;
-            double dir = t.Get("dir")?.Number ?? 0;
-
-            if (units == UnitsSystem.Metric)
-                return $"{(int)dir}° / {speedMs:F1} m/s";
-            else
-                return $"{(int)dir}° / {(speedMs * 1.94384):F0} kt";
-        }
-
-        /// <summary>
-        /// Generates a string representation of the visibility based on the provided distance and units system.
-        /// </summary>
-        /// <param name="meters">The visibility distance in meters.</param>
-        /// <param name="units">The units system to use for the output.</param>
-        /// <returns>A string representing the visibility.</returns>    
-        internal static string GetVisibilityString(double meters, UnitsSystem units)
-        {
-            if (meters >= 80000) return "Unlimited";
-
-            if (units == UnitsSystem.Metric)
-                return $"{meters / 1000:F0} km";
-            else
-                return $"{(meters * 0.000621371):F0} mi";
-        }
-
-        /// <summary>
-        /// Generates an Order of Battle (OOB) section for the HTML report based on the coalition data available in the mission table. This section provides a summary of the forces present in the mission, categorized by coalition (Blue, Red, Neutral). It counts the number of aircraft, helicopters, ships, ground units, and static objects for each side and presents this information in a visually appealing format using Tailwind CSS. If no coalition data is found, it displays a warning message. This section gives players a quick overview of the military assets involved in the mission.
-        /// Ground Units Breakdown table has been removed (now redundant with Units & Targets section).
-        /// </summary>
-        /// <param name="mission">The mission table containing coalition data.</param>
-        /// <returns>A string containing the HTML representation of the Order of Battle section.</returns>
-        private static string GenerateOrderOfBattleHtmlSection(Table mission)
-        {
-            var oobList = ExtractOrderOfBattle(mission);
-            if (oobList.Count == 0)
-                return "<p class=\"text-yellow-400\">No coalition data found for OOB.</p>";
-
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">📊 Order of Battle (OOB)</h2>");
-
-            string[] sides = { "blue", "red", "neutral" };
-            string[] sideNames = { "Blue", "Red", "Neutral" };
-
-            for (int i = 0; i < sides.Length; i++)
-            {
-                var sideData = oobList.FirstOrDefault(o => o.Coalition == sides[i]);
-                if (sideData == null) continue;
-
-                // Build HTML for this side
-                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
-                sb.AppendLine(@"<div class=""grid grid-cols-5 gap-4 mb-6 text-center"">");
-                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">AIRCRAFT</div><div class=""text-3xl font-bold"">{sideData.TotalAircraft}</div></div>");
-                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">SHIPS</div><div class=""text-3xl font-bold"">{sideData.TotalShips}</div></div>");
-                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">GROUND</div><div class=""text-3xl font-bold"">{sideData.TotalGround}</div></div>");
-                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">STATICS</div><div class=""text-3xl font-bold"">{sideData.TotalStatics}</div></div>");
-                sb.AppendLine("</div>");
-
-                // Detailed Aircraft Breakdown
-                if (sideData.AircraftBreakdown.Count > 0)
-                {
-                    sb.AppendLine(@"<details class=""mb-8""><summary class=""cursor-pointer text-lg font-medium mb-2"">Aircraft Breakdown</summary><table class=""w-full border-collapse text-sm""><thead><tr class=""bg-gray-800""><th class=""p-3 text-left"">Type</th><th class=""p-3 text-center"">Count</th></tr></thead><tbody>");
-                    foreach (var kvp in sideData.AircraftBreakdown.OrderByDescending(k => k.Value))
-                    {
-                        sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-3"">{kvp.Key}</td><td class=""p-3 text-center font-semibold"">{kvp.Value}</td></tr>");
-                    }
-                    sb.AppendLine("</tbody></table></details>");
-                }
-            }
-
-            return sb.ToString();
-        }
-
-        /// <summary>
-        /// Generates a section for units and targets based on the coalition data in the mission table. This section lists the groups of sea and ground units for each coalition (Blue, Red, Neutral), along with the number of units in each group. The method extracts the relevant information from the mission data and formats it into an HTML layout using Tailwind CSS. If no units are found, it displays a message indicating that no ground or sea units are present in the mission. This section provides players with an overview of the forces they will encounter or control during the mission.
-        /// </summary>
-        /// <param name="mission">The mission data table.</param>
-        /// <returns>An HTML string representing the units and targets section.</returns>
-        /// <summary>
-        private static string GenerateUnitsAndTargetsHtmlSection(Table mission)
-        {
-            var targets = ExtractUnitsAndTargets(mission);
-            var sb = new StringBuilder();
-            sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">📦 Units & Targets</h2>");
-
-            if (targets.Count == 0)
-            {
-                sb.AppendLine(@"<p class=""text-emerald-400 italic"">No ground, sea, or static units found in this mission.</p>");
-                return sb.ToString();
-            }
-
-            string[] sides = { "blue", "red", "neutral" };
-            string[] sideEmojis = { "🔵", "🔴", "⚪" };
-            string[] sideNames = { "BLUE COALITION", "RED COALITION", "NEUTRAL COALITION" };
-
-            for (int i = 0; i < sides.Length; i++)
-            {
-                var sideTargets = targets.Where(t => t.Coalition == sides[i]).ToList();
-                if (sideTargets.Count == 0) continue;
-
-                string colorClass = sides[i] == "blue" ? "blue" : sides[i] == "red" ? "red" : "slate";
-
-                sb.AppendLine($@"<h3 class=""text-{colorClass}-400 text-lg font-semibold mt-10 mb-5 flex items-center gap-2"">
-                      <span class=""text-2xl"">{sideEmojis[i]}</span>
-                      {sideNames[i]}
-                    </h3>");
-
-                foreach (var target in sideTargets)
-                {
-                    string icon = target.Category == "ship" ? "⚓" : target.Category == "vehicle" ? "🪖" : "📦";
-
-                    sb.AppendLine($@"
-                        <div class=""flex items-start gap-6 p-6 bg-slate-800 border border-slate-700 rounded-3xl hover:border-{colorClass}-500 transition-all"">
-                            <div class=""text-5xl flex-shrink-0 mt-1"">{icon}</div>
-                            <div class=""flex-1"">
-                                <div class=""font-semibold text-slate-100 text-lg"">{target.GroupName}</div>
-                                <div class=""text-xs font-mono text-slate-400 mt-1"">{target.X:F0}, {target.Y:F0}</div>
-                                <div class=""text-sm text-slate-300 mt-3"">{target.UnitInfo}</div>
-                            </div>
-                            <div class=""text-right text-xs font-medium text-slate-400"">
-                                {target.TotalUnits}<br/><span class=""text-[10px]"">UNITS</span>
-                            </div>
-                        </div>");
-                }
-            }
-
-            return sb.ToString();
-        }
-
-        /// <summary>
-        /// Generates a section for player and client spawn spots based on the coalition data in the mission table. This section lists the groups that contain player or client units, along with their assigned tasks and aircraft types. It provides a clear overview of where players can expect to spawn in the mission, categorized by coalition (Blue, Red, Neutral). The method extracts the relevant information from the mission data and formats it into an HTML layout using Tailwind CSS. If no player slot data is found, it displays a warning message. This section is particularly useful for players to quickly identify their starting positions and roles in the mission.
-        /// </summary>
-        /// <param name="mission">The mission table containing coalition data.</param>
-        /// <returns>An HTML string representing the player and client spawn spots section.</returns>
-        private static string GeneratePlayerSlotsHtmlSection(Table mission)
-        {
-            var slots = ExtractPlayerSlots(mission);
-            if (slots.Count == 0)
-                return "<p class=\"text-yellow-400\">No player slot data found.</p>";
-
-            var sb = new StringBuilder();
-            sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">🧑‍✈️ Player &amp; Client Spawn Spots</h2>");
-
-            string[] sides = { "blue", "red", "neutral" };
-            string[] sideNames = { "Blue", "Red", "Neutral" };
-
-            for (int i = 0; i < sides.Length; i++)
-            {
-                var sideSlots = slots.Where(s => s.Coalition == sides[i]).ToList();
-                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
-
-                if (sideSlots.Count > 0)
-                {
-                    foreach (var slot in sideSlots)
-                    {
-                        sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4 mb-4"">
-                            <div class=""flex justify-between"">
-                                <div><span class=""font-semibold"">{slot.GroupName}</span> — {slot.AircraftType}</div>
-                                <div class=""text-sm text-gray-400"">{slot.Task} • {slot.ClientCount} client slot{(slot.ClientCount > 1 ? "s" : "")}</div>
-                            </div>
-                        </div>");
-                    }
-                }
-                else
-                {
-                    sb.AppendLine(@"<p class=""text-gray-400 italic"">No player/client slots found for this coalition.</p>");
-                }
-            }
-
-            return sb.ToString();
-        }
-
-        /// <summary>
-        /// Generates a section for flights and their waypoints based on the coalition data in the mission table. This section lists the groups of aircraft assigned to various tasks for each coalition (Blue, Red, Neutral), along with their flight routes and waypoints. The method extracts the relevant information from the mission data, including group names, tasks, aircraft types, quantities, and waypoint details such as actions, altitudes, speeds, and coordinates. It formats this information into an HTML layout using Tailwind CSS. If no flight waypoint data is found, it displays a warning message. This section provides players with a detailed overview of the air operations planned in the mission briefing.
-        /// </summary>
-        /// <param name="mission">The mission table containing coalition data.</param>
-        /// <param name="indexer">The mission indexer for resolving group and unit information.</param> 
-        /// <returns>An HTML string representing the flights and their waypoints section.</returns>
-        private string GenerateFlightsWithWaypointsHtmlSection(Table mission, MissionIndexer indexer)
-        {
-            var flights = ExtractFlightWaypoints(mission);
-            if (flights.Count == 0)
-                return "<p class=\"text-yellow-400\">No flight waypoint data found.</p>";
-
-            var sb = new StringBuilder();
-            sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">🛫 Flights &amp; Waypoints</h2>");
-
-            string[] sides = { "blue", "red", "neutral" };
-            string[] sideNames = { "Blue", "Red", "Neutral" };
-
-            for (int i = 0; i < sides.Length; i++)
-            {
-                var sideFlights = flights.Where(f => f.Coalition == sides[i]).ToList();
-                if (sideFlights.Count == 0) continue;
-
-                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
-
-                foreach (var flight in sideFlights)
-                {
-                    sb.AppendLine($@"<details class=""mb-8 bg-gray-900 rounded-2xl p-5""><summary class=""cursor-pointer font-medium text-lg flex items-center gap-3"">✈️ {flight.GroupName} — {flight.Aircraft} ({flight.UnitCount}×) • {flight.Task}</summary>");
-
-                    sb.AppendLine(@"<div class=""mt-4""><table class=""w-full border-collapse text-xs""><thead><tr class=""bg-gray-800""><th class=""p-2 text-center"" style=""width: 5%"">#</th><th class=""p-2 text-left"" style=""width: 35%"">Action</th><th class=""p-2 text-right"" style=""width: 15%"">Alt (ft)</th><th class=""p-2 text-right"" style=""width: 15%"">Speed (kt)</th><th class=""p-2 text-left"" style=""width: 30%"">DCS (x, y)</th></tr></thead><tbody>");
-
-                    // Call your extracted helper with the isolated Table
-                    var waypoints = ParseWaypoints(flight.RoutePoints, indexer);
-                    int idx = 1;
-
-                    foreach (var wp in waypoints)
-                    {
-                        sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-2 text-center font-semibold"">{idx}</td><td class=""p-2 text-left"">{wp.action}</td><td class=""p-2 text-right"">{(int)(wp.alt * 3.28084)}</td><td class=""p-2 text-right"">{(int)(wp.speed * 1.94384)}</td><td class=""p-2 text-left font-mono"">{wp.x:F0}, {wp.y:F0}</td></tr>");
-                        idx++;
-                    }
-                    sb.AppendLine("</tbody></table></div>");
-
-                    if (waypoints.Count > 1)
-                        sb.AppendLine(GenerateFlightSvgMap(waypoints, flight.GroupName));
-
-                    sb.AppendLine("</details>");
-                }
+                sb.AppendLine(@"<div class=""mt-16 p-4 rounded-xl bg-gray-900 border border-gray-800 text-gray-500 italic text-center"">No additional mods required for this mission.</div>");
             }
             return sb.ToString();
         }
 
-        public static List<(double x, double y, string name)> ProcessTargets(Table tasks, MissionIndexer indexer, string wpName)
+        // ==========================================
+        // ATO EXTRACTION & GENERATION
+        // ==========================================
+        public static List<AtoGroupData> ExtractAtoData(Table mission)
         {
-            var targets = new List<(double x, double y, string name)>();
-
-            foreach (var t in tasks.Pairs)
-            {
-                var currentTask = t.Value.Table;
-                var p = currentTask.Get("params")?.Table;
-                if (p == null) continue;
-
-                string tName = "Target";
-                bool foundTarget = false;
-                double targetX = p.Get("x")?.Number ?? 0;
-                double targetY = p.Get("y")?.Number ?? 0;
-
-                double gid = p.Get("groupId")?.Number ?? 0;
-
-                // CASE 1: Structured Attack Group (O(1) Dictionary Lookup!)
-                if (gid > 0)
-                {
-                    tName = indexer.ResolveNameFromGroupId(gid);
-
-                    // Fetch coordinates from the actual group definition if task params have 0,0
-                    if (targetX == 0 && targetY == 0 && indexer.GroupsById.TryGetValue(gid, out var groupTable))
-                    {
-                        var units = groupTable.Get("units")?.Table;
-                        if (units != null && units.Length > 0)
-                        {
-                            targetX = units.Get(1)?.Table.Get("x")?.Number ?? 0;
-                            targetY = units.Get(1)?.Table.Get("y")?.Number ?? 0;
-                        }
-                    }
-                    foundTarget = true;
-                }
-                // CASE 2: Coordinate-based / Pre-programmed Strike
-                else if (targetX != 0 || targetY != 0)
-                {
-                    string unitType = indexer.FindUnitTypeAtLocation(targetX, targetY);
-                    tName = !string.IsNullOrEmpty(unitType) ? $"Strike: {unitType}" : $"Strike: {wpName}";
-                    foundTarget = true;
-                }
-
-                if (foundTarget && (targetX != 0 || targetY != 0))
-                {
-                    targets.Add((targetX, targetY, tName));
-                }
-            }
-            return targets;
-        }
-
-        public static WeatherData GetWeatherData(Table mission, UnitsSystem units)
-        {
-            var w = mission.Get("weather")?.Table ?? new Table(new Script());
-            var clouds = w.Get("clouds")?.Table;
-            var wind = w.Get("wind")?.Table;
-            var visibility = w.Get("visibility")?.Table;
-            var season = w.Get("season")?.Table;
-
-            string cloudStr = clouds?.Get("preset")?.String ?? "Clear";
-            double baseM = clouds?.Get("base")?.Number ?? 0;
-            double thickM = clouds?.Get("thickness")?.Number ?? 0;
-
-            // Logic for weather string formatting
-            string cloudLine = baseM > 0
-                ? $"Base {(units == UnitsSystem.Metric ? baseM / 1000 : baseM * 3.28084):F1} {(units == UnitsSystem.Metric ? "km" : "ft")} • Thickness {(units == UnitsSystem.Metric ? thickM / 1000 : thickM * 3.28084):F1} {(units == UnitsSystem.Metric ? "km" : "ft")}"
-                : "";
-
-            return new WeatherData(
-                cloudStr,
-                GetWindString(wind?.Get("atGround"), units),
-                GetWindString(wind?.Get("at2000"), units),
-                GetWindString(wind?.Get("at8000"), units),
-                GetVisibilityString(visibility?.Get("distance")?.Number ?? 80000, units),
-                units == UnitsSystem.Metric ? (w.Get("qnh")?.Number ?? 760) : (w.Get("qnh")?.Number ?? 760) * 0.02953,
-                units == UnitsSystem.Metric ? (season?.Get("temperature")?.Number ?? 15) : ((season?.Get("temperature")?.Number ?? 15) * 9.0 / 5) + 32,
-                cloudLine
-            );
-        }
-
-        private static string GenerateFlightSvgMap(List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> waypoints, string groupName)
-        {
-            var data = CalculateSvgMapData(waypoints);
-            if (data.RoutePoints.Count == 0) return "";
-
-            var sb = new StringBuilder();
-            sb.AppendLine($@"<details class=""mt-6""><summary class=""cursor-pointer text-sm font-medium mb-2"">🗺️ Interactive Route Map for {groupName}</summary>");
-            sb.AppendLine($@"<svg width=""800"" height=""500"" viewBox=""0 0 800 500"" class=""border border-gray-700 rounded-xl bg-gray-950"">");
-
-            sb.Append(@"<polyline points=""");
-            foreach (var pt in data.RoutePoints) sb.Append($"{pt.X:F0},{pt.Y:F0} ");
-            sb.AppendLine(@""" fill=""none"" stroke=""#22d3ee"" stroke-width=""4"" />");
-
-            foreach (var t in data.Targets)
-            {
-                sb.AppendLine($@"<g><line x1=""{t.Target.X - 6:F0}"" y1=""{t.Target.Y - 6:F0}"" x2=""{t.Target.X + 6:F0}"" y2=""{t.Target.Y + 6:F0}"" stroke=""red"" stroke-width=""2""/><line x1=""{t.Target.X + 6:F0}"" y1=""{t.Target.Y - 6:F0}"" x2=""{t.Target.X - 6:F0}"" y2=""{t.Target.Y + 6:F0}"" stroke=""red"" stroke-width=""2""/>
-            <text x=""{t.Target.X + 8:F0}"" y=""{t.Target.Y - 8:F0}"" fill=""red"" font-size=""10"" font-family=""monospace"" font-weight=""bold"">{t.TargetName}</text></g>");
-            }
-
-            foreach (var m in data.Markers)
-            {
-                string color = m.IsCluster ? "#f59e0b" : "#22d3ee";
-                string textColor = m.IsCluster ? "#f59e0b" : "#67e8f9";
-                sb.AppendLine($@"<g class=""cursor-pointer""><circle cx=""{m.Point.X:F0}"" cy=""{m.Point.Y:F0}"" r=""8"" fill=""{color}""><title>{m.Tooltip}</title></circle>
-        <text x=""{m.Point.X + 12:F0}"" y=""{m.Point.Y + 5:F0}"" fill=""{textColor}"" font-size=""11"" font-family=""monospace"" pointer-events=""none"">{m.Label}</text></g>");
-            }
-            sb.AppendLine("</svg></details>");
-            return sb.ToString();
-        }
-
-        public static List<PlayerSlotGroup> ExtractPlayerSlots(Table mission)
-        {
-            var slots = new List<PlayerSlotGroup>();
+            var atoList = new List<AtoGroupData>();
             var coalitionVal = mission.Get("coalition");
-            if (coalitionVal.Type != DataType.Table) return slots;
+            if (coalitionVal.Type != DataType.Table) return atoList;
 
             var coalition = coalitionVal.Table;
             string[] sides = { "blue", "red", "neutral" };
@@ -589,9 +172,9 @@ namespace DcsMissionReader.Services.Generators
                     if (countryPair.Value.Type != DataType.Table) continue;
                     var country = countryPair.Value.Table;
 
-                    foreach (var cat in new[] { "plane", "helicopter" })
+                    foreach (var category in new[] { "plane", "helicopter", "ship" })
                     {
-                        var catVal = country.Get(cat);
+                        var catVal = country.Get(category);
                         if (catVal.Type != DataType.Table) continue;
 
                         var groupListVal = catVal.Table.Get("group");
@@ -602,45 +185,130 @@ namespace DcsMissionReader.Services.Generators
                             if (groupPair.Value.Type != DataType.Table) continue;
                             var group = groupPair.Value.Table;
 
-                            var unitsVal = group.Get("units");
-                            if (unitsVal.Type != DataType.Table) continue;
-
-                            int clientCount = 0;
+                            string groupName = group.Get("name")?.String ?? "Unknown";
+                            string task = group.Get("task")?.String ?? "None";
                             string aircraftType = "Unknown";
+                            int unitsCount = 0;
 
-                            foreach (var unitPair in unitsVal.Table.Pairs)
+                            var unitsVal = group.Get("units");
+                            if (unitsVal.Type == DataType.Table && unitsVal.Table.Length > 0)
                             {
-                                if (unitPair.Value.Type != DataType.Table) continue;
-                                var unit = unitPair.Value.Table;
-
-                                string skill = unit.Get("skill")?.String ?? "";
-                                bool isClient = skill == "Client" || unit.Get("playerCanDrive")?.Boolean == true;
-
-                                if (isClient)
-                                {
-                                    clientCount++;
-                                    if (aircraftType == "Unknown")
-                                        aircraftType = unit.Get("type")?.String ?? "Unknown";
-                                }
+                                unitsCount = unitsVal.Table.Length;
+                                var firstUnit = unitsVal.Table.Get(1)?.Table;
+                                if (firstUnit != null) aircraftType = firstUnit.Get("type")?.String ?? "Unknown";
                             }
 
-                            if (clientCount > 0)
-                            {
-                                slots.Add(new PlayerSlotGroup(
-                                    side,
-                                    group.Get("name")?.String ?? "Unknown",
-                                    aircraftType,
-                                    group.Get("task")?.String ?? "None",
-                                    clientCount
-                                ));
-                            }
+                            double startTime = group.Get("start_time")?.Number ?? 0;
+                            atoList.Add(new AtoGroupData(side, groupName, task, aircraftType, unitsCount, startTime));
                         }
                     }
                 }
             }
-            return slots;
+            return atoList;
         }
 
+        private static string GenerateAtoHtmlSection(Table mission)
+        {
+            var atoData = ExtractAtoData(mission);
+            var sb = new StringBuilder();
+            sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">✈️ Air Tasking Order (ATO)</h2>");
+
+            if (atoData.Count == 0) return sb.AppendLine(@"<p class=""text-yellow-400"">No coalition data found.</p>").ToString();
+
+            string[] sides = { "blue", "red", "neutral" };
+            string[] sideNames = { "Blue", "Red", "Neutral" };
+
+            for (int i = 0; i < sides.Length; i++)
+            {
+                var sideGroups = atoData.Where(a => a.Coalition == sides[i]).ToList();
+                if (sideGroups.Count == 0) continue;
+
+                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
+                sb.AppendLine(@"<table class=""w-full border-collapse text-sm""><thead><tr class=""bg-gray-800""><th class=""p-3 text-left"">Group</th><th class=""p-3 text-left"">Task</th><th class=""p-3 text-left"">Aircraft</th><th class=""p-3 text-center"">Qty</th><th class=""p-3 text-center"">Start Time</th></tr></thead><tbody>");
+
+                foreach (var group in sideGroups)
+                {
+                    string startStr = group.StartTimeSec > 0 ? $"{(int)(group.StartTimeSec / 3600):D2}:{(int)((group.StartTimeSec % 3600) / 60):D2}" : "—";
+                    sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-3"">{group.GroupName}</td><td class=""p-3"">{group.Task}</td><td class=""p-3 font-mono"">{group.AircraftType}</td><td class=""p-3 text-center"">{group.UnitsCount}</td><td class=""p-3 text-center"">{startStr}</td></tr>");
+                }
+                sb.AppendLine("</tbody></table>");
+            }
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // WEATHER EXTRACTION & GENERATION
+        // ==========================================
+        public static WeatherData GetWeatherData(Table mission, UnitsSystem units)
+        {
+            var w = mission.Get("weather")?.Table ?? new Table(new Script());
+            var clouds = w.Get("clouds")?.Table;
+            var wind = w.Get("wind")?.Table;
+            var visibility = w.Get("visibility")?.Table;
+            var season = w.Get("season")?.Table;
+
+            string cloudStr = clouds?.Get("preset")?.String ?? "Clear";
+            double baseM = clouds?.Get("base")?.Number ?? 0;
+            double thickM = clouds?.Get("thickness")?.Number ?? 0;
+
+            string cloudLine = baseM > 0
+                ? $"Base {(units == UnitsSystem.Metric ? baseM / 1000 : baseM * 3.28084):F1} {(units == UnitsSystem.Metric ? "km" : "ft")} • Thickness {(units == UnitsSystem.Metric ? thickM / 1000 : thickM * 3.28084):F1} {(units == UnitsSystem.Metric ? "km" : "ft")}"
+                : "";
+
+            return new WeatherData(
+                cloudStr,
+                GetWindString(wind?.Get("atGround"), units),
+                GetWindString(wind?.Get("at2000"), units),
+                GetWindString(wind?.Get("at8000"), units),
+                GetVisibilityString(visibility?.Get("distance")?.Number ?? 80000, units),
+                units == UnitsSystem.Metric ? (w.Get("qnh")?.Number ?? 760) : (w.Get("qnh")?.Number ?? 760) * 0.02953,
+                units == UnitsSystem.Metric ? (season?.Get("temperature")?.Number ?? 15) : ((season?.Get("temperature")?.Number ?? 15) * 9.0 / 5) + 32,
+                cloudLine
+            );
+        }
+
+        internal static string GetWindString(DynValue windDyn, UnitsSystem units)
+        {
+            if (windDyn?.Type != DataType.Table) return "—";
+            var t = windDyn.Table;
+            double speedMs = t.Get("speed")?.Number ?? 0;
+            double dir = t.Get("dir")?.Number ?? 0;
+
+            return units == UnitsSystem.Metric ? $"{(int)dir}° / {speedMs:F1} m/s" : $"{(int)dir}° / {(speedMs * 1.94384):F0} kt";
+        }
+
+        internal static string GetVisibilityString(double meters, UnitsSystem units)
+        {
+            if (meters >= 80000) return "Unlimited";
+            return units == UnitsSystem.Metric ? $"{meters / 1000:F0} km" : $"{(meters * 0.000621371):F0} mi";
+        }
+
+        private static string GenerateWeatherHtmlSection(Table mission, UnitsSystem units)
+        {
+            var weatherVal = mission.Get("weather");
+            if (weatherVal.Type != DataType.Table) return "<p class=\"text-yellow-400\">No weather data found.</p>";
+
+            var data = GetWeatherData(mission, units);
+            var sb = new StringBuilder();
+
+            sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">🌤️ Weather</h2><div class=""grid grid-cols-2 md:grid-cols-3 gap-6 text-sm"">");
+            sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-5""><div class=""text-gray-400 text-xs mb-1"">CLOUDS</div><div class=""text-2xl font-semibold"">{data.Clouds}</div>");
+            if (!string.IsNullOrEmpty(data.CloudLine)) sb.AppendLine($@"<div class=""text-xs text-gray-400"">{data.CloudLine}</div>");
+            sb.AppendLine("</div>");
+
+            sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-5""><div class=""text-gray-400 text-xs mb-1"">WIND</div><div>Surface: <span class=""font-semibold"">{data.WindSurface}</span></div><div>2000 ft: <span class=""font-semibold"">{data.Wind2000}</span></div><div>8000 ft: <span class=""font-semibold"">{data.Wind8000}</span></div></div>");
+
+            string pressureUnit = units == UnitsSystem.Metric ? "hPa" : "inHg";
+            string tempUnit = units == UnitsSystem.Metric ? "°C" : "°F";
+            sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-5""><div class=""text-gray-400 text-xs mb-1"">VISIBILITY / QNH</div><div>Visibility: <span class=""font-semibold"">{data.Visibility}</span></div><div>QNH: <span class=""font-semibold"">{data.Qnh:F2} {pressureUnit}</span></div><div>Temperature: <span class=""font-semibold"">{data.Temp:F0} {tempUnit}</span></div></div>");
+
+            sb.AppendLine("</div>");
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // ORDER OF BATTLE EXTRACTION & GENERATION
+        // ==========================================
         public static List<OrderOfBattleSide> ExtractOrderOfBattle(Table mission)
         {
             var oobList = new List<OrderOfBattleSide>();
@@ -666,7 +334,6 @@ namespace DcsMissionReader.Services.Generators
                     if (countryPair.Value.Type != DataType.Table) continue;
                     var country = countryPair.Value.Table;
 
-                    // Aircraft & Helicopters
                     foreach (var cat in new[] { "plane", "helicopter" })
                     {
                         var catVal = country.Get(cat);
@@ -690,77 +357,75 @@ namespace DcsMissionReader.Services.Generators
                                 string type = unit.Get("type")?.String ?? "Unknown";
 
                                 aircraftCounts[type] = aircraftCounts.GetValueOrDefault(type) + 1;
-                                totalAircraft++; // We combine planes and helos for the top-level total
+                                totalAircraft++;
                             }
                         }
                     }
 
-                    // Ships
                     var shipVal = country.Get("ship");
                     if (shipVal.Type == DataType.Table)
                     {
                         var shipGroups = shipVal.Table.Get("group");
-                        if (shipGroups.Type == DataType.Table)
-                            totalShips += shipGroups.Table.Length;
+                        if (shipGroups.Type == DataType.Table) totalShips += shipGroups.Table.Length;
                     }
 
-                    // Ground units (vehicle)
                     var vehicleVal = country.Get("vehicle");
                     if (vehicleVal.Type == DataType.Table)
                     {
                         var vehicleGroups = vehicleVal.Table.Get("group");
-                        if (vehicleGroups.Type == DataType.Table)
-                            totalGround += vehicleGroups.Table.Length;
+                        if (vehicleGroups.Type == DataType.Table) totalGround += vehicleGroups.Table.Length;
                     }
 
-                    // Statics
                     var staticVal = country.Get("static");
                     if (staticVal.Type == DataType.Table)
                     {
                         var staticGroups = staticVal.Table.Get("group");
-                        if (staticGroups.Type == DataType.Table)
-                            totalStatics += staticGroups.Table.Length;
+                        if (staticGroups.Type == DataType.Table) totalStatics += staticGroups.Table.Length;
                     }
                 }
-
                 oobList.Add(new OrderOfBattleSide(side, totalAircraft, totalShips, totalGround, totalStatics, aircraftCounts));
             }
-
             return oobList;
         }
 
-        public static List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> ParseWaypoints(Table pointsVal, MissionIndexer indexer)
+        private static string GenerateOrderOfBattleHtmlSection(Table mission)
         {
-            var waypoints = new List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)>();
-            int idx = 1;
+            var oobList = ExtractOrderOfBattle(mission);
+            if (oobList.Count == 0) return "<p class=\"text-yellow-400\">No coalition data found for OOB.</p>";
 
-            foreach (var pPair in pointsVal.Pairs)
+            var sb = new StringBuilder();
+            sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">📊 Order of Battle (OOB)</h2>");
+
+            string[] sides = { "blue", "red", "neutral" };
+            string[] sideNames = { "Blue", "Red", "Neutral" };
+
+            for (int i = 0; i < sides.Length; i++)
             {
-                var point = pPair.Value.Table;
-                double x = point.Get("x")?.Number ?? 0;
-                double y = point.Get("y")?.Number ?? 0;
-                double alt = point.Get("alt")?.Number ?? 0;
-                double speed = point.Get("speed")?.Number ?? 0;
-                string action = point.Get("action")?.String ?? "Turning Point";
-                string wpName = point.Get("name")?.String ?? $"WP{idx}";
+                var sideData = oobList.FirstOrDefault(o => o.Coalition == sides[i]);
+                if (sideData == null) continue;
 
-                var waypointTargets = new List<(double x, double y, string targetName)>();
-                var taskParams = point.Get("task")?.Table?.Get("params")?.Table;
-                if (taskParams != null)
+                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
+                sb.AppendLine(@"<div class=""grid grid-cols-5 gap-4 mb-6 text-center"">");
+                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">AIRCRAFT</div><div class=""text-3xl font-bold"">{sideData.TotalAircraft}</div></div>");
+                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">SHIPS</div><div class=""text-3xl font-bold"">{sideData.TotalShips}</div></div>");
+                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">GROUND</div><div class=""text-3xl font-bold"">{sideData.TotalGround}</div></div>");
+                sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4""><div class=""text-xs text-gray-400"">STATICS</div><div class=""text-3xl font-bold"">{sideData.TotalStatics}</div></div>");
+                sb.AppendLine("</div>");
+
+                if (sideData.AircraftBreakdown.Count > 0)
                 {
-                    var tasks = taskParams.Get("tasks")?.Table;
-                    if (tasks != null)
-                    {
-                        waypointTargets.AddRange(ProcessTargets(tasks, indexer, wpName));
-                    }
+                    sb.AppendLine(@"<details class=""mb-8""><summary class=""cursor-pointer text-lg font-medium mb-2"">Aircraft Breakdown</summary><table class=""w-full border-collapse text-sm""><thead><tr class=""bg-gray-800""><th class=""p-3 text-left"">Type</th><th class=""p-3 text-center"">Count</th></tr></thead><tbody>");
+                    foreach (var kvp in sideData.AircraftBreakdown.OrderByDescending(k => k.Value))
+                        sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-3"">{kvp.Key}</td><td class=""p-3 text-center font-semibold"">{kvp.Value}</td></tr>");
+                    sb.AppendLine("</tbody></table></details>");
                 }
-
-                waypoints.Add((x, y, alt, speed, action, wpName, waypointTargets));
-                idx++;
             }
-            return waypoints;
+            return sb.ToString();
         }
 
+        // ==========================================
+        // UNITS & TARGETS EXTRACTION & GENERATION
+        // ==========================================
         public static List<UnitTargetGroup> ExtractUnitsAndTargets(Table mission)
         {
             var targets = new List<UnitTargetGroup>();
@@ -814,10 +479,7 @@ namespace DcsMissionReader.Services.Generators
                             }
 
                             int totalUnits = unitCounts.Values.Sum();
-                            var unitList = unitCounts.OrderByDescending(kv => kv.Value)
-                                                     .Select(kv => $"{kv.Key} ×{kv.Value}")
-                                                     .ToList();
-
+                            var unitList = unitCounts.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} ×{kv.Value}").ToList();
                             string unitInfo = unitList.Count > 0 ? string.Join(", ", unitList) : "No units listed";
 
                             targets.Add(new UnitTargetGroup(side, category, groupName, gx, gy, totalUnits, unitInfo));
@@ -828,11 +490,51 @@ namespace DcsMissionReader.Services.Generators
             return targets;
         }
 
-        public static List<AtoGroupData> ExtractAtoData(Table mission)
+        private static string GenerateUnitsAndTargetsHtmlSection(Table mission)
         {
-            var atoList = new List<AtoGroupData>();
+            var targets = ExtractUnitsAndTargets(mission);
+            var sb = new StringBuilder();
+            sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">📦 Units & Targets</h2>");
+
+            if (targets.Count == 0) return sb.AppendLine(@"<p class=""text-emerald-400 italic"">No ground, sea, or static units found in this mission.</p>").ToString();
+
+            string[] sides = { "blue", "red", "neutral" };
+            string[] sideEmojis = { "🔵", "🔴", "⚪" };
+            string[] sideNames = { "BLUE COALITION", "RED COALITION", "NEUTRAL COALITION" };
+
+            for (int i = 0; i < sides.Length; i++)
+            {
+                var sideTargets = targets.Where(t => t.Coalition == sides[i]).ToList();
+                if (sideTargets.Count == 0) continue;
+
+                string colorClass = sides[i] == "blue" ? "blue" : sides[i] == "red" ? "red" : "slate";
+                sb.AppendLine($@"<h3 class=""text-{colorClass}-400 text-lg font-semibold mt-10 mb-5 flex items-center gap-2""><span class=""text-2xl"">{sideEmojis[i]}</span> {sideNames[i]}</h3>");
+
+                foreach (var target in sideTargets)
+                {
+                    string icon = target.Category == "ship" ? "⚓" : target.Category == "vehicle" ? "🪖" : "📦";
+                    sb.AppendLine($@"<div class=""flex items-start gap-6 p-6 bg-slate-800 border border-slate-700 rounded-3xl hover:border-{colorClass}-500 transition-all"">
+                            <div class=""text-5xl flex-shrink-0 mt-1"">{icon}</div>
+                            <div class=""flex-1"">
+                                <div class=""font-semibold text-slate-100 text-lg"">{target.GroupName}</div>
+                                <div class=""text-xs font-mono text-slate-400 mt-1"">{target.X:F0}, {target.Y:F0}</div>
+                                <div class=""text-sm text-slate-300 mt-3"">{target.UnitInfo}</div>
+                            </div>
+                            <div class=""text-right text-xs font-medium text-slate-400"">{target.TotalUnits}<br/><span class=""text-[10px]"">UNITS</span></div>
+                        </div>");
+                }
+            }
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // PLAYER SLOTS EXTRACTION & GENERATION
+        // ==========================================
+        public static List<PlayerSlotGroup> ExtractPlayerSlots(Table mission)
+        {
+            var slots = new List<PlayerSlotGroup>();
             var coalitionVal = mission.Get("coalition");
-            if (coalitionVal.Type != DataType.Table) return atoList;
+            if (coalitionVal.Type != DataType.Table) return slots;
 
             var coalition = coalitionVal.Table;
             string[] sides = { "blue", "red", "neutral" };
@@ -850,10 +552,9 @@ namespace DcsMissionReader.Services.Generators
                     if (countryPair.Value.Type != DataType.Table) continue;
                     var country = countryPair.Value.Table;
 
-                    // Check plane, helicopter, and ship groups
-                    foreach (var category in new[] { "plane", "helicopter", "ship" })
+                    foreach (var cat in new[] { "plane", "helicopter" })
                     {
-                        var catVal = country.Get(category);
+                        var catVal = country.Get(cat);
                         if (catVal.Type != DataType.Table) continue;
 
                         var groupListVal = catVal.Table.Get("group");
@@ -864,30 +565,72 @@ namespace DcsMissionReader.Services.Generators
                             if (groupPair.Value.Type != DataType.Table) continue;
                             var group = groupPair.Value.Table;
 
-                            string groupName = group.Get("name")?.String ?? "Unknown";
-                            string task = group.Get("task")?.String ?? "None";
-                            string aircraftType = "Unknown";
-                            int unitsCount = 0;
-
                             var unitsVal = group.Get("units");
-                            if (unitsVal.Type == DataType.Table && unitsVal.Table.Length > 0)
+                            if (unitsVal.Type != DataType.Table) continue;
+
+                            int clientCount = 0;
+                            string aircraftType = "Unknown";
+
+                            foreach (var unitPair in unitsVal.Table.Pairs)
                             {
-                                unitsCount = unitsVal.Table.Length;
-                                var firstUnit = unitsVal.Table.Get(1)?.Table;
-                                if (firstUnit != null)
-                                    aircraftType = firstUnit.Get("type")?.String ?? "Unknown";
+                                if (unitPair.Value.Type != DataType.Table) continue;
+                                var unit = unitPair.Value.Table;
+
+                                string skill = unit.Get("skill")?.String ?? "";
+                                bool isClient = skill == "Client" || unit.Get("playerCanDrive")?.Boolean == true;
+
+                                if (isClient)
+                                {
+                                    clientCount++;
+                                    if (aircraftType == "Unknown") aircraftType = unit.Get("type")?.String ?? "Unknown";
+                                }
                             }
 
-                            double startTime = group.Get("start_time")?.Number ?? 0;
-
-                            atoList.Add(new AtoGroupData(side, groupName, task, aircraftType, unitsCount, startTime));
+                            if (clientCount > 0)
+                            {
+                                slots.Add(new PlayerSlotGroup(side, group.Get("name")?.String ?? "Unknown", aircraftType, group.Get("task")?.String ?? "None", clientCount));
+                            }
                         }
                     }
                 }
             }
-            return atoList;
+            return slots;
         }
 
+        private static string GeneratePlayerSlotsHtmlSection(Table mission)
+        {
+            var slots = ExtractPlayerSlots(mission);
+            if (slots.Count == 0) return "<p class=\"text-yellow-400\">No player slot data found.</p>";
+
+            var sb = new StringBuilder();
+            sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">🧑‍✈️ Player &amp; Client Spawn Spots</h2>");
+
+            string[] sides = { "blue", "red", "neutral" };
+            string[] sideNames = { "Blue", "Red", "Neutral" };
+
+            for (int i = 0; i < sides.Length; i++)
+            {
+                var sideSlots = slots.Where(s => s.Coalition == sides[i]).ToList();
+                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
+
+                if (sideSlots.Count > 0)
+                {
+                    foreach (var slot in sideSlots)
+                    {
+                        sb.AppendLine($@"<div class=""bg-gray-900 rounded-xl p-4 mb-4""><div class=""flex justify-between""><div><span class=""font-semibold"">{slot.GroupName}</span> — {slot.AircraftType}</div><div class=""text-sm text-gray-400"">{slot.Task} • {slot.ClientCount} client slot{(slot.ClientCount > 1 ? "s" : "")}</div></div></div>");
+                    }
+                }
+                else
+                {
+                    sb.AppendLine(@"<p class=""text-gray-400 italic"">No player/client slots found for this coalition.</p>");
+                }
+            }
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // FLIGHTS & WAYPOINTS EXTRACTION
+        // ==========================================
         public static List<FlightWaypointGroup> ExtractFlightWaypoints(Table mission)
         {
             var flights = new List<FlightWaypointGroup>();
@@ -936,10 +679,7 @@ namespace DcsMissionReader.Services.Generators
                             int unitCount = unitsVal?.Table?.Length ?? 0;
 
                             string aircraft = "Unknown";
-                            if (unitCount > 0)
-                            {
-                                aircraft = unitsVal.Table.Get(1)?.Table?.Get("type")?.String ?? "Unknown";
-                            }
+                            if (unitCount > 0) aircraft = unitsVal.Table.Get(1)?.Table?.Get("type")?.String ?? "Unknown";
 
                             flights.Add(new FlightWaypointGroup(side, groupName, aircraft, unitCount, task, pointsVal.Table));
                         }
@@ -949,7 +689,120 @@ namespace DcsMissionReader.Services.Generators
             return flights;
         }
 
-        public static SvgMapData CalculateSvgMapData(List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> waypoints)
+        private string GenerateFlightsWithWaypointsHtmlSection(Table mission, MissionIndexer indexer)
+        {
+            var flights = ExtractFlightWaypoints(mission);
+            if (flights.Count == 0) return "<p class=\"text-yellow-400\">No flight waypoint data found.</p>";
+
+            var sb = new StringBuilder();
+            sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">🛫 Flights &amp; Waypoints</h2>");
+
+            string[] sides = { "blue", "red", "neutral" };
+            string[] sideNames = { "Blue", "Red", "Neutral" };
+
+            for (int i = 0; i < sides.Length; i++)
+            {
+                var sideFlights = flights.Where(f => f.Coalition == sides[i]).ToList();
+                if (sideFlights.Count == 0) continue;
+
+                sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
+
+                foreach (var flight in sideFlights)
+                {
+                    sb.AppendLine($@"<details class=""mb-8 bg-gray-900 rounded-2xl p-5""><summary class=""cursor-pointer font-medium text-lg flex items-center gap-3"">✈️ {flight.GroupName} — {flight.Aircraft} ({flight.UnitCount}×) • {flight.Task}</summary>");
+                    sb.AppendLine(@"<div class=""mt-4""><table class=""w-full border-collapse text-xs""><thead><tr class=""bg-gray-800""><th class=""p-2 text-center"" style=""width: 5%"">#</th><th class=""p-2 text-left"" style=""width: 35%"">Action</th><th class=""p-2 text-right"" style=""width: 15%"">Alt (ft)</th><th class=""p-2 text-right"" style=""width: 15%"">Speed (kt)</th><th class=""p-2 text-left"" style=""width: 30%"">DCS (x, y)</th></tr></thead><tbody>");
+
+                    var waypoints = ParseWaypoints(flight.RoutePoints, indexer);
+                    int idx = 1;
+
+                    foreach (var wp in waypoints)
+                    {
+                        sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-2 text-center font-semibold"">{idx}</td><td class=""p-2 text-left"">{wp.action}</td><td class=""p-2 text-right"">{(int)(wp.alt * 3.28084)}</td><td class=""p-2 text-right"">{(int)(wp.speed * 1.94384)}</td><td class=""p-2 text-left font-mono"">{wp.x:F0}, {wp.y:F0}</td></tr>");
+                        idx++;
+                    }
+                    sb.AppendLine("</tbody></table></div>");
+
+                    if (waypoints.Count > 1) sb.AppendLine(GenerateFlightSvgMap(waypoints, flight.GroupName));
+                    sb.AppendLine("</details>");
+                }
+            }
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // PARSING & MATH HELPERS
+        // ==========================================
+        internal static List<(double x, double y, string name)> ProcessTargets(Table tasks, MissionIndexer indexer, string wpName)
+        {
+            var targets = new List<(double x, double y, string name)>();
+            foreach (var t in tasks.Pairs)
+            {
+                var currentTask = t.Value.Table;
+                var p = currentTask.Get("params")?.Table;
+                if (p == null) continue;
+
+                string tName = "Target";
+                bool foundTarget = false;
+                double targetX = p.Get("x")?.Number ?? 0;
+                double targetY = p.Get("y")?.Number ?? 0;
+
+                double gid = p.Get("groupId")?.Number ?? 0;
+                if (gid > 0)
+                {
+                    tName = indexer.ResolveNameFromGroupId(gid);
+                    if (targetX == 0 && targetY == 0 && indexer.GroupsById.TryGetValue(gid, out var groupTable))
+                    {
+                        var units = groupTable.Get("units")?.Table;
+                        if (units != null && units.Length > 0)
+                        {
+                            targetX = units.Get(1)?.Table.Get("x")?.Number ?? 0;
+                            targetY = units.Get(1)?.Table.Get("y")?.Number ?? 0;
+                        }
+                    }
+                    foundTarget = true;
+                }
+                else if (targetX != 0 || targetY != 0)
+                {
+                    string unitType = indexer.FindUnitTypeAtLocation(targetX, targetY);
+                    tName = !string.IsNullOrEmpty(unitType) ? $"Strike: {unitType}" : $"Strike: {wpName}";
+                    foundTarget = true;
+                }
+
+                if (foundTarget && (targetX != 0 || targetY != 0)) targets.Add((targetX, targetY, tName));
+            }
+            return targets;
+        }
+
+        public static List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> ParseWaypoints(Table pointsVal, MissionIndexer indexer)
+        {
+            var waypoints = new List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)>();
+            int idx = 1;
+
+            foreach (var pPair in pointsVal.Pairs)
+            {
+                var point = pPair.Value.Table;
+                double x = point.Get("x")?.Number ?? 0;
+                double y = point.Get("y")?.Number ?? 0;
+                double alt = point.Get("alt")?.Number ?? 0;
+                double speed = point.Get("speed")?.Number ?? 0;
+                string action = point.Get("action")?.String ?? "Turning Point";
+                string wpName = point.Get("name")?.String ?? $"WP{idx}";
+
+                var waypointTargets = new List<(double x, double y, string targetName)>();
+                var taskParams = point.Get("task")?.Table?.Get("params")?.Table;
+                if (taskParams != null)
+                {
+                    var tasks = taskParams.Get("tasks")?.Table;
+                    if (tasks != null) waypointTargets.AddRange(ProcessTargets(tasks, indexer, wpName));
+                }
+
+                waypoints.Add((x, y, alt, speed, action, wpName, waypointTargets));
+                idx++;
+            }
+            return waypoints;
+        }
+
+        internal static SvgMapData CalculateSvgMapData(List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> waypoints)
         {
             if (waypoints == null || waypoints.Count == 0) return new SvgMapData([], [], []);
 
@@ -992,6 +845,36 @@ namespace DcsMissionReader.Services.Generators
             }
 
             return new SvgMapData(routePoints, targetLines, markers);
+        }
+
+        private static string GenerateFlightSvgMap(List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> waypoints, string groupName)
+        {
+            var data = CalculateSvgMapData(waypoints);
+            if (data.RoutePoints.Count == 0) return "";
+
+            var sb = new StringBuilder();
+            sb.AppendLine($@"<details class=""mt-6""><summary class=""cursor-pointer text-sm font-medium mb-2"">🗺️ Interactive Route Map for {groupName}</summary>");
+            sb.AppendLine($@"<svg width=""800"" height=""500"" viewBox=""0 0 800 500"" class=""border border-gray-700 rounded-xl bg-gray-950"">");
+
+            sb.Append(@"<polyline points=""");
+            foreach (var pt in data.RoutePoints) sb.Append($"{pt.X:F0},{pt.Y:F0} ");
+            sb.AppendLine(@""" fill=""none"" stroke=""#22d3ee"" stroke-width=""4"" />");
+
+            foreach (var t in data.Targets)
+            {
+                sb.AppendLine($@"<g><line x1=""{t.Target.X - 6:F0}"" y1=""{t.Target.Y - 6:F0}"" x2=""{t.Target.X + 6:F0}"" y2=""{t.Target.Y + 6:F0}"" stroke=""red"" stroke-width=""2""/><line x1=""{t.Target.X + 6:F0}"" y1=""{t.Target.Y - 6:F0}"" x2=""{t.Target.X - 6:F0}"" y2=""{t.Target.Y + 6:F0}"" stroke=""red"" stroke-width=""2""/>
+            <text x=""{t.Target.X + 8:F0}"" y=""{t.Target.Y - 8:F0}"" fill=""red"" font-size=""10"" font-family=""monospace"" font-weight=""bold"">{t.TargetName}</text></g>");
+            }
+
+            foreach (var m in data.Markers)
+            {
+                string color = m.IsCluster ? "#f59e0b" : "#22d3ee";
+                string textColor = m.IsCluster ? "#f59e0b" : "#67e8f9";
+                sb.AppendLine($@"<g class=""cursor-pointer""><circle cx=""{m.Point.X:F0}"" cy=""{m.Point.Y:F0}"" r=""8"" fill=""{color}""><title>{m.Tooltip}</title></circle>
+        <text x=""{m.Point.X + 12:F0}"" y=""{m.Point.Y + 5:F0}"" fill=""{textColor}"" font-size=""11"" font-family=""monospace"" pointer-events=""none"">{m.Label}</text></g>");
+            }
+            sb.AppendLine("</svg></details>");
+            return sb.ToString();
         }
     }
 }

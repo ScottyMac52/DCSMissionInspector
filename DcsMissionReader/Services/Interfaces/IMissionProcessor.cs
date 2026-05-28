@@ -8,9 +8,10 @@ namespace DcsMissionReader.Services.Interfaces
     public interface IMissionProcessor
     {
         /// <summary>
-        /// Processes the mission files based on the provided options. This method will read the mission files specified in the AppOptions, and depending on the options set (such as CreateHtml, CreateJson, FullExport), it will generate the appropriate output for each mission file. The processing may involve parsing the mission files, extracting relevant data, and then formatting that data into the desired output formats.
+        /// Processes the mission files asynchronously based on the provided options. This method serves the same purpose as the synchronous Process method but allows for asynchronous execution, which can be beneficial for performance when processing multiple mission files or when the processing involves I/O operations that can be awaited. The implementation of this method should ensure that it properly handles asynchronous operations and returns a Task that represents the ongoing processing work.
         /// </summary>
         /// <param name="options">The options that specify how the mission files should be processed.</param>
-        void Process(AppOptions options);
+        /// <returns>A Task representing the asynchronous operation.</returns>
+        Task ProcessAsync(AppOptions options);
     }
 }

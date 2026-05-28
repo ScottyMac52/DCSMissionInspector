@@ -8,7 +8,7 @@ namespace DcsMissionReaderTests
     public class MissionProcessorTests
     {
         [Fact]
-        public void Process_ShouldInvokeExportStrategies()
+        public async Task Process_ShouldInvokeExportStrategies()
         {
             // Arrange
             var mockArchive = new Mock<IMissionArchiveService>();
@@ -30,7 +30,7 @@ namespace DcsMissionReaderTests
             var options = new AppOptions { MissionFiles = ["test.miz"], CreateHtml = true };
 
             // Act
-            processor.Process(options);
+            await processor.ProcessAsync(options);
 
             // Assert: Verify the strategy was actually called
             mockStrategy.Verify(s => s.Export(It.IsAny<MissionContext>()), Times.Once);

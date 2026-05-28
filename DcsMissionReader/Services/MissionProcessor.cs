@@ -20,31 +20,19 @@ namespace DcsMissionReader.Services
     {
         #region IMissionProcessor implementation
 
-        /// <summary>
-        /// Processes the list of mission files provided in the AppOptions. For each mission file, it extracts the mission data, resolves any localized strings using the dictionary if available, and generates output based on the specified options (HTML report, JSON summary, full export). It also handles error cases such as missing mission files or extraction issues, and ensures that temporary files are cleaned up after processing.
-        /// </summary>
-        /// <param name="options"></param>
-        public void Process(AppOptions options)
+        public async Task ProcessAsync(AppOptions options)
         {
-            if (options.MissionFiles.Count == 0)
-            {
-                Console.WriteLine("Usage: DcsMissionReader <mission1.miz> [mission2.miz ...] [options]");
-                Console.WriteLine("Options:");
-                Console.WriteLine("  -h/--create-html   Create HTML briefing report");
-                Console.WriteLine("  -j/--json          Create mission_summary.json");
-                Console.WriteLine("  --full-export      Create mission_full.json (full raw data)");
-                return;
-            }
-
-            bool anyExport = options.CreateHtml || options.CreateJson || options.FullExport;
+            bool anyExport = options.MissionFiles.Count > 0 && (options.CreateHtml || options.CreateJson || options.FullExport);
 
             foreach (var mizPath in options.MissionFiles)
             {
                 Console.WriteLine($"📦 Processing: {Path.GetFileName(mizPath)}");
-                string missionData = archiveService.GetMissionContentAsync(mizPath).Result;
 
-                // FIX: Pass mizPath into the method
-                ProcessSingleMission(mizPath, missionData, options, anyExport);
+                // FIX: Await the IO operation instead of blocking the thread with .Result
+                string missionData = await archiveService.GetMissionContentAsync(mizPath);
+
+                await ProcessSingleMissionAsync(mizPath, missionData, options, anyExport);
+
                 Console.WriteLine(new string('-', 80));
             }
 
@@ -55,7 +43,15 @@ namespace DcsMissionReader.Services
 
         #region Private helper methods
 
-        private void ProcessSingleMission(string mizPath, string missionContent, AppOptions options, bool anyExport)
+        /// <summary>
+        /// Processes a single mission file by extracting relevant data, resolving metadata, and delegating export tasks to the appropriate strategies based on the provided options. This method handles the core logic of reading the mission content, parsing it using MoonSharp, and generating output in various formats as specified by the command line options. It also includes error handling and cleanup of temporary files created during processing.   
+        /// </summary>
+        /// <param name="mizPath">Path to the mission file. </param>
+        /// <param name="missionContent">The content of the mission file.</param>
+        /// <param name="options">The options that specify how the mission files should be processed.</param>
+        /// <param name="anyExport">Indicates whether any export operation is requested.</param>
+        /// <returns>A Task representing the asynchronous operation.</returns>
+        private async Task ProcessSingleMissionAsync(string mizPath, string missionContent, AppOptions options, bool anyExport)
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "DCSMission_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempDir);
@@ -78,8 +74,9 @@ namespace DcsMissionReader.Services
                 }
 
                 // 2. Resolve Metadata
+                // FIX: Use async file reading for the theatre file
                 string mapName = File.Exists(Path.Combine(tempDir, "theatre"))
-                    ? File.ReadAllText(Path.Combine(tempDir, "theatre")).Trim()
+                    ? (await File.ReadAllTextAsync(Path.Combine(tempDir, "theatre"))).Trim()
                     : "Unknown";
 
                 string sortieRaw = MissionUtils.Resolve(mission.Get("sortie"), dictTable);
@@ -113,9 +110,10 @@ namespace DcsMissionReader.Services
                     string reportDir = Path.Combine(Directory.GetCurrentDirectory(), cleanName + "_Report");
                     Directory.CreateDirectory(reportDir);
 
-                    // The 'strategies' collection is already injected via constructor
                     foreach (var strategy in strategies.Where(s => s.ShouldExport(options)))
                     {
+                        // Note: If your IMissionExportStrategy ever implements async file writing, 
+                        // this loop would become: await strategy.ExportAsync(context);
                         strategy.Export(context);
                     }
 
@@ -132,8 +130,6 @@ namespace DcsMissionReader.Services
                     Directory.Delete(tempDir, recursive: true);
             }
         }
-
-        
 
         #endregion Private helper methods
     }

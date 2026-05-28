@@ -2,18 +2,26 @@
 using DcsMissionReader.Services.Generators;
 using DcsMissionReader.Services.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 using System.IO.Abstractions;
 
 namespace DcsMissionReader
 {
     class Program
     {
-        /// <summary>
-        /// The main entry point of the application.
-        /// </summary>
-        /// <param name="args">The command line arguments.</param>
-        static void Main(string[] args)
+
+        public static async Task<int> Main(string[] args)
+        {
+            // 1. Setup DI Container
+            var serviceProvider = ConfigureServices();
+
+            // 2. Resolve the Runner
+            var runner = serviceProvider.GetRequiredService<MissionRunner>();
+
+            // 3. Execute with the options
+            return await runner.RunAsync(args);
+        }
+
+        private static ServiceProvider ConfigureServices()
         {
             var services = new ServiceCollection();
 
@@ -31,71 +39,9 @@ namespace DcsMissionReader
             services.AddSingleton<IFileManagementService, FileManagementService>();
             services.AddSingleton<IFileSystem, FileSystem>();
 
-            using var serviceProvider = services.BuildServiceProvider();
-
-            var cliService = serviceProvider.GetRequiredService<ICommandLineOptionsService>();
-            var options = cliService.Parse(args);
-
-            var registryService = serviceProvider.GetRequiredService<IRegistryManagementService>();
-
-            if (options.CheckRegistration)
-            {
-                bool isInstalled = registryService.IsRegistered();
-                Console.WriteLine(isInstalled ? "Registration found." : "Registration not found.");
-                return; // Exit here so processing doesn't start    
-            }
-
-            if (options.InstallRegistration)
-            {
-                if(registryService.IsRegistered())
-                {
-                    Console.WriteLine("Registration is already installed.");
-                    return; // Exit here so processing doesn't start
-                }
-
-                registryService.Install();
-                Console.WriteLine("Registration installed successfully.");
-                return; // Exit here so processing doesn't start
-            }
-
-            if (options.ShowVersion)
-            {
-                var version = System.Reflection.Assembly.GetExecutingAssembly()
-                    .GetName().Version?.ToString();
-
-                Console.WriteLine($"DcsMissionReader version {version ?? "1.0.0.0"}");
-                return; // Exit here so processing doesn't start
-            }
-
-            if(options.ShowHelp)
-            {
-                PrintHelp();
-                return; // Exit here so processing doesn't start
-            }
-
-            var processor = serviceProvider.GetRequiredService<IMissionProcessor>();
-            processor.Process(options);
+            // Register your new runner
+            services.AddSingleton<MissionRunner>();
+            return services.BuildServiceProvider();
         }
-
-        static void PrintHelp()
-        {
-            // Retrieve version from the assembly for display
-            var version = System.Reflection.Assembly.GetExecutingAssembly()
-                .GetName().Version?.ToString();
-
-            Console.WriteLine($"DcsMissionReader v{version ?? "1.0.0.0"} - Usage: DcsMissionReader.exe [options] <files>");
-            Console.WriteLine("\nOptions:");
-            Console.WriteLine("  -h, -?, --help             Show this help menu.");
-            Console.WriteLine("  -v, --ver, --version       Show application version.");
-            Console.WriteLine("  --html, --create-html      Generate HTML report.");
-            Console.WriteLine("  -j, --json                 Output mission data as JSON.");
-            Console.WriteLine("  -f, --full, --full-export  Perform a full data export.");
-            Console.WriteLine("  --metric, --real           Select output units (Metric or Imperial/Real).");
-            Console.WriteLine("  -k, --kml, --google-earth  Generate KML files for mission routes.");
-            Console.WriteLine("\nExample:");
-            Console.WriteLine("  DcsMissionReader.exe --json --metric mission1.miz");
-        }
-
-// ... existing logic ...
     }
 }

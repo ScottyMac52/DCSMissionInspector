@@ -59,5 +59,10 @@
         /// If true, the application will uninstall the registry entries for handling DCS mission files. This option allows users to unregister the DCS mission file format on their system. When this option is enabled, the application will likely include a step in the processing pipeline to remove the appropriate keys and values from the Windows registry.
         /// </summary>
         public bool UninstallRegistration { get;  set; } = false;
+
+        /// <summary>
+        /// If no mission files are provided or certain switches are not specified, the application will consider the command line arguments to be invalid and will likely display an error message or prompt the user to provide valid input. This property checks if there are no mission files specified and none of the other options that would cause the application to exit early (like showing help or version information) are enabled. If this condition is true, it indicates that the user has not provided any valid input for the application to process, which can be considered an error state.
+        /// </summary>
+        public bool HasErrors => MissionFiles.Count == 0 && !ShowHelp && !ShowVersion && !CheckRegistration && !InstallRegistration && !UninstallRegistration;
     }
 }

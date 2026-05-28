@@ -1,15 +1,19 @@
 ﻿using DcsMissionReader.Services;
+using DcsMissionReader.Services.Interfaces;
+using Moq;
 using Xunit;
 
 namespace DcsMissionReader.Tests
 {
     public class CommandLineOptionsServiceTests
     {
+        private readonly Mock<IRegistryManagementService> _registryManagementServiceMock;
         private readonly CommandLineOptionsService _service;
 
         public CommandLineOptionsServiceTests()
         {
-            _service = new CommandLineOptionsService();
+            _registryManagementServiceMock = new Mock<IRegistryManagementService>();
+            _service = new CommandLineOptionsService(_registryManagementServiceMock.Object);
         }
 
         [Theory]
