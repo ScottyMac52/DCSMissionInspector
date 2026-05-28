@@ -732,7 +732,7 @@ namespace DcsMissionReader.Services.Generators
         // ==========================================
         // PARSING & MATH HELPERS
         // ==========================================
-        internal static List<(double x, double y, string name)> ProcessTargets(Table tasks, MissionIndexer indexer, string wpName)
+        public static List<(double x, double y, string name)> ProcessTargets(Table tasks, MissionIndexer indexer, string wpName)
         {
             var targets = new List<(double x, double y, string name)>();
             foreach (var t in tasks.Pairs)
