@@ -1,8 +1,9 @@
-﻿using DcsMissionReader.Models;
+﻿using DcsMissionReader;
+using DcsMissionReader.Models;
 using DcsMissionReader.Services.Interfaces;
 using Moq;
 
-namespace DcsMissionReader.Tests
+namespace DcsMissionReaderTests
 {
     public class MissionRunnerTests
     {

@@ -3,7 +3,7 @@ using DcsMissionReader.Services.Interfaces;
 using Moq;
 using Xunit;
 
-namespace DcsMissionReader.Tests
+namespace DcsMissionReaderTests
 {
     public class CommandLineOptionsServiceTests
     {

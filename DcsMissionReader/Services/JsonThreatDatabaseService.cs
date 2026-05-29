@@ -38,6 +38,10 @@ namespace DcsMissionReader.Services
 
             return (0, 0);
         }
+        public Dictionary<string, ThreatData> GetThreatData()
+        {
+            return _threats; 
+        }
 
         /// <summary>
         /// Shared canonicalization logic to match Parser logic.

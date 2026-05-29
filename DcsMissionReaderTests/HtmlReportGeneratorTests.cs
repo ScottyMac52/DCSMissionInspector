@@ -10,11 +10,13 @@ namespace DcsMissionReaderTests
     public class HtmlReportGeneratorTests
     {
         private readonly Mock<IFileManagementService> _fileMock = new();
+        private readonly Mock<IThreatDatabaseService> _threatDbMock = new();
+        private readonly Mock<IWeaponDatabaseService> _weaponDbMock = new();
         private readonly HtmlReportGenerator _generator;
 
         public HtmlReportGeneratorTests()
         {
-            _generator = new HtmlReportGenerator(_fileMock.Object);
+            _generator = new HtmlReportGenerator(_fileMock.Object, _threatDbMock.Object, _weaponDbMock.Object);
         }
 
         [Fact]
@@ -144,6 +146,12 @@ namespace DcsMissionReaderTests
         {
             // Arrange
             var script = new Script();
+            var threatDict = new Dictionary<string, ThreatData>
+            {
+                { "t90", new ThreatData { Type = "T-90", DisplayName = "T-90 Main Battle Tank", DetectionRange = 5000, ThreatRange = 3000 } },
+                { "bmp3", new ThreatData { Type = "BMP-3", DisplayName = "BMP-3 Infantry Fighting Vehicle", DetectionRange = 3000, ThreatRange = 1500 } },
+                { "moskva", new ThreatData { Type = "Moskva", DisplayName = "Moskva Class Cruiser", DetectionRange = 20000, ThreatRange = 15000 } }
+            };  
 
             string luaMission = @"
             return {
@@ -188,7 +196,7 @@ namespace DcsMissionReaderTests
             var missionTable = script.DoString(luaMission).Table;
 
             // Act
-            var result = HtmlReportGenerator.ExtractUnitsAndTargets(missionTable);
+            var result = HtmlReportGenerator.ExtractUnitsAndTargets(missionTable, threatDict);
 
             // Assert
             Assert.NotNull(result);

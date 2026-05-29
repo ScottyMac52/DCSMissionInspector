@@ -1,4 +1,6 @@
-﻿namespace DcsMissionReader.Services.Interfaces
+﻿using DcsMissionReader.Models;
+
+namespace DcsMissionReader.Services.Interfaces
 {
     /// <summary>
     /// Interface for a service that provides threat range information for DCS units. This service abstracts the source of the data,
@@ -6,6 +8,8 @@
     /// </summary>
     public interface IThreatDatabaseService
     {
+        Dictionary<string, ThreatData> GetThreatData();
+
         /// <summary>
         /// Gets the threat ranges (detection and engagement) for a given unit type. The unit type should be a string that matches the 'type' field in DCS databases.
         /// </summary>

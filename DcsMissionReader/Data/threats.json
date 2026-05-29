@@ -4444,5 +4444,155 @@
     "DisplayName": "Warehouse",
     "DetectionRange": 0,
     "ThreatRange": 0
+  },
+  "sa17bukm12ln9a310m12": {
+    "Type": "SA-17 Buk M1-2 LN 9A310M1-2",
+    "DisplayName": "SAM SA-17 Buk-M1-2 \u0022Grizzly\u0022 TEL",
+    "DetectionRange": 120000,
+    "ThreatRange": 0
+  },
+  "sa24iglasmanpad": {
+    "Type": "SA-24 Igla-S manpad",
+    "DisplayName": "MANPADS SA-24 Igla-S \u0022Grinch",
+    "DetectionRange": 7500,
+    "ThreatRange": 0
+  },
+  "samptmltblk1": {
+    "Type": "SAMPT_MLT_Blk1",
+    "DisplayName": "SAMP/T MLT Launcher Block 1",
+    "DetectionRange": 0,
+    "ThreatRange": 120000
+  },
+  "samptmltblk1nt": {
+    "Type": "SAMPT_MLT_Blk1NT",
+    "DisplayName": "SAMP/T MLT Launcher Block 1NT",
+    "DetectionRange": 0,
+    "ThreatRange": 150000
+  },
+  "samptmltblk2": {
+    "Type": "SAMPT_MLT_Blk2",
+    "DisplayName": "SAMP/T MLT Launcher Block 2",
+    "DetectionRange": 0,
+    "ThreatRange": 200000
+  },
+  "sa7strela2manpad": {
+    "Type": "SA-7 Strela-2 manpad",
+    "DisplayName": "MANPADS SA-7 Strela-2 \u0022Grail",
+    "DetectionRange": 7500,
+    "ThreatRange": 3200
+  },
+  "sa7bstrela2mmanpad": {
+    "Type": "SA-7b Strela-2M manpad",
+    "DisplayName": "MANPADS SA-7b Strela-2M \u0022Grail",
+    "DetectionRange": 7500,
+    "ThreatRange": 4200
+  },
+  "sa14strela3manpad": {
+    "Type": "SA-14 Strela-3 manpad",
+    "DisplayName": "MANPADS SA-14 Strela-3 \u0022Gremlin",
+    "DetectionRange": 7500,
+    "ThreatRange": 0
+  },
+  "s300pmu130n6etr": {
+    "Type": "S-300PMU1 30N6E tr",
+    "DisplayName": "SAM SA-20A S-300PMU-1 Tomb Stone(truck",
+    "DetectionRange": 160000,
+    "ThreatRange": 0
+  },
+  "34ya6egazetchikedecoy": {
+    "Type": "34Ya6E Gazetchik E decoy",
+    "DisplayName": "34Ya6E Gazetchik E decoy",
+    "DetectionRange": 20000,
+    "ThreatRange": 0
+  },
+  "s300pmu140b6mtr": {
+    "Type": "S-300PMU1 40B6M tr",
+    "DisplayName": "SAM SA-20A S-300PMU-1 Tomb Stone(mast",
+    "DetectionRange": 160000,
+    "ThreatRange": 0
+  },
+  "s300pmu140b6mdsr": {
+    "Type": "S-300PMU1 40B6MD sr",
+    "DisplayName": "SAM SA-20A S-300PMU-1 Clam Shell SR",
+    "DetectionRange": 120000,
+    "ThreatRange": 0
+  },
+  "s300pmu164n6esr": {
+    "Type": "S-300PMU1 64N6E sr",
+    "DisplayName": "SAM SA-20A S-300PMU-1 Big Bird SR",
+    "DetectionRange": 300000,
+    "ThreatRange": 0
+  },
+  "s300pmu264h6e2sr": {
+    "Type": "S-300PMU2 64H6E2 sr",
+    "DisplayName": "SAM SA-20B S-300PMU-2 Big Bird SR",
+    "DetectionRange": 330000,
+    "ThreatRange": 0
+  },
+  "s300pmu292h6etr": {
+    "Type": "S-300PMU2 92H6E tr",
+    "DisplayName": "SAM SA-20B S-300PMU2 Grave Stone(truck",
+    "DetectionRange": 270000,
+    "ThreatRange": 0
+  },
+  "s300v9s15sr": {
+    "Type": "S-300V 9S15 sr",
+    "DisplayName": "SAM SA-12 S-300V Bill Board SR",
+    "DetectionRange": 240000,
+    "ThreatRange": 0
+  },
+  "s300vm9s15m2sr": {
+    "Type": "S-300VM 9S15M2 sr",
+    "DisplayName": "SAM SA-23 S-300VM Bill Board SR",
+    "DetectionRange": 320000,
+    "ThreatRange": 0
+  },
+  "s300v9s19sr": {
+    "Type": "S-300V 9S19 sr",
+    "DisplayName": "SAM SA-12 S-300V High Screen SR",
+    "DetectionRange": 175000,
+    "ThreatRange": 0
+  },
+  "s300vm9s19m2sr": {
+    "Type": "S-300VM 9S19M2 sr",
+    "DisplayName": "SAM SA-23 S-300VM High Screen SR",
+    "DetectionRange": 310000,
+    "ThreatRange": 0
+  },
+  "s300v9s32tr": {
+    "Type": "S-300V 9S32 tr",
+    "DisplayName": "SAM SA-12 S-300V Grill Pan TR",
+    "DetectionRange": 150000,
+    "ThreatRange": 0
+  },
+  "s300vm9s32metr": {
+    "Type": "S-300VM 9S32ME tr",
+    "DisplayName": "SAM SA-23 S-300VM Grill Pan TR",
+    "DetectionRange": 230000,
+    "ThreatRange": 0
+  },
+  "samptmriarabel": {
+    "Type": "SAMPT_MRI_ARABEL",
+    "DisplayName": "SAMP/T MRI ARABEL STR",
+    "DetectionRange": 120000,
+    "ThreatRange": 0
+  },
+  "samptmrigf300": {
+    "Type": "SAMPT_MRI_GF300",
+    "DisplayName": "SAMP/T MRI Ground Fire 300 STR",
+    "DetectionRange": 400000,
+    "ThreatRange": 0
+  },
+  "s300v9a82ln": {
+    "Type": "S-300V 9A82 ln",
+    "DisplayName": "SAM SA-12 S-300V Giant LN",
+    "DetectionRange": 0,
+    "ThreatRange": 100000
+  },
+  "s300v9a83ln": {
+    "Type": "S-300V 9A83 ln",
+    "DisplayName": "SAM SA-12 S-300V Gladiator LN",
+    "DetectionRange": 0,
+    "ThreatRange": 75000
   }
 }

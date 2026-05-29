@@ -38,6 +38,7 @@ namespace DcsMissionReader
             services.AddSingleton<IMissionExportStrategy, KmlExportGenerator>();
             services.AddSingleton<IFileManagementService, FileManagementService>();
             services.AddSingleton<IFileSystem, FileSystem>();
+            services.AddSingleton<IWeaponDatabaseService, JsonWeaponDatabaseService>();
 
             // Register your new runner
             services.AddSingleton<MissionRunner>();

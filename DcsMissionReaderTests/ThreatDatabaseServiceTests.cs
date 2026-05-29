@@ -1,6 +1,6 @@
 ﻿using DcsMissionReader.Services;
 
-namespace DcsMissionReader.Tests
+namespace DcsMissionReaderTests
 {
     public class ThreatDatabaseServiceTests
     {

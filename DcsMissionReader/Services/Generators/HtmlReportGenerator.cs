@@ -1,15 +1,12 @@
 ﻿using DcsMissionReader.Models;
 using DcsMissionReader.Services.Interfaces;
 using MoonSharp.Interpreter;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+using System.Runtime;
 using System.Text;
 
 namespace DcsMissionReader.Services.Generators
 {
-    public class HtmlReportGenerator(IFileManagementService fileManagementService) : IMissionExportStrategy
+    public class HtmlReportGenerator(IFileManagementService fileManagementService, IThreatDatabaseService threatDatabaseService, IWeaponDatabaseService weaponService) : IMissionExportStrategy
     {
         public bool ShouldExport(AppOptions options) => options.CreateHtml;
 
@@ -34,25 +31,25 @@ namespace DcsMissionReader.Services.Generators
             string startTime = $"{(int)(startSec / 3600):D2}:{(int)((startSec % 3600) / 60):D2}";
             string version = context.MissionTable.Get("version").ToString();
 
-            string html = BuildHtml(imagesDir, kneeboardsDir, context.Sortie, mapName, fullDate, startTime, version, description, blueTask, redTask, kneeboardCount, context.MissionTable, context.Options);
+            string html = BuildHtml(imagesDir, kneeboardsDir, context.Sortie, mapName, fullDate, startTime, version, description, blueTask, redTask, kneeboardCount, context.MissionTable, context.Options, threatDatabaseService.GetThreatData());
             File.WriteAllText(Path.Combine(context.ReportDir, "index.html"), html);
         }
 
-        private string BuildHtml(string imagesDir, string kneeboardsDir, string sortie, string mapName, string fullDate, string startTime, string version, string description, string blueTask, string redTask, int kneeboardCount, Table mission, AppOptions options)
+        private string BuildHtml(string imagesDir, string kneeboardsDir, string sortie, string mapName, string fullDate, string startTime, string version, string description, string blueTask, string redTask, int kneeboardCount, Table mission, AppOptions options, Dictionary<string, ThreatData> threatDict)
         {
             var missionIndexer = new MissionIndexer(mission);
 
             string css = @"
-    body { font-family: system-ui, sans-serif; }
-    .image-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem; }
-    table { border-collapse: collapse; table-layout: fixed; width: 100%; }
-    th, td { padding: 0.75rem; overflow: hidden; }
-    th:nth-child(1), td:nth-child(1) { width: 5%; }
-    th:nth-child(2), td:nth-child(2) { width: 35%; }
-    th:nth-child(3), td:nth-child(3) { width: 15%; text-align: right; }
-    th:nth-child(4), td:nth-child(4) { width: 15%; text-align: right; }
-    th:nth-child(5), td:nth-child(5) { width: 30%; }
-    .cursor-pointer { cursor: pointer; }";
+body { font-family: system-ui, sans-serif; }
+.image-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem; }
+table { border-collapse: collapse; table-layout: fixed; width: 100%; }
+th, td { padding: 0.75rem; overflow: hidden; }
+th:nth-child(1), td:nth-child(1) { width: 5%; }
+th:nth-child(2), td:nth-child(2) { width: 35%; }
+th:nth-child(3), td:nth-child(3) { width: 15%; text-align: right; }
+th:nth-child(4), td:nth-child(4) { width: 15%; text-align: right; }
+th:nth-child(5), td:nth-child(5) { width: 30%; }
+.cursor-pointer { cursor: pointer; }";
 
             string kneeboardHtml = "";
             if (kneeboardCount > 0)
@@ -99,9 +96,8 @@ namespace DcsMissionReader.Services.Generators
         {kneeboardHtml}
         {GenerateRequiredModsHtmlSection(mission)}
         {GeneratePlayerSlotsHtmlSection(mission)}
-        {GenerateFlightsWithWaypointsHtmlSection(mission, missionIndexer)}
-        {GenerateAtoHtmlSection(mission)}
-        {GenerateUnitsAndTargetsHtmlSection(mission)}
+        {GenerateFlightsWithWaypointsHtmlSection(mission, missionIndexer, threatDict)}
+        {GenerateAtoHtmlSection(mission, threatDict)} {GenerateUnitsAndTargetsHtmlSection(mission, threatDict)}
         {GenerateWeatherHtmlSection(mission, options.Units)}
         {GenerateOrderOfBattleHtmlSection(mission)}
 
@@ -109,42 +105,6 @@ namespace DcsMissionReader.Services.Generators
     </div>
 </body>
 </html>";
-        }
-
-        private static string GenerateRequiredModsHtmlSection(Table mission)
-        {
-            var sb = new StringBuilder();
-            var reqVal = mission.Get("requiredModules");
-
-            bool hasMods = false;
-            List<string> mods = new();
-
-            if (reqVal.Type == DataType.Table)
-            {
-                foreach (var pair in reqVal.Table.Pairs)
-                {
-                    string modName = pair.Key?.ToString()?.Trim('"', ' ') ?? "";
-                    if (!string.IsNullOrWhiteSpace(modName)) mods.Add(modName);
-                }
-                hasMods = mods.Count > 0;
-            }
-
-            if (hasMods)
-            {
-                sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6 border-b border-gray-700 pb-2"">🧩 Required Mods</h2>");
-                sb.AppendLine(@"<div class=""bg-amber-900/20 border border-amber-700/50 rounded-2xl p-6"">");
-                sb.AppendLine(@"<p class=""font-semibold text-amber-500 mb-4 flex items-center gap-2""><span class=""text-2xl"">⚠️</span> This mission requires the following modules/mods to load correctly:</p><ul class=""grid grid-cols-1 md:grid-cols-2 gap-2"">");
-                foreach (var mod in mods.OrderBy(m => m))
-                {
-                    sb.AppendLine($@"<li class=""flex items-center gap-3 bg-amber-950/30 px-4 py-2 rounded-lg text-amber-200 border border-amber-800/30""><span class=""text-amber-600 font-bold"">·</span> {mod}</li>");
-                }
-                sb.AppendLine(@"</ul></div>");
-            }
-            else
-            {
-                sb.AppendLine(@"<div class=""mt-16 p-4 rounded-xl bg-gray-900 border border-gray-800 text-gray-500 italic text-center"">No additional mods required for this mission.</div>");
-            }
-            return sb.ToString();
         }
 
         // ==========================================
@@ -207,9 +167,9 @@ namespace DcsMissionReader.Services.Generators
             return atoList;
         }
 
-        private static string GenerateAtoHtmlSection(Table mission)
+        private string GenerateAtoHtmlSection(Table mission, Dictionary<string, ThreatData> threatDict)
         {
-            var atoData = ExtractAtoData(mission);
+            var atoData = ExtractAtoWithLoadouts(mission);
             var sb = new StringBuilder();
             sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">✈️ Air Tasking Order (ATO)</h2>");
 
@@ -224,14 +184,218 @@ namespace DcsMissionReader.Services.Generators
                 if (sideGroups.Count == 0) continue;
 
                 sb.AppendLine($@"<h3 class=""text-xl font-semibold mt-8 mb-4 text-{sides[i]}-400"">{sideNames[i]} Coalition</h3>");
-                sb.AppendLine(@"<table class=""w-full border-collapse text-sm""><thead><tr class=""bg-gray-800""><th class=""p-3 text-left"">Group</th><th class=""p-3 text-left"">Task</th><th class=""p-3 text-left"">Aircraft</th><th class=""p-3 text-center"">Qty</th><th class=""p-3 text-center"">Start Time</th></tr></thead><tbody>");
 
                 foreach (var group in sideGroups)
                 {
                     string startStr = group.StartTimeSec > 0 ? $"{(int)(group.StartTimeSec / 3600):D2}:{(int)((group.StartTimeSec % 3600) / 60):D2}" : "—";
-                    sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-3"">{group.GroupName}</td><td class=""p-3"">{group.Task}</td><td class=""p-3 font-mono"">{group.AircraftType}</td><td class=""p-3 text-center"">{group.UnitsCount}</td><td class=""p-3 text-center"">{startStr}</td></tr>");
+
+                    sb.AppendLine($@"<details class=""mb-4 bg-gray-900 rounded-xl p-4 border border-gray-800"">");
+                    sb.AppendLine($@"<summary class=""cursor-pointer font-medium flex justify-between items-center outline-none"">");
+                    sb.AppendLine($@"<div class=""flex items-center gap-3""><span class=""text-xl"">🚀</span> {group.GroupName} — <span class=""font-mono text-{sides[i]}-300"">{group.AircraftType}</span> ({group.UnitsCount}×) • {group.Task}</div>");
+                    sb.AppendLine($@"<div class=""text-sm text-gray-400"">Start: {startStr}</div>");
+                    sb.AppendLine($@"</summary>");
+
+                    sb.AppendLine(@"<div class=""mt-4 border-t border-gray-700 pt-4"">");
+
+                    if (group.Units.Count == 0)
+                    {
+                        sb.AppendLine(@"<div class=""text-sm text-gray-500 italic"">No unit details available.</div>");
+                    }
+
+                    foreach (var unit in group.Units)
+                    {
+                        sb.AppendLine($@"<div class=""mb-6 last:mb-0 bg-gray-950 p-4 rounded-lg border border-gray-800"">");
+                        sb.AppendLine($@"<div class=""text-sm font-semibold text-gray-200 mb-3 border-b border-gray-800 pb-2"">Unit: <span class=""text-white"">{unit.UnitName}</span></div>");
+
+                        // Counters for Chaff/Flare/Gun
+                        sb.AppendLine($@"<div class=""flex gap-4 mb-3 text-xs"">");
+                        sb.AppendLine($@"<div class=""bg-gray-800 px-2 py-1 rounded text-gray-300"">🔥 Flares: {unit.Flare}</div>");
+                        sb.AppendLine($@"<div class=""bg-gray-800 px-2 py-1 rounded text-gray-300"">✨ Chaff: {unit.Chaff}</div>");
+                        // Determine the display value for the gun
+                        // If unit.Gun is 0, we assume it's full (100%), otherwise show the actual stored percentage
+                        string gunDisplay = unit.Gun == 0 ? "100" : unit.Gun.ToString("F0");
+
+                        // Only show the gun line if the aircraft actually has a gun (you can add a check if needed, 
+                        // but unit.Gun being 0 usually implies full loadout or no modifications)
+                        sb.AppendLine($@"<div class=""bg-gray-800 px-2 py-1 rounded text-gray-300"">🔫 Gun: {gunDisplay}%</div>"); sb.AppendLine($@"</div>");
+
+                        if (unit.Pylons.Count > 0)
+                        {
+                            // Using CSS Grid instead of a Table avoids conflict with your global table CSS rules
+                            sb.AppendLine(@"<div class=""grid grid-cols-[4rem_1fr] gap-2 text-xs text-left border-b border-gray-800 pb-1 mb-2 text-gray-500 font-semibold"">");
+                            sb.AppendLine(@"<div>Pylon</div><div>Weapon / Store</div>");
+                            sb.AppendLine(@"</div>");
+
+                            foreach (var pylon in unit.Pylons)
+                            {
+                                string displayWeapon = pylon.Weapon;
+                                string canonicalKey = JsonThreatDatabaseService.Canonicalize(pylon.Weapon);
+
+                                // Look up prettier name if we have it in threats.json
+                                if (threatDict != null && threatDict.TryGetValue(canonicalKey, out var threatData))
+                                {
+                                    displayWeapon = !string.IsNullOrWhiteSpace(threatData.DisplayName) ? threatData.DisplayName : pylon.Weapon;
+                                }
+
+                                sb.AppendLine($@"<div class=""grid grid-cols-[4rem_1fr] gap-2 text-xs text-left border-b border-gray-800/50 py-1 last:border-0"">");
+                                sb.AppendLine($@"<div class=""font-mono text-gray-400"">#{pylon.Pylon}</div>");
+                                sb.AppendLine($@"<div class=""font-medium text-blue-200"">{displayWeapon}</div>");
+                                sb.AppendLine($@"</div>");
+                            }
+                        }
+                        else
+                        {
+                            sb.AppendLine(@"<div class=""text-xs text-gray-500 italic"">No external stores or pylons loaded.</div>");
+                        }
+
+                        sb.AppendLine($@"</div>"); // End unit card
+                    }
+                    sb.AppendLine(@"</div></details>"); // End group details
                 }
-                sb.AppendLine("</tbody></table>");
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Extracts detailed ATO (Air Tasking Order) information with loadouts from the given mission table.
+        /// </summary>
+        /// <param name="mission">The mission table containing coalition, country, and unit data.</param>
+        /// <returns>A list of tuples containing coalition, group name, task, aircraft type, units count, start time, and unit loadouts.</returns>
+        // NEW METHOD: Deep extraction for detailed HTML UI
+        // Updated signature to accept IWeaponDatabaseService
+        public List<(string Coalition, string GroupName, string Task, string AircraftType, int UnitsCount, double StartTimeSec, List<(string UnitName, List<(int Pylon, string Weapon)> Pylons, double Flare, double Chaff, double Gun)> Units)> ExtractAtoWithLoadouts(Table mission)
+        {
+            var atoList = new List<(string, string, string, string, int, double, List<(string, List<(int, string)>, double, double, double)>)>();
+            var coalitionVal = mission.Get("coalition");
+            if (coalitionVal.Type != DataType.Table) return atoList;
+
+            var coalition = coalitionVal.Table;
+            string[] sides = { "blue", "red", "neutral" };
+
+            foreach (var side in sides)
+            {
+                var sideVal = coalition.Get(side);
+                if (sideVal.Type != DataType.Table) continue;
+
+                var countryListVal = sideVal.Table.Get("country");
+                if (countryListVal.Type != DataType.Table) continue;
+
+                foreach (var countryPair in countryListVal.Table.Pairs)
+                {
+                    if (countryPair.Value.Type != DataType.Table) continue;
+                    var country = countryPair.Value.Table;
+
+                    foreach (var category in new[] { "plane", "helicopter", "ship" })
+                    {
+                        var catVal = country.Get(category);
+                        if (catVal.Type != DataType.Table) continue;
+
+                        var groupListVal = catVal.Table.Get("group");
+                        if (groupListVal.Type != DataType.Table) continue;
+
+                        foreach (var groupPair in groupListVal.Table.Pairs)
+                        {
+                            if (groupPair.Value.Type != DataType.Table) continue;
+                            var group = groupPair.Value.Table;
+
+                            string groupName = group.Get("name")?.String ?? "Unknown";
+                            string task = group.Get("task")?.String ?? "None";
+                            string aircraftType = "Unknown";
+                            int unitsCount = 0;
+                            double startTime = group.Get("start_time")?.Number ?? 0;
+
+                            var groupUnits = new List<(string UnitName, List<(int Pylon, string Weapon)> Pylons, double Flare, double Chaff, double Gun)>();
+
+                            var unitsVal = group.Get("units");
+                            if (unitsVal.Type == DataType.Table && unitsVal.Table.Length > 0)
+                            {
+                                unitsCount = unitsVal.Table.Length;
+                                var firstUnit = unitsVal.Table.Get(1)?.Table;
+                                if (firstUnit != null) aircraftType = firstUnit.Get("type")?.String ?? "Unknown";
+
+                                foreach (var uPair in unitsVal.Table.Pairs)
+                                {
+                                    if (uPair.Value.Type != DataType.Table) continue;
+                                    var unitTable = uPair.Value.Table;
+                                    string uName = unitTable.Get("name")?.String ?? "Unknown Unit";
+                                    var pylonsList = new List<(int Pylon, string Weapon)>();
+                                    double flare = 0, chaff = 0, gun = 0;
+
+                                    var payloadVal = unitTable.Get("payload");
+                                    if (payloadVal?.Type == DataType.Table)
+                                    {
+                                        flare = payloadVal.Table.Get("flare")?.Number ?? 0;
+                                        chaff = payloadVal.Table.Get("chaff")?.Number ?? 0;
+                                        gun = payloadVal.Table.Get("gun_100")?.Number ?? payloadVal.Table.Get("gun")?.Number ?? 0;
+
+                                        var pylonsVal = payloadVal.Table.Get("pylons");
+                                        if (pylonsVal?.Type == DataType.Table)
+                                        {
+                                            foreach (var pyl in pylonsVal.Table.Pairs)
+                                            {
+                                                if (pyl.Key.Type != DataType.Number) continue;
+                                                int pylonNum = (int)pyl.Key.Number;
+
+                                                if (pyl.Value.Type != DataType.Table) continue;
+                                                string clsid = pyl.Value.Table.Get("CLSID")?.String ?? pyl.Value.Table.Get("clsid")?.String ?? "";
+
+                                                if (!string.IsNullOrEmpty(clsid))
+                                                {
+                                                    // USE SERVICE HERE: Map CLSID to Name
+                                                    string weaponName = weaponService.GetWeaponName(clsid);
+                                                    pylonsList.Add((pylonNum, weaponName));
+                                                }
+                                            }
+                                        }
+                                    }
+                                    pylonsList = pylonsList.OrderBy(p => p.Pylon).ToList();
+                                    groupUnits.Add((uName, pylonsList, flare, chaff, gun));
+                                }
+                            }
+                            atoList.Add((side, groupName, task, aircraftType, unitsCount, startTime, groupUnits));
+                        }
+                    }
+                }
+            }
+            return atoList;
+        }
+
+        // ==========================================
+        // Required Mods EXTRACTION & GENERATION
+        // ==========================================
+
+        private static string GenerateRequiredModsHtmlSection(Table mission)
+        {
+            var sb = new StringBuilder();
+            var reqVal = mission.Get("requiredModules");
+
+            bool hasMods = false;
+            List<string> mods = new();
+
+            if (reqVal.Type == DataType.Table)
+            {
+                foreach (var pair in reqVal.Table.Pairs)
+                {
+                    string modName = pair.Key?.ToString()?.Trim('"', ' ') ?? "";
+                    if (!string.IsNullOrWhiteSpace(modName)) mods.Add(modName);
+                }
+                hasMods = mods.Count > 0;
+            }
+
+            if (hasMods)
+            {
+                sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6 border-b border-gray-700 pb-2"">🧩 Required Mods</h2>");
+                sb.AppendLine(@"<div class=""bg-amber-900/20 border border-amber-700/50 rounded-2xl p-6"">");
+                sb.AppendLine(@"<p class=""font-semibold text-amber-500 mb-4 flex items-center gap-2""><span class=""text-2xl"">⚠️</span> This mission requires the following modules/mods to load correctly:</p><ul class=""grid grid-cols-1 md:grid-cols-2 gap-2"">");
+                foreach (var mod in mods.OrderBy(m => m))
+                {
+                    sb.AppendLine($@"<li class=""flex items-center gap-3 bg-amber-950/30 px-4 py-2 rounded-lg text-amber-200 border border-amber-800/30""><span class=""text-amber-600 font-bold"">·</span> {mod}</li>");
+                }
+                sb.AppendLine(@"</ul></div>");
+            }
+            else
+            {
+                sb.AppendLine(@"<div class=""mt-16 p-4 rounded-xl bg-gray-900 border border-gray-800 text-gray-500 italic text-center"">No additional mods required for this mission.</div>");
             }
             return sb.ToString();
         }
@@ -426,7 +590,7 @@ namespace DcsMissionReader.Services.Generators
         // ==========================================
         // UNITS & TARGETS EXTRACTION & GENERATION
         // ==========================================
-        public static List<UnitTargetGroup> ExtractUnitsAndTargets(Table mission)
+        public static List<UnitTargetGroup> ExtractUnitsAndTargets(Table mission, Dictionary<string, ThreatData> threatDict)
         {
             var targets = new List<UnitTargetGroup>();
             var coalitionVal = mission.Get("coalition");
@@ -466,6 +630,9 @@ namespace DcsMissionReader.Services.Generators
                             double gy = g.Get("y")?.Number ?? 0;
 
                             var unitCounts = new Dictionary<string, int>();
+                            double maxDet = 0;
+                            double maxThr = 0;
+
                             var unitsVal = g.Get("units");
                             if (unitsVal.Type == DataType.Table)
                             {
@@ -473,8 +640,17 @@ namespace DcsMissionReader.Services.Generators
                                 {
                                     var unit = unitsVal.Table.Get(u);
                                     if (unit.Type != DataType.Table) continue;
+
                                     string uType = unit.Table.Get("type")?.String ?? "Unknown";
                                     unitCounts[uType] = unitCounts.GetValueOrDefault(uType, 0) + 1;
+
+                                    // Threat/Detection Lookups
+                                    string canonicalKey = JsonThreatDatabaseService.Canonicalize(uType);
+                                    if (threatDict != null && threatDict.TryGetValue(canonicalKey, out var tData))
+                                    {
+                                        maxDet = Math.Max(maxDet, tData.DetectionRange);
+                                        maxThr = Math.Max(maxThr, tData.ThreatRange);
+                                    }
                                 }
                             }
 
@@ -482,7 +658,7 @@ namespace DcsMissionReader.Services.Generators
                             var unitList = unitCounts.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} ×{kv.Value}").ToList();
                             string unitInfo = unitList.Count > 0 ? string.Join(", ", unitList) : "No units listed";
 
-                            targets.Add(new UnitTargetGroup(side, category, groupName, gx, gy, totalUnits, unitInfo));
+                            targets.Add(new UnitTargetGroup(side, category, groupName, gx, gy, totalUnits, unitInfo, maxDet, maxThr));
                         }
                     }
                 }
@@ -490,9 +666,9 @@ namespace DcsMissionReader.Services.Generators
             return targets;
         }
 
-        private static string GenerateUnitsAndTargetsHtmlSection(Table mission)
+        private static string GenerateUnitsAndTargetsHtmlSection(Table mission, Dictionary<string, ThreatData> threatDict)
         {
-            var targets = ExtractUnitsAndTargets(mission);
+            var targets = ExtractUnitsAndTargets(mission, threatDict);
             var sb = new StringBuilder();
             sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">📦 Units & Targets</h2>");
 
@@ -513,15 +689,25 @@ namespace DcsMissionReader.Services.Generators
                 foreach (var target in sideTargets)
                 {
                     string icon = target.Category == "ship" ? "⚓" : target.Category == "vehicle" ? "🪖" : "📦";
+
+                    // Format Ranges
+                    string detStr = target.MaxDet > 0 ? $"👁️ {(target.MaxDet / 1000):F0}km" : "";
+                    string thrStr = target.MaxThr > 0 ? $"⚔️ {(target.MaxThr / 1000):F0}km" : "";
+
                     sb.AppendLine($@"<div class=""flex items-start gap-6 p-6 bg-slate-800 border border-slate-700 rounded-3xl hover:border-{colorClass}-500 transition-all"">
-                            <div class=""text-5xl flex-shrink-0 mt-1"">{icon}</div>
-                            <div class=""flex-1"">
-                                <div class=""font-semibold text-slate-100 text-lg"">{target.GroupName}</div>
-                                <div class=""text-xs font-mono text-slate-400 mt-1"">{target.X:F0}, {target.Y:F0}</div>
-                                <div class=""text-sm text-slate-300 mt-3"">{target.UnitInfo}</div>
-                            </div>
-                            <div class=""text-right text-xs font-medium text-slate-400"">{target.TotalUnits}<br/><span class=""text-[10px]"">UNITS</span></div>
-                        </div>");
+                <div class=""text-5xl flex-shrink-0 mt-1"">{icon}</div>
+                <div class=""flex-1"">
+                    <div class=""font-semibold text-slate-100 text-lg"">{target.GroupName}</div>
+                    <div class=""text-xs font-mono text-slate-400 mt-1"">{target.X:F0}, {target.Y:F0}</div>
+                    <div class=""text-sm text-slate-300 mt-3"">{target.UnitInfo}</div>
+                    
+                    <div class=""flex gap-2 mt-3"">
+                        {(string.IsNullOrEmpty(detStr) ? "" : $@"<span class=""px-2 py-0.5 rounded bg-yellow-900/50 text-yellow-200 text-xs font-mono border border-yellow-700"">{detStr}</span>")}
+                        {(string.IsNullOrEmpty(thrStr) ? "" : $@"<span class=""px-2 py-0.5 rounded bg-red-900/50 text-red-200 text-xs font-mono border border-red-700"">{thrStr}</span>")}
+                    </div>
+                </div>
+                <div class=""text-right text-xs font-medium text-slate-400"">{target.TotalUnits}<br/><span class=""text-[10px]"">UNITS</span></div>
+            </div>");
                 }
             }
             return sb.ToString();
@@ -631,6 +817,61 @@ namespace DcsMissionReader.Services.Generators
         // ==========================================
         // FLIGHTS & WAYPOINTS EXTRACTION
         // ==========================================
+
+
+        internal static SvgMapData CalculateSvgMapData(List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> waypoints)
+        {
+            if (waypoints == null || waypoints.Count == 0) return new SvgMapData([], [], []);
+
+            double minX = waypoints.Min(p => p.x);
+            double maxX = waypoints.Max(p => p.x);
+            double minY = waypoints.Min(p => p.y);
+            double maxY = waypoints.Max(p => p.y);
+
+            // FIX: Ensure we have a valid range even if all points are at the same location
+            double rangeX = Math.Max(maxX - minX, 100);
+            double rangeY = Math.Max(maxY - minY, 100);
+            double scale = Math.Max(rangeX, rangeY);
+
+            double padding = scale * 0.15;
+            double effectiveScale = scale + (padding * 2);
+
+            // FIX: Map coordinates correctly to the SVG canvas (800x500)
+            double ProjectX(double y) => (y - minY + padding) / effectiveScale * 800.0;
+            double ProjectY(double x) => 500.0 - ((x - minX + padding) / effectiveScale * 500.0);
+
+            var routePoints = waypoints.Select(wp => new SvgPoint(ProjectX(wp.y), ProjectY(wp.x))).ToList();
+
+            var targetLines = new List<SvgTarget>();
+            foreach (var wp in waypoints)
+            {
+                var source = new SvgPoint(ProjectX(wp.y), ProjectY(wp.x));
+                foreach (var t in wp.targets)
+                {
+                    targetLines.Add(new SvgTarget(source, new SvgPoint(ProjectX(t.y), ProjectY(t.x)), t.targetName));
+                }
+            }
+
+            var markers = new List<SvgWaypointMarker>();
+
+            // FIX: Adjusted clustering threshold. /500 to group points that are geographically close, not just pixel-identical.
+            var grouped = waypoints.GroupBy(wp => $"{Math.Round(wp.x / 500)},{Math.Round(wp.y / 500)}");
+
+            foreach (var group in grouped)
+            {
+                var first = group.First();
+                var pt = new SvgPoint(ProjectX(first.y), ProjectY(first.x));
+                bool isCluster = group.Count() > 1;
+
+                string tooltip = string.Join("&#10;", group.Select(g => $"{g.name}: {g.action}"));
+                string label = isCluster ? $"{group.Count()} pts" : first.name;
+
+                markers.Add(new SvgWaypointMarker(pt, isCluster, tooltip, label));
+            }
+
+            return new SvgMapData(routePoints, targetLines, markers);
+        }
+
         public static List<FlightWaypointGroup> ExtractFlightWaypoints(Table mission)
         {
             var flights = new List<FlightWaypointGroup>();
@@ -689,10 +930,70 @@ namespace DcsMissionReader.Services.Generators
             return flights;
         }
 
-        private string GenerateFlightsWithWaypointsHtmlSection(Table mission, MissionIndexer indexer)
+        public static List<(double x, double y, string unitName, string unitType, string groupName)> ExtractAllGroundUnits(Table mission)
+        {
+            var units = new List<(double x, double y, string unitName, string unitType, string groupName)>(); // UPDATED Tuple
+            var coalitionVal = mission.Get("coalition");
+            if (coalitionVal.Type != DataType.Table) return units;
+
+            string[] sides = { "blue", "red", "neutral" };
+
+            foreach (var side in sides)
+            {
+                var sideVal = coalitionVal.Table.Get(side);
+                if (sideVal.Type != DataType.Table) continue;
+
+                var countryListVal = sideVal.Table.Get("country");
+                if (countryListVal.Type != DataType.Table) continue;
+
+                foreach (var countryPair in countryListVal.Table.Pairs)
+                {
+                    if (countryPair.Value.Type != DataType.Table) continue;
+                    var country = countryPair.Value.Table;
+
+                    foreach (var cat in new[] { "vehicle", "static" })
+                    {
+                        var catVal = country.Get(cat);
+                        if (catVal.Type != DataType.Table) continue;
+
+                        var groupListVal = catVal.Table.Get("group");
+                        if (groupListVal.Type != DataType.Table) continue;
+
+                        foreach (var groupPair in groupListVal.Table.Pairs)
+                        {
+                            if (groupPair.Value.Type != DataType.Table) continue;
+                            var group = groupPair.Value.Table;
+
+                            string groupName = group.Get("name")?.String ?? ""; // EXTRACED Group Name
+
+                            var unitsVal = group.Get("units");
+                            if (unitsVal.Type != DataType.Table) continue;
+
+                            foreach (var unitPair in unitsVal.Table.Pairs)
+                            {
+                                if (unitPair.Value.Type != DataType.Table) continue;
+                                var unit = unitPair.Value.Table;
+
+                                double x = unit.Get("x")?.Number ?? 0;
+                                double y = unit.Get("y")?.Number ?? 0;
+                                string unitName = unit.Get("name")?.String ?? "";
+                                string unitType = unit.Get("type")?.String ?? "Unknown";
+
+                                units.Add((x, y, unitName, unitType, groupName)); // ADDED to Tuple
+                            }
+                        }
+                    }
+                }
+            }
+            return units;
+        }
+
+        private string GenerateFlightsWithWaypointsHtmlSection(Table mission, MissionIndexer indexer, Dictionary<string, ThreatData> threatDict) // ADDED threatDict
         {
             var flights = ExtractFlightWaypoints(mission);
             if (flights.Count == 0) return "<p class=\"text-yellow-400\">No flight waypoint data found.</p>";
+
+            var allGroundUnits = ExtractAllGroundUnits(mission);
 
             var sb = new StringBuilder();
             sb.AppendLine(@"<h2 class=""text-2xl font-semibold mt-16 mb-6"">🛫 Flights &amp; Waypoints</h2>");
@@ -722,10 +1023,170 @@ namespace DcsMissionReader.Services.Generators
                     }
                     sb.AppendLine("</tbody></table></div>");
 
-                    if (waypoints.Count > 1) sb.AppendLine(GenerateFlightSvgMap(waypoints, flight.GroupName));
+                    // UPDATED: Now passes threatDict to the map generator
+                    if (waypoints.Count > 1) sb.AppendLine(GenerateFlightSvgMap(waypoints, allGroundUnits, flight.GroupName, threatDict));
                     sb.AppendLine("</details>");
                 }
             }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Generates an SVG map for a flight route, plotting waypoints, target lines, and static threats with detection rings. Threat data is enhanced using the provided threat dictionary for accurate display names and ranges.
+        /// </summary>
+        /// <param name="waypoints">The list of waypoints for the flight route.</param>
+        /// <param name="staticThreats">The list of static threats to be displayed on the map.</param>
+        /// <param name="groupName">The name of the flight group.</param>
+        /// <param name="threatDict">The dictionary containing threat data for accurate display names and ranges.</param>
+        /// <returns>An SVG string representing the flight route map.</returns>
+        /// <summary>
+        /// Generates an SVG map for a flight route, plotting waypoints, target lines, and static threats with detection rings. Threat data is enhanced using the provided threat dictionary for accurate display names and ranges.
+        /// </summary>
+        private static string GenerateFlightSvgMap(
+            List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> waypoints,
+            List<(double x, double y, string unitName, string unitType, string groupName)> staticThreats,
+            string groupName,
+            Dictionary<string, ThreatData> threatDict)
+        {
+            var data = CalculateSvgMapData(waypoints);
+            if (data.RoutePoints.Count == 0) return "";
+
+            // 1. MAP SCALE IS NOW STRICTLY BASED ON THE FLIGHT ROUTE
+            double minX = waypoints.Min(p => p.x);
+            double maxX = waypoints.Max(p => p.x);
+            double minY = waypoints.Min(p => p.y);
+            double maxY = waypoints.Max(p => p.y);
+
+            // Ensure a minimum map size (e.g., 10,000 units = 10km) so local flights aren't over-zoomed
+            double rangeX = Math.Max(maxX - minX, 10000);
+            double rangeY = Math.Max(maxY - minY, 10000);
+            double scale = Math.Max(rangeX, rangeY);
+            double padding = scale * 0.25; // Generous 25% padding so nearby threat rings are visible
+            double effectiveScale = scale + (padding * 2);
+
+            double ProjectX(double y) => (y - minY + padding) / effectiveScale * 800.0;
+            double ProjectY(double x) => 500.0 - ((x - minX + padding) / effectiveScale * 500.0);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($@"<details class=""mt-6""><summary class=""cursor-pointer text-sm font-medium mb-2"">🗺️ Interactive Route Map for {groupName}</summary>");
+            sb.AppendLine($@"<svg width=""800"" height=""500"" viewBox=""0 0 800 500"" class=""border border-gray-700 rounded-xl bg-gray-950"">");
+
+            // DRAW ROUTE
+            sb.Append(@"<polyline points=""");
+            foreach (var pt in data.RoutePoints) sb.Append($"{pt.X:F0},{pt.Y:F0} ");
+            sb.AppendLine(@""" fill=""none"" stroke=""#22d3ee"" stroke-width=""4"" />");
+
+            // DRAW TARGET LINES
+            foreach (var t in data.Targets)
+            {
+                sb.AppendLine($@"<g><line x1=""{t.Target.X - 6:F0}"" y1=""{t.Target.Y - 6:F0}"" x2=""{t.Target.X + 6:F0}"" y2=""{t.Target.Y + 6:F0}"" stroke=""red"" stroke-width=""2""/><line x1=""{t.Target.X + 6:F0}"" y1=""{t.Target.Y - 6:F0}"" x2=""{t.Target.X - 6:F0}"" y2=""{t.Target.Y + 6:F0}"" stroke=""red"" stroke-width=""2""/>
+                    <text x=""{t.Target.X + 8:F0}"" y=""{t.Target.Y - 8:F0}"" fill=""red"" font-size=""10"" font-family=""monospace"" font-weight=""bold"">{t.TargetName}</text></g>");
+            }
+
+            // DRAW STATIC THREATS
+            if (staticThreats != null)
+            {
+                var drawnLabels = new List<(double x, double y)>(); // Track label locations to prevent smudging
+                var printedGroups = new HashSet<string>(); // NEW: Track printed groups to prevent duplicates
+
+                foreach (var threat in staticThreats)
+                {
+                    double px = ProjectX(threat.y);
+                    double py = ProjectY(threat.x);
+
+                    // Expand the rendering window immensely. A SAM might be 100 miles off-screen, 
+                    // but its massive threat ring still needs to overlap the map view.
+                    if (px >= -4000 && px <= 4800 && py >= -4000 && py <= 4500)
+                    {
+                        sb.AppendLine("<g>");
+
+                        string displayName = threat.unitType;
+                        string canonicalKey = JsonThreatDatabaseService.Canonicalize(threat.unitType);
+
+                        if (threatDict != null && threatDict.TryGetValue(canonicalKey, out var threatData))
+                        {
+                            displayName = !string.IsNullOrWhiteSpace(threatData.DisplayName) ? threatData.DisplayName : threat.unitType;
+
+                            double detRadius = threatData.DetectionRange > 0 ? (threatData.DetectionRange / effectiveScale) * 800.0 : 0;
+                            double thrRadius = threatData.ThreatRange > 0 ? (threatData.ThreatRange / effectiveScale) * 800.0 : 0;
+
+                            if (detRadius > 0)
+                            {
+                                sb.AppendLine($@"<circle cx=""{px:F0}"" cy=""{py:F0}"" r=""{Math.Max(detRadius, 5):F0}"" fill=""rgba(234, 179, 8, 0.05)"" stroke=""rgba(234, 179, 8, 0.5)"" stroke-width=""1"" stroke-dasharray=""2 4""/>");
+                            }
+                            if (thrRadius > 0)
+                            {
+                                sb.AppendLine($@"<circle cx=""{px:F0}"" cy=""{py:F0}"" r=""{Math.Max(thrRadius, 5):F0}"" fill=""rgba(220, 38, 38, 0.1)"" stroke=""rgba(220, 38, 38, 0.6)"" stroke-width=""1"" stroke-dasharray=""4 4""/>");
+                            }
+                        }
+
+                        // 2. ONLY DRAW TEXT IF THE SAM ITSELF IS ON SCREEN
+                        if (px >= -20 && px <= 820 && py >= -20 && py <= 520)
+                        {
+                            // Create a detailed tooltip for hovering
+                            string hoverLabel = displayName;
+                            if (!string.IsNullOrWhiteSpace(threat.unitName) && !threat.unitName.StartsWith("DictKey_")) hoverLabel = threat.unitName;
+                            if (!string.IsNullOrWhiteSpace(threat.groupName) && !threat.groupName.StartsWith("DictKey_")) hoverLabel = $"{threat.groupName} ({hoverLabel})";
+
+                            // Determine the visible label based on your new rules
+                            string visibleLabel = "";
+                            bool hasGroupName = !string.IsNullOrWhiteSpace(threat.groupName) && !threat.groupName.StartsWith("DictKey_");
+                            bool hasUnitName = !string.IsNullOrWhiteSpace(threat.unitName) && !threat.unitName.StartsWith("DictKey_");
+
+                            if (hasGroupName)
+                            {
+                                if (!printedGroups.Contains(threat.groupName))
+                                {
+                                    visibleLabel = threat.groupName;
+                                    printedGroups.Add(threat.groupName); // Mark as printed
+                                }
+                                // If it's already in printedGroups, visibleLabel remains empty so we don't draw text
+                            }
+                            else if (hasUnitName)
+                            {
+                                visibleLabel = threat.unitName;
+                            }
+                            else
+                            {
+                                visibleLabel = displayName;
+                            }
+
+                            double labelX = px + 8;
+                            double labelY = py + 4;
+
+                            // Only run decluttering and text drawing if we actually have a label to print
+                            if (!string.IsNullOrEmpty(visibleLabel))
+                            {
+                                while (drawnLabels.Any(l => Math.Abs(l.x - labelX) < 100 && Math.Abs(l.y - labelY) < 12))
+                                {
+                                    labelY += 12;
+                                }
+                                drawnLabels.Add((labelX, labelY));
+                            }
+
+                            // Always draw the dot and tooltip so users can hover over individual units in the group
+                            sb.AppendLine($@"<circle cx=""{px:F0}"" cy=""{py:F0}"" r=""4"" fill=""red"" stroke=""white"" stroke-width=""1""><title>{hoverLabel}</title></circle>");
+
+                            if (!string.IsNullOrEmpty(visibleLabel))
+                            {
+                                sb.AppendLine($@"<text x=""{labelX:F0}"" y=""{labelY:F0}"" fill=""#fca5a5"" font-size=""10"" font-family=""monospace"" pointer-events=""none"">{visibleLabel}</text>");
+                            }
+                        }
+                        sb.AppendLine("</g>");
+                    }
+                }
+            }
+
+            // DRAW MARKERS
+            foreach (var m in data.Markers)
+            {
+                string color = m.IsCluster ? "#f59e0b" : "#22d3ee";
+                string textColor = m.IsCluster ? "#f59e0b" : "#67e8f9";
+                sb.AppendLine($@"<g class=""cursor-pointer""><circle cx=""{m.Point.X:F0}"" cy=""{m.Point.Y:F0}"" r=""8"" fill=""{color}""><title>{m.Tooltip}</title></circle>
+               <text x=""{m.Point.X + 12:F0}"" y=""{m.Point.Y + 5:F0}"" fill=""{textColor}"" font-size=""11"" font-family=""monospace"" pointer-events=""none"">{m.Label}</text></g>");
+            }
+
+            sb.AppendLine("</svg></details>");
             return sb.ToString();
         }
 
@@ -800,81 +1261,6 @@ namespace DcsMissionReader.Services.Generators
                 idx++;
             }
             return waypoints;
-        }
-
-        internal static SvgMapData CalculateSvgMapData(List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> waypoints)
-        {
-            if (waypoints == null || waypoints.Count == 0) return new SvgMapData([], [], []);
-
-            double minX = waypoints.Min(p => p.x);
-            double maxX = waypoints.Max(p => p.x);
-            double minY = waypoints.Min(p => p.y);
-            double maxY = waypoints.Max(p => p.y);
-
-            double scale = Math.Max(maxY - minY, maxX - minX);
-            if (scale < 100) scale = 100;
-            double padding = scale * 0.15;
-            double effectiveScale = scale + (padding * 2);
-
-            double ProjectX(double y) => (y - minY + padding) / effectiveScale * 800.0;
-            double ProjectY(double x) => 500.0 - ((x - minX + padding) / effectiveScale * 500.0);
-
-            var routePoints = waypoints.Select(wp => new SvgPoint(ProjectX(wp.y), ProjectY(wp.x))).ToList();
-
-            var targetLines = new List<SvgTarget>();
-            foreach (var wp in waypoints)
-            {
-                var source = new SvgPoint(ProjectX(wp.y), ProjectY(wp.x));
-                foreach (var t in wp.targets)
-                {
-                    targetLines.Add(new SvgTarget(source, new SvgPoint(ProjectX(t.y), ProjectY(t.x)), t.targetName));
-                }
-            }
-
-            var markers = new List<SvgWaypointMarker>();
-            var grouped = waypoints.Select((wp, i) => new { wp, idx = i + 1 }).GroupBy(p => $"{Math.Round(p.wp.x / 10)},{Math.Round(p.wp.y / 10)}");
-
-            foreach (var group in grouped)
-            {
-                var first = group.First();
-                var pt = new SvgPoint(ProjectX(first.wp.y), ProjectY(first.wp.x));
-                bool isCluster = group.Count() > 1;
-                string tooltip = string.Join("&#10;", group.Select(g => $"{g.wp.name}: {g.wp.action}"));
-                string label = string.Join("/", group.Select(g => g.wp.name));
-                markers.Add(new SvgWaypointMarker(pt, isCluster, tooltip, label));
-            }
-
-            return new SvgMapData(routePoints, targetLines, markers);
-        }
-
-        private static string GenerateFlightSvgMap(List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> waypoints, string groupName)
-        {
-            var data = CalculateSvgMapData(waypoints);
-            if (data.RoutePoints.Count == 0) return "";
-
-            var sb = new StringBuilder();
-            sb.AppendLine($@"<details class=""mt-6""><summary class=""cursor-pointer text-sm font-medium mb-2"">🗺️ Interactive Route Map for {groupName}</summary>");
-            sb.AppendLine($@"<svg width=""800"" height=""500"" viewBox=""0 0 800 500"" class=""border border-gray-700 rounded-xl bg-gray-950"">");
-
-            sb.Append(@"<polyline points=""");
-            foreach (var pt in data.RoutePoints) sb.Append($"{pt.X:F0},{pt.Y:F0} ");
-            sb.AppendLine(@""" fill=""none"" stroke=""#22d3ee"" stroke-width=""4"" />");
-
-            foreach (var t in data.Targets)
-            {
-                sb.AppendLine($@"<g><line x1=""{t.Target.X - 6:F0}"" y1=""{t.Target.Y - 6:F0}"" x2=""{t.Target.X + 6:F0}"" y2=""{t.Target.Y + 6:F0}"" stroke=""red"" stroke-width=""2""/><line x1=""{t.Target.X + 6:F0}"" y1=""{t.Target.Y - 6:F0}"" x2=""{t.Target.X - 6:F0}"" y2=""{t.Target.Y + 6:F0}"" stroke=""red"" stroke-width=""2""/>
-            <text x=""{t.Target.X + 8:F0}"" y=""{t.Target.Y - 8:F0}"" fill=""red"" font-size=""10"" font-family=""monospace"" font-weight=""bold"">{t.TargetName}</text></g>");
-            }
-
-            foreach (var m in data.Markers)
-            {
-                string color = m.IsCluster ? "#f59e0b" : "#22d3ee";
-                string textColor = m.IsCluster ? "#f59e0b" : "#67e8f9";
-                sb.AppendLine($@"<g class=""cursor-pointer""><circle cx=""{m.Point.X:F0}"" cy=""{m.Point.Y:F0}"" r=""8"" fill=""{color}""><title>{m.Tooltip}</title></circle>
-        <text x=""{m.Point.X + 12:F0}"" y=""{m.Point.Y + 5:F0}"" fill=""{textColor}"" font-size=""11"" font-family=""monospace"" pointer-events=""none"">{m.Label}</text></g>");
-            }
-            sb.AppendLine("</svg></details>");
-            return sb.ToString();
         }
     }
 }

@@ -2,7 +2,7 @@
 using DcsMissionReader.Services;
 using MoonSharp.Interpreter;
 
-namespace DcsMissionReader.Tests.Services
+namespace DcsMissionReaderTests
 {
     public class MissionIndexerTests
     {
