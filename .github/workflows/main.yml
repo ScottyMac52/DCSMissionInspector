@@ -1,4 +1,4 @@
-name: Build and Release Single Exe
+name: Build and Release Single Exe + Setup
 
 on:
   push:
@@ -244,7 +244,7 @@ jobs:
           retention-days: 30
 
   release:
-    name: Build & Release
+    name: Build & Release (with Setup.exe)
     runs-on: windows-latest
     needs: test
     permissions:
@@ -316,6 +316,19 @@ jobs:
             -p:AssemblyVersion=${{ steps.versioning.outputs.VERSION }} `
             -o ./publish
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y
+
+      - name: Build Setup.exe
+        shell: pwsh
+        run: |
+          $version = "${{ steps.versioning.outputs.VERSION }}"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            "/DPublishDir=./publish" `
+            "/DAppVersion=$version" `
+            "installer\installer.iss"
+
       - name: Prepare Artifacts
         shell: pwsh
         run: |
@@ -371,7 +384,9 @@ jobs:
 
             ${{ github.event.head_commit.message || 'Manual trigger via workflow dispatch' }}
           generate_release_notes: true
-          files: ${{ env.ZIP_FILE_NAME }}
+          files: |
+            ${{ env.ZIP_FILE_NAME }}
+            _setup/DCSMissionInspector-Setup-v${{ steps.versioning.outputs.VERSION }}.exe
           draft: false
           prerelease: false
           make_latest: true
