@@ -19,7 +19,6 @@ DisableProgramGroupPage=yes
 
 [Files]
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-Source: "installer\appsettings.json"; DestDir: "{userappdata}\DCSMissionInspector"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\DCSMissionInspector"; Filename: "{app}\DCSMissionInspector.exe"
