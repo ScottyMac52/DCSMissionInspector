@@ -35,12 +35,10 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
-          # === CONFIGURATION ===
-          # Add project BaseNames here that you want to exclude from app detection
+          # Projects to skip from app detection (add BaseName here)
           $skipProjects = @(
-            "LuaParser"   # <-- Add projects you want to skip here
+            "LuaParser"
           )
-          # =====================
 
           $solutions = @(Get-ChildItem -Path . -Recurse -Filter *.sln -File |
             Where-Object {
@@ -102,7 +100,7 @@ jobs:
             }
           }
 
-          # Filter out skipped projects
+          # Apply skip list
           $appProjects = @($projectInfo | Where-Object { 
             -not $_.IsTestProject -and 
             $_.IsExecutableProject -and 
@@ -290,7 +288,7 @@ jobs:
       - name: Create and Push Version Tag (if needed)
         shell: bash
         run: |
-          TAG_NAME="v${{ needs.test.outputs.APP_NAME }}-0.0.0"   # TODO: Replace with real versioning
+          TAG_NAME="v${{ needs.test.outputs.APP_NAME }}-0.0.0"
           if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
             echo "Tag $TAG_NAME already exists — skipping tag creation"
           else
