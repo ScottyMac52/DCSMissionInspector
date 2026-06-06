@@ -21,10 +21,36 @@ namespace DcsMissionReader.Services
             else { _weapons = []; }
         }
 
+        // Add this to JsonWeaponDatabaseService.cs
+        // Internal constructor for xUnit testing without touching the file system
+        public JsonWeaponDatabaseService(string jsonContent, bool isTest)
+        {
+            if (!string.IsNullOrWhiteSpace(jsonContent))
+            {
+                _weapons = JsonSerializer.Deserialize<Dictionary<string, WeaponData>>(jsonContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                           ?? new Dictionary<string, WeaponData>(StringComparer.OrdinalIgnoreCase);
+            }
+            else
+            {
+                _weapons = new Dictionary<string, WeaponData>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
         public string GetWeaponName(string clsid)
         {
+            if (string.IsNullOrWhiteSpace(clsid)) return "Empty";
+
             string cleanId = clsid.Trim('{', '}');
-            return _weapons.TryGetValue(cleanId, out var w) ? w.DisplayName : clsid;
+
+            if (_weapons.TryGetValue(cleanId, out var w))
+            {
+                return w.DisplayName;
+            }
+
+            // Fallbacks for missing weapons
+            return cleanId.Length == 36
+                ? $"Unknown [{cleanId.Substring(0, 8)}]"
+                : cleanId.Replace("_", " ");
         }
     }
 }

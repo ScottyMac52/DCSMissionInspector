@@ -12,6 +12,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Registration", "Registratio
 		dcsmissionreader.reg = dcsmissionreader.reg
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuaParser", "LuaParser\LuaParser.csproj", "{48CFE2DC-9A7D-4884-99AD-845604FB7C80}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,6 +28,10 @@ Global
 		{56CB5653-1EAA-4DB7-9E1D-F5B30BE37F78}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{56CB5653-1EAA-4DB7-9E1D-F5B30BE37F78}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{56CB5653-1EAA-4DB7-9E1D-F5B30BE37F78}.Release|Any CPU.Build.0 = Release|Any CPU
+		{48CFE2DC-9A7D-4884-99AD-845604FB7C80}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{48CFE2DC-9A7D-4884-99AD-845604FB7C80}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{48CFE2DC-9A7D-4884-99AD-845604FB7C80}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{48CFE2DC-9A7D-4884-99AD-845604FB7C80}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

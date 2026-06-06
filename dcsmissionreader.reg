@@ -2,7 +2,7 @@ Windows Registry Editor Version 5.00
 
 ; 1. Create the Parent Menu
 [HKEY_CLASSES_ROOT\miz_auto_file\shell\DCS]
-"SubCommands"="DCS.HTML;DCS.KML;DCS.JSON"
+"SubCommands"="DCS.HTML;DCS.KML;DCS.JSON;DCS.Extract"
 
 ; 2. Define the individual sub-commands in the CommandStore
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.HTML]
@@ -22,4 +22,9 @@ Windows Registry Editor Version 5.00
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.JSON\command]
 @="\"D:\\DcsMissionReader\\DcsMissionReader.exe\" \"%1\" --json true"
-	
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.Extract]
+@="Extract .miz (Unzip)"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.Extract\command]
+@="powershell.exe -WindowStyle Hidden -Command \"$p='%1'; $d=$p -replace '\\.miz$',''; $z=$p+'.zip'; Copy-Item -LiteralPath $p -Destination $z; Expand-Archive -LiteralPath $z -DestinationPath $d -Force; Remove-Item -LiteralPath $z\""

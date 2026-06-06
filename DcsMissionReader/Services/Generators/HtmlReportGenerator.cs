@@ -1,7 +1,10 @@
 ﻿using DcsMissionReader.Models;
 using DcsMissionReader.Services.Interfaces;
 using MoonSharp.Interpreter;
-using System.Runtime;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace DcsMissionReader.Services.Generators
@@ -97,7 +100,8 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
         {GenerateRequiredModsHtmlSection(mission)}
         {GeneratePlayerSlotsHtmlSection(mission)}
         {GenerateFlightsWithWaypointsHtmlSection(mission, missionIndexer, threatDict)}
-        {GenerateAtoHtmlSection(mission, threatDict)} {GenerateUnitsAndTargetsHtmlSection(mission, threatDict)}
+        {GenerateAtoHtmlSection(mission, threatDict)} 
+        {GenerateUnitsAndTargetsHtmlSection(mission, threatDict)}
         {GenerateWeatherHtmlSection(mission, options.Units)}
         {GenerateOrderOfBattleHtmlSection(mission)}
 
@@ -207,39 +211,25 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
                         sb.AppendLine($@"<div class=""mb-6 last:mb-0 bg-gray-950 p-4 rounded-lg border border-gray-800"">");
                         sb.AppendLine($@"<div class=""text-sm font-semibold text-gray-200 mb-3 border-b border-gray-800 pb-2"">Unit: <span class=""text-white"">{unit.UnitName}</span></div>");
 
-                        // Counters for Chaff/Flare/Gun
                         sb.AppendLine($@"<div class=""flex gap-4 mb-3 text-xs"">");
                         sb.AppendLine($@"<div class=""bg-gray-800 px-2 py-1 rounded text-gray-300"">🔥 Flares: {unit.Flare}</div>");
                         sb.AppendLine($@"<div class=""bg-gray-800 px-2 py-1 rounded text-gray-300"">✨ Chaff: {unit.Chaff}</div>");
-                        // Determine the display value for the gun
-                        // If unit.Gun is 0, we assume it's full (100%), otherwise show the actual stored percentage
-                        string gunDisplay = unit.Gun == 0 ? "100" : unit.Gun.ToString("F0");
 
-                        // Only show the gun line if the aircraft actually has a gun (you can add a check if needed, 
-                        // but unit.Gun being 0 usually implies full loadout or no modifications)
-                        sb.AppendLine($@"<div class=""bg-gray-800 px-2 py-1 rounded text-gray-300"">🔫 Gun: {gunDisplay}%</div>"); sb.AppendLine($@"</div>");
+                        string gunDisplay = unit.Gun == 0 ? "100" : unit.Gun.ToString("F0");
+                        sb.AppendLine($@"<div class=""bg-gray-800 px-2 py-1 rounded text-gray-300"">🔫 Gun: {gunDisplay}%</div>");
+                        sb.AppendLine($@"</div>");
 
                         if (unit.Pylons.Count > 0)
                         {
-                            // Using CSS Grid instead of a Table avoids conflict with your global table CSS rules
                             sb.AppendLine(@"<div class=""grid grid-cols-[4rem_1fr] gap-2 text-xs text-left border-b border-gray-800 pb-1 mb-2 text-gray-500 font-semibold"">");
                             sb.AppendLine(@"<div>Pylon</div><div>Weapon / Store</div>");
                             sb.AppendLine(@"</div>");
 
                             foreach (var pylon in unit.Pylons)
                             {
-                                string displayWeapon = pylon.Weapon;
-                                string canonicalKey = JsonThreatDatabaseService.Canonicalize(pylon.Weapon);
-
-                                // Look up prettier name if we have it in threats.json
-                                if (threatDict != null && threatDict.TryGetValue(canonicalKey, out var threatData))
-                                {
-                                    displayWeapon = !string.IsNullOrWhiteSpace(threatData.DisplayName) ? threatData.DisplayName : pylon.Weapon;
-                                }
-
                                 sb.AppendLine($@"<div class=""grid grid-cols-[4rem_1fr] gap-2 text-xs text-left border-b border-gray-800/50 py-1 last:border-0"">");
                                 sb.AppendLine($@"<div class=""font-mono text-gray-400"">#{pylon.Pylon}</div>");
-                                sb.AppendLine($@"<div class=""font-medium text-blue-200"">{displayWeapon}</div>");
+                                sb.AppendLine($@"<div class=""font-medium text-blue-200"">{pylon.Weapon}</div>");
                                 sb.AppendLine($@"</div>");
                             }
                         }
@@ -248,21 +238,14 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
                             sb.AppendLine(@"<div class=""text-xs text-gray-500 italic"">No external stores or pylons loaded.</div>");
                         }
 
-                        sb.AppendLine($@"</div>"); // End unit card
+                        sb.AppendLine($@"</div>");
                     }
-                    sb.AppendLine(@"</div></details>"); // End group details
+                    sb.AppendLine(@"</div></details>");
                 }
             }
             return sb.ToString();
         }
 
-        /// <summary>
-        /// Extracts detailed ATO (Air Tasking Order) information with loadouts from the given mission table.
-        /// </summary>
-        /// <param name="mission">The mission table containing coalition, country, and unit data.</param>
-        /// <returns>A list of tuples containing coalition, group name, task, aircraft type, units count, start time, and unit loadouts.</returns>
-        // NEW METHOD: Deep extraction for detailed HTML UI
-        // Updated signature to accept IWeaponDatabaseService
         public List<(string Coalition, string GroupName, string Task, string AircraftType, int UnitsCount, double StartTimeSec, List<(string UnitName, List<(int Pylon, string Weapon)> Pylons, double Flare, double Chaff, double Gun)> Units)> ExtractAtoWithLoadouts(Table mission)
         {
             var atoList = new List<(string, string, string, string, int, double, List<(string, List<(int, string)>, double, double, double)>)>();
@@ -341,7 +324,6 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
 
                                                 if (!string.IsNullOrEmpty(clsid))
                                                 {
-                                                    // USE SERVICE HERE: Map CLSID to Name
                                                     string weaponName = weaponService.GetWeaponName(clsid);
                                                     pylonsList.Add((pylonNum, weaponName));
                                                 }
@@ -361,7 +343,7 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
         }
 
         // ==========================================
-        // Required Mods EXTRACTION & GENERATION
+        // REQUIRED MODS EXTRACTION & GENERATION
         // ==========================================
 
         private static string GenerateRequiredModsHtmlSection(Table mission)
@@ -643,14 +625,17 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
 
                                     string uType = unit.Table.Get("type")?.String ?? "Unknown";
                                     unitCounts[uType] = unitCounts.GetValueOrDefault(uType, 0) + 1;
+                                }
+                            }
 
-                                    // Threat/Detection Lookups
-                                    string canonicalKey = JsonThreatDatabaseService.Canonicalize(uType);
-                                    if (threatDict != null && threatDict.TryGetValue(canonicalKey, out var tData))
-                                    {
-                                        maxDet = Math.Max(maxDet, tData.DetectionRange);
-                                        maxThr = Math.Max(maxThr, tData.ThreatRange);
-                                    }
+                            // BATCH OPTIMIZATION: Only canonicalize unique unit types
+                            foreach (var uType in unitCounts.Keys)
+                            {
+                                string canonicalKey = JsonThreatDatabaseService.Canonicalize(uType);
+                                if (threatDict != null && threatDict.TryGetValue(canonicalKey, out var tData))
+                                {
+                                    maxDet = Math.Max(maxDet, tData.DetectionRange);
+                                    maxThr = Math.Max(maxThr, tData.ThreatRange);
                                 }
                             }
 
@@ -818,7 +803,6 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
         // FLIGHTS & WAYPOINTS EXTRACTION
         // ==========================================
 
-
         internal static SvgMapData CalculateSvgMapData(List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> waypoints)
         {
             if (waypoints == null || waypoints.Count == 0) return new SvgMapData([], [], []);
@@ -828,7 +812,6 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
             double minY = waypoints.Min(p => p.y);
             double maxY = waypoints.Max(p => p.y);
 
-            // FIX: Ensure we have a valid range even if all points are at the same location
             double rangeX = Math.Max(maxX - minX, 100);
             double rangeY = Math.Max(maxY - minY, 100);
             double scale = Math.Max(rangeX, rangeY);
@@ -836,7 +819,6 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
             double padding = scale * 0.15;
             double effectiveScale = scale + (padding * 2);
 
-            // FIX: Map coordinates correctly to the SVG canvas (800x500)
             double ProjectX(double y) => (y - minY + padding) / effectiveScale * 800.0;
             double ProjectY(double x) => 500.0 - ((x - minX + padding) / effectiveScale * 500.0);
 
@@ -853,8 +835,6 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
             }
 
             var markers = new List<SvgWaypointMarker>();
-
-            // FIX: Adjusted clustering threshold. /500 to group points that are geographically close, not just pixel-identical.
             var grouped = waypoints.GroupBy(wp => $"{Math.Round(wp.x / 500)},{Math.Round(wp.y / 500)}");
 
             foreach (var group in grouped)
@@ -930,9 +910,9 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
             return flights;
         }
 
-        public static List<(double x, double y, string unitName, string unitType, string groupName)> ExtractAllGroundUnits(Table mission)
+        public static List<(double x, double y, string unitName, string unitType, string groupName, string canonicalKey)> ExtractAllGroundUnits(Table mission)
         {
-            var units = new List<(double x, double y, string unitName, string unitType, string groupName)>(); // UPDATED Tuple
+            var units = new List<(double x, double y, string unitName, string unitType, string groupName, string canonicalKey)>();
             var coalitionVal = mission.Get("coalition");
             if (coalitionVal.Type != DataType.Table) return units;
 
@@ -964,7 +944,7 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
                             if (groupPair.Value.Type != DataType.Table) continue;
                             var group = groupPair.Value.Table;
 
-                            string groupName = group.Get("name")?.String ?? ""; // EXTRACED Group Name
+                            string groupName = group.Get("name")?.String ?? "";
 
                             var unitsVal = group.Get("units");
                             if (unitsVal.Type != DataType.Table) continue;
@@ -979,7 +959,9 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
                                 string unitName = unit.Get("name")?.String ?? "";
                                 string unitType = unit.Get("type")?.String ?? "Unknown";
 
-                                units.Add((x, y, unitName, unitType, groupName)); // ADDED to Tuple
+                                // BATCH OPTIMIZATION: Do this once per unit
+                                string canonicalKey = JsonThreatDatabaseService.Canonicalize(unitType);
+                                units.Add((x, y, unitName, unitType, groupName, canonicalKey));
                             }
                         }
                     }
@@ -988,7 +970,7 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
             return units;
         }
 
-        private string GenerateFlightsWithWaypointsHtmlSection(Table mission, MissionIndexer indexer, Dictionary<string, ThreatData> threatDict) // ADDED threatDict
+        private string GenerateFlightsWithWaypointsHtmlSection(Table mission, MissionIndexer indexer, Dictionary<string, ThreatData> threatDict)
         {
             var flights = ExtractFlightWaypoints(mission);
             if (flights.Count == 0) return "<p class=\"text-yellow-400\">No flight waypoint data found.</p>";
@@ -1023,7 +1005,6 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
                     }
                     sb.AppendLine("</tbody></table></div>");
 
-                    // UPDATED: Now passes threatDict to the map generator
                     if (waypoints.Count > 1) sb.AppendLine(GenerateFlightSvgMap(waypoints, allGroundUnits, flight.GroupName, threatDict));
                     sb.AppendLine("</details>");
                 }
@@ -1031,37 +1012,24 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
             return sb.ToString();
         }
 
-        /// <summary>
-        /// Generates an SVG map for a flight route, plotting waypoints, target lines, and static threats with detection rings. Threat data is enhanced using the provided threat dictionary for accurate display names and ranges.
-        /// </summary>
-        /// <param name="waypoints">The list of waypoints for the flight route.</param>
-        /// <param name="staticThreats">The list of static threats to be displayed on the map.</param>
-        /// <param name="groupName">The name of the flight group.</param>
-        /// <param name="threatDict">The dictionary containing threat data for accurate display names and ranges.</param>
-        /// <returns>An SVG string representing the flight route map.</returns>
-        /// <summary>
-        /// Generates an SVG map for a flight route, plotting waypoints, target lines, and static threats with detection rings. Threat data is enhanced using the provided threat dictionary for accurate display names and ranges.
-        /// </summary>
         private static string GenerateFlightSvgMap(
             List<(double x, double y, double alt, double speed, string action, string name, List<(double x, double y, string targetName)> targets)> waypoints,
-            List<(double x, double y, string unitName, string unitType, string groupName)> staticThreats,
+            List<(double x, double y, string unitName, string unitType, string groupName, string canonicalKey)> staticThreats,
             string groupName,
             Dictionary<string, ThreatData> threatDict)
         {
             var data = CalculateSvgMapData(waypoints);
             if (data.RoutePoints.Count == 0) return "";
 
-            // 1. MAP SCALE IS NOW STRICTLY BASED ON THE FLIGHT ROUTE
             double minX = waypoints.Min(p => p.x);
             double maxX = waypoints.Max(p => p.x);
             double minY = waypoints.Min(p => p.y);
             double maxY = waypoints.Max(p => p.y);
 
-            // Ensure a minimum map size (e.g., 10,000 units = 10km) so local flights aren't over-zoomed
             double rangeX = Math.Max(maxX - minX, 10000);
             double rangeY = Math.Max(maxY - minY, 10000);
             double scale = Math.Max(rangeX, rangeY);
-            double padding = scale * 0.25; // Generous 25% padding so nearby threat rings are visible
+            double padding = scale * 0.25;
             double effectiveScale = scale + (padding * 2);
 
             double ProjectX(double y) => (y - minY + padding) / effectiveScale * 800.0;
@@ -1071,39 +1039,34 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
             sb.AppendLine($@"<details class=""mt-6""><summary class=""cursor-pointer text-sm font-medium mb-2"">🗺️ Interactive Route Map for {groupName}</summary>");
             sb.AppendLine($@"<svg width=""800"" height=""500"" viewBox=""0 0 800 500"" class=""border border-gray-700 rounded-xl bg-gray-950"">");
 
-            // DRAW ROUTE
             sb.Append(@"<polyline points=""");
             foreach (var pt in data.RoutePoints) sb.Append($"{pt.X:F0},{pt.Y:F0} ");
             sb.AppendLine(@""" fill=""none"" stroke=""#22d3ee"" stroke-width=""4"" />");
 
-            // DRAW TARGET LINES
             foreach (var t in data.Targets)
             {
                 sb.AppendLine($@"<g><line x1=""{t.Target.X - 6:F0}"" y1=""{t.Target.Y - 6:F0}"" x2=""{t.Target.X + 6:F0}"" y2=""{t.Target.Y + 6:F0}"" stroke=""red"" stroke-width=""2""/><line x1=""{t.Target.X + 6:F0}"" y1=""{t.Target.Y - 6:F0}"" x2=""{t.Target.X - 6:F0}"" y2=""{t.Target.Y + 6:F0}"" stroke=""red"" stroke-width=""2""/>
                     <text x=""{t.Target.X + 8:F0}"" y=""{t.Target.Y - 8:F0}"" fill=""red"" font-size=""10"" font-family=""monospace"" font-weight=""bold"">{t.TargetName}</text></g>");
             }
 
-            // DRAW STATIC THREATS
             if (staticThreats != null)
             {
-                var drawnLabels = new List<(double x, double y)>(); // Track label locations to prevent smudging
-                var printedGroups = new HashSet<string>(); // NEW: Track printed groups to prevent duplicates
+                var drawnLabels = new List<(double x, double y)>();
+                var printedGroups = new HashSet<string>();
 
                 foreach (var threat in staticThreats)
                 {
                     double px = ProjectX(threat.y);
                     double py = ProjectY(threat.x);
 
-                    // Expand the rendering window immensely. A SAM might be 100 miles off-screen, 
-                    // but its massive threat ring still needs to overlap the map view.
                     if (px >= -4000 && px <= 4800 && py >= -4000 && py <= 4500)
                     {
                         sb.AppendLine("<g>");
 
                         string displayName = threat.unitType;
-                        string canonicalKey = JsonThreatDatabaseService.Canonicalize(threat.unitType);
 
-                        if (threatDict != null && threatDict.TryGetValue(canonicalKey, out var threatData))
+                        // BATCH OPTIMIZATION: Use the pre-calculated key
+                        if (threatDict != null && threatDict.TryGetValue(threat.canonicalKey, out var threatData))
                         {
                             displayName = !string.IsNullOrWhiteSpace(threatData.DisplayName) ? threatData.DisplayName : threat.unitType;
 
@@ -1120,15 +1083,12 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
                             }
                         }
 
-                        // 2. ONLY DRAW TEXT IF THE SAM ITSELF IS ON SCREEN
                         if (px >= -20 && px <= 820 && py >= -20 && py <= 520)
                         {
-                            // Create a detailed tooltip for hovering
                             string hoverLabel = displayName;
                             if (!string.IsNullOrWhiteSpace(threat.unitName) && !threat.unitName.StartsWith("DictKey_")) hoverLabel = threat.unitName;
                             if (!string.IsNullOrWhiteSpace(threat.groupName) && !threat.groupName.StartsWith("DictKey_")) hoverLabel = $"{threat.groupName} ({hoverLabel})";
 
-                            // Determine the visible label based on your new rules
                             string visibleLabel = "";
                             bool hasGroupName = !string.IsNullOrWhiteSpace(threat.groupName) && !threat.groupName.StartsWith("DictKey_");
                             bool hasUnitName = !string.IsNullOrWhiteSpace(threat.unitName) && !threat.unitName.StartsWith("DictKey_");
@@ -1138,9 +1098,8 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
                                 if (!printedGroups.Contains(threat.groupName))
                                 {
                                     visibleLabel = threat.groupName;
-                                    printedGroups.Add(threat.groupName); // Mark as printed
+                                    printedGroups.Add(threat.groupName);
                                 }
-                                // If it's already in printedGroups, visibleLabel remains empty so we don't draw text
                             }
                             else if (hasUnitName)
                             {
@@ -1154,17 +1113,18 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
                             double labelX = px + 8;
                             double labelY = py + 4;
 
-                            // Only run decluttering and text drawing if we actually have a label to print
                             if (!string.IsNullOrEmpty(visibleLabel))
                             {
-                                while (drawnLabels.Any(l => Math.Abs(l.x - labelX) < 100 && Math.Abs(l.y - labelY) < 12))
+                                int attempts = 0;
+                                // BATCH OPTIMIZATION: Cap the infinite loop lockup!
+                                while (attempts < 8 && drawnLabels.Any(l => Math.Abs(l.x - labelX) < 100 && Math.Abs(l.y - labelY) < 12))
                                 {
                                     labelY += 12;
+                                    attempts++;
                                 }
                                 drawnLabels.Add((labelX, labelY));
                             }
 
-                            // Always draw the dot and tooltip so users can hover over individual units in the group
                             sb.AppendLine($@"<circle cx=""{px:F0}"" cy=""{py:F0}"" r=""4"" fill=""red"" stroke=""white"" stroke-width=""1""><title>{hoverLabel}</title></circle>");
 
                             if (!string.IsNullOrEmpty(visibleLabel))
@@ -1177,7 +1137,6 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
                 }
             }
 
-            // DRAW MARKERS
             foreach (var m in data.Markers)
             {
                 string color = m.IsCluster ? "#f59e0b" : "#22d3ee";
