@@ -35,6 +35,14 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
+          # === SKIP LIST ===
+          # Any project BaseName listed here will be completely ignored
+          # for both app detection and test execution.
+          $skipProjects = @(
+              "LuaParser"
+          )
+          # =================
+
           $solutions = @(Get-ChildItem -Path . -Recurse -Filter *.sln -File |
             Where-Object {
               $_.FullName -notmatch '\\bin\\' -and
@@ -96,8 +104,12 @@ jobs:
             }
           }
 
-          $appProjects = @($projectInfo | Where-Object { -not $_.IsTestProject -and $_.IsExecutableProject })
-
+          $appProjects = @($projectInfo | Where-Object { 
+              -not $_.IsTestProject -and 
+              $_.IsExecutableProject -and 
+              $skipProjects -notcontains $_.BaseName 
+          })
+          
           if ($appProjects.Count -eq 0) {
             $nonTestProjects = @($projectInfo | Where-Object { -not $_.IsTestProject })
 
@@ -178,6 +190,8 @@ jobs:
                 $_
               }
             })
+
+          $testProjects = @($testProjects | Where-Object { $skipProjects -notcontains $_.BaseName })
 
           if ($testProjects.Count -eq 0) {
             Write-Warning "No test projects were found. Skipping test execution and coverage generation."
