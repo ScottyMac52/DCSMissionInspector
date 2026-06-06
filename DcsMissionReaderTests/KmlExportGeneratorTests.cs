@@ -91,7 +91,7 @@ namespace DcsMissionReaderTests
             double expectedLon = 40.12345678;
             double expectedAlt = 5000.0;
 
-            _coordMock.Setup(c => c.Convert(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<string>()))
+            _coordMock.Setup(c => c.Convert(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<string>(), It.IsAny<bool>()))
                           .Returns((expectedLat, expectedLon));
 
             // Act

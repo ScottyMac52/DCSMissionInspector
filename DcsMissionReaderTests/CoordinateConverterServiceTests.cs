@@ -25,22 +25,22 @@ namespace DcsMissionReaderTests
             Assert.Equal(expectedLon, result.lon, 4);
         }
 
-        [Fact]
-        public void Convert_WhenOffsetsProvided_CalculatesCorrectPosition()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void Convert_PersianGulf_ReturnsCorrectPosition(bool highAccuracy)
         {
-            // Arrange
-            string theatre = "persiangulf"; // Origin (25.0, 55.0)
-            double dcsX = 111132.92; // Approx 1 degree of latitude
-            double dcsY = 111412.84 * Math.Cos(26.0 * Math.PI / 180.0); // Approx 1 degree of longitude at 26deg
+            string theatre = "persiangulf";
+            double dcsX = -71200;
+            double dcsY = 93489;
 
-            // Act
-            var result = _service.Convert(dcsX, dcsY, theatre);
+            var result = _service.Convert(dcsX, dcsY, theatre, highAccuracy);
 
-            // Assert
-            // Expecting roughly +1.0 lat and +1.0 lon from the 25, 55 origin
-            Assert.InRange(result.lat, 25.99, 26.01);
-            Assert.InRange(result.lon, 55.99, 56.01);
+            // These match the real carrier location in your mission
+            Assert.InRange(result.lat, 24.356, 24.358);
+            Assert.InRange(result.lon, 55.920, 55.922);
         }
+
 
         [Fact]
         public void ConvertRelative_WhenOriginProvided_CalculatesCorrectDelta()
