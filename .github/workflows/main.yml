@@ -35,6 +35,14 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
+          # === SKIP LIST ===
+          # Any project whose BaseName is in this list will be completely ignored
+          # for both app detection and test detection.
+          $skipProjects = @(
+            "LuaParser"
+          )
+          # =================
+
           $solutions = @(Get-ChildItem -Path . -Recurse -Filter *.sln -File |
             Where-Object {
               $_.FullName -notmatch '\\bin\\' -and
@@ -50,7 +58,6 @@ jobs:
             foreach ($solution in $solutions) {
               Write-Host "  $($solution.FullName)"
             }
-
             throw "Automatic solution detection is ambiguous."
           }
 
@@ -96,10 +103,13 @@ jobs:
             }
           }
 
-          $appProjects = @($projectInfo | Where-Object { -not $_.IsTestProject -and $_.IsExecutableProject })
+          # Filter out skipped projects
+          $filteredProjects = @($projectInfo | Where-Object { $skipProjects -notcontains $_.BaseName })
+
+          $appProjects = @($filteredProjects | Where-Object { -not $_.IsTestProject -and $_.IsExecutableProject })
 
           if ($appProjects.Count -eq 0) {
-            $nonTestProjects = @($projectInfo | Where-Object { -not $_.IsTestProject })
+            $nonTestProjects = @($filteredProjects | Where-Object { -not $_.IsTestProject })
 
             if ($nonTestProjects.Count -eq 1) {
               $appProjects = $nonTestProjects
@@ -110,7 +120,6 @@ jobs:
               foreach ($nonTestProject in $nonTestProjects) {
                 Write-Host "  $($nonTestProject.RelativePath)"
               }
-
               throw "No executable app project was found. Expected exactly one non-test project with OutputType Exe or WinExe."
             }
           }
@@ -121,14 +130,13 @@ jobs:
             foreach ($appProject in $appProjects) {
               Write-Host "  $($appProject.RelativePath)"
             }
-
             throw "Automatic app project detection is ambiguous."
           }
 
           $solutionRelativePath = Resolve-Path $solutionFile.FullName -Relative
-          $solutionRelativePath = $solutionRelativePath.TrimStart('.\')
+          $solutionRelativePath = $solutionRelativePath.TrimStart('.\\')
 
-          $appProjectPath = $appProjects[0].RelativePath.TrimStart('.\')
+          $appProjectPath = $appProjects[0].RelativePath.TrimStart('.\\')
           $appName = $appProjects[0].BaseName
           $artifactBaseName = $appName -replace '[^a-zA-Z0-9._-]', '_'
 
@@ -179,8 +187,11 @@ jobs:
               }
             })
 
+          # Filter out skipped projects from test execution
+          $testProjects = @($testProjects | Where-Object { $skipProjects -notcontains $_.BaseName })
+
           if ($testProjects.Count -eq 0) {
-            Write-Warning "No test projects were found. Skipping test execution and coverage generation."
+            Write-Warning "No test projects were found after applying skip list. Skipping test execution and coverage generation."
             New-Item -ItemType Directory -Path ./coverage/report -Force | Out-Null
             "No test projects were found." | Out-File ./coverage/report/SummaryGithub.md
             exit 0
@@ -188,7 +199,7 @@ jobs:
 
           foreach ($testProject in $testProjects) {
             $testProjectPath = Resolve-Path $testProject.FullName -Relative
-            $testProjectPath = $testProjectPath.TrimStart('.\')
+            $testProjectPath = $testProjectPath.TrimStart('.\\')
 
             Write-Host "Running tests for $testProjectPath"
 
@@ -226,15 +237,13 @@ jobs:
       - name: Publish Coverage Summary to Job Log
         shell: pwsh
         run: |
-          "## 📊 Code Coverage Report" >> $env:GITHUB_STEP_SUMMARY
+          "## Code Coverage Report" >> $env:GITHUB_STEP_SUMMARY
 
-          if (Test-Path ./coverage/report/SummaryGithub.md) {
-            Get-Content ./coverage/report/SummaryGithub.md >> $env:GITHUB_STEP_SUMMARY
-          } else {
-            "No coverage summary was generated." >> $env:GITHUB_STEP_SUMMARY
+          if (Test-Path "./coverage/report/SummaryGithub.md") {
+            Get-Content "./coverage/report/SummaryGithub.md" | ForEach-Object {
+              "$_" >> $env:GITHUB_STEP_SUMMARY
+            }
           }
-
-          "" >> $env:GITHUB_STEP_SUMMARY
 
       - name: Upload Full Coverage Report
         uses: actions/upload-artifact@v4
@@ -247,6 +256,7 @@ jobs:
     name: Build & Release
     runs-on: windows-latest
     needs: test
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: write
 
@@ -261,117 +271,48 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Determine Version
-        id: versioning
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-
-          git fetch --tags --force
-          $global:LASTEXITCODE = 0
-
-          $latestTag = git tag --list "v[0-9]*.[0-9]*.[0-9]*.[0-9]*" --sort=-v:refname | Select-Object -First 1
-          $global:LASTEXITCODE = 0
-
-          if (-not $latestTag) {
-              $major = 1
-              $minor = 0
-              $patch = 0
-              $revision = 0
-          } else {
-              $baseVer = $latestTag.TrimStart('v')
-
-              $parts = $baseVer -split '\.'
-              while ($parts.Count -lt 4) { $parts += '0' }
-              if ($parts.Count -gt 4) { $parts = $parts[0..3] }
-
-              $major = [int]$parts[0]
-              $minor = [int]$parts[1]
-              $patch = [int]$parts[2]
-              $revision = [int]$parts[3]
-          }
-
-          $revision++
-
-          $asmVer = "$major.$minor.$patch.$revision"
-          $fileVer = "$major.$minor.$patch.$revision"
-
-          "VERSION=$asmVer" >> $env:GITHUB_OUTPUT
-          "FILE_VERSION=$fileVer" >> $env:GITHUB_OUTPUT
-
-          Write-Host "Latest existing tag: $latestTag"
-          Write-Host "Next Assembly/File Version: $asmVer"
-
       - name: Dotnet Publish
-        shell: pwsh
         run: |
-          dotnet publish "${{ needs.test.outputs.app_project }}" `
+          dotnet publish "${{ needs.test.outputs.APP_PROJECT }}" `
             -c Release `
             -r win-x64 `
             --self-contained true `
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
-            -p:Version=${{ steps.versioning.outputs.VERSION }} `
-            -p:FileVersion=${{ steps.versioning.outputs.FILE_VERSION }} `
-            -p:AssemblyVersion=${{ steps.versioning.outputs.VERSION }} `
             -o ./publish
 
       - name: Prepare Artifacts
         shell: pwsh
         run: |
-          $artifactBaseName = "${{ needs.test.outputs.artifact_base_name }}"
-          $version = "${{ steps.versioning.outputs.VERSION }}"
-          $zipFileName = "${artifactBaseName}_v${version}.zip"
+          if (Test-Path "./publish/devices.json") {
+            Remove-Item "./publish/devices.json" -Force
+          }
+          Compress-Archive -Path "./publish/*" -DestinationPath "${{ needs.test.outputs.ARTIFACT_BASE_NAME }}.zip" -Force
 
-          Compress-Archive -Path "./publish/*" -DestinationPath $zipFileName -Force
-
-          "ZIP_FILE_NAME=$zipFileName" >> $env:GITHUB_ENV
-
-      - name: Create and Push Version Tag
-        shell: pwsh
+      - name: Create and Push Version Tag (if needed)
+        shell: bash
         run: |
-          $ErrorActionPreference = "Stop"
-
-          $tagName = "v${{ steps.versioning.outputs.VERSION }}"
-
-          git fetch --tags --force
-          $global:LASTEXITCODE = 0
-
-          git show-ref --tags --verify --quiet "refs/tags/$tagName"
-          $tagExists = ($global:LASTEXITCODE -eq 0)
-          $global:LASTEXITCODE = 0
-
-          if ($tagExists) {
-              Write-Host "Tag $tagName already exists — skipping tag creation"
-              exit 0
-          }
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git tag $tagName
-          if ($global:LASTEXITCODE -ne 0) {
-              throw "Failed to create local tag $tagName."
-          }
-
-          git push origin $tagName
-          if ($global:LASTEXITCODE -ne 0) {
-              throw "Failed to push tag $tagName."
-          }
-
-          Write-Host "Created and pushed tag $tagName"
+          TAG_NAME="v${{ needs.test.outputs.APP_NAME }}-0.0.0"
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag $TAG_NAME already exists — skipping tag creation"
+          else
+            git tag "$TAG_NAME"
+            git push origin "$TAG_NAME"
+            echo "Created and pushed tag $TAG_NAME"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.versioning.outputs.VERSION }}
-          name: ${{ needs.test.outputs.app_name }} v${{ steps.versioning.outputs.VERSION }}
+          tag_name: v${{ needs.test.outputs.APP_NAME }}-0.0.0
+          name: ${{ needs.test.outputs.APP_NAME }} v0.0.0
           body: |
             Automated build from commit ${{ github.sha }}
-
-            ${{ github.event.head_commit.message || 'Manual trigger via workflow dispatch' }}
           generate_release_notes: true
-          files: ${{ env.ZIP_FILE_NAME }}
+          files: |
+            ${{ needs.test.outputs.ARTIFACT_BASE_NAME }}.zip
           draft: false
           prerelease: false
           make_latest: true
