@@ -119,7 +119,7 @@ namespace DcsMissionReader.Services.Generators
                 double x = pt.Table.Get("x")?.Number ?? 0;
                 double y = pt.Table.Get("y")?.Number ?? 0;
                 double alt = pt.Table.Get("alt")?.Number ?? 0;
-                string wpName = $"{group.Name} WP{i}";
+                string wpName = pt.Table.Get("name")?.String ?? $"WP{i}";
 
                 // Apply Origin Calibration
                 var (lat, lon) = GetLatLonFromDcs(x, y, theatre);
