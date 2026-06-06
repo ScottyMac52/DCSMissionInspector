@@ -3,28 +3,32 @@ name: Build and Release
 on:
   push:
     branches: [ main ]
+    tags:
+      - '*-v*'
   workflow_dispatch:
     inputs:
       app:
-        description: 'App to release (leave empty to build all)'
+        description: 'App to release (for manual runs)'
         required: false
         type: choice
         options:
           - ''
           - DcsMissionReader
           - LuaParser
+      version:
+        description: 'Version for manual release'
+        required: false
+        default: '0.0.0'
       create_release:
-        description: 'Create GitHub Release?'
+        description: 'Create GitHub Release? (manual only)'
         required: false
         default: false
         type: boolean
 
 jobs:
   build:
-    name: Build All Apps
+    name: Build Apps
     runs-on: windows-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout
@@ -46,7 +50,6 @@ jobs:
           $solutions = @(Get-ChildItem -Path . -Recurse -Filter *.sln -File |
               Where-Object { $_.FullName -notmatch '\\bin\\' -and $_.FullName -notmatch '\\obj\\' })
           if ($solutions.Count -eq 0) { throw "No .sln found" }
-          if ($solutions.Count -gt 1) { throw "Multiple .sln files found" }
 
           $solutionFile = $solutions[0]
           $solutionRelative = (Resolve-Path $solutionFile.FullName -Relative).TrimStart('.\\')
@@ -77,45 +80,81 @@ jobs:
           "SOLUTION=$solutionRelative" >> $env:GITHUB_OUTPUT
           "APPS_JSON=$appsJson" >> $env:GITHUB_OUTPUT
 
-      - name: Build & Package Apps
+      - name: Determine Release Target
+        id: target
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/*') {
+              $tag = $env:GITHUB_REF -replace 'refs/tags/', ''
+              if ($tag -match '^(.*)-v(.+)$') {
+                  $appName = $matches[1]
+                  $version = $matches[2]
+                  Write-Host "Tag-based release detected: App=$appName, Version=$version"
+                  "IS_TAG_RELEASE=true" >> $env:GITHUB_OUTPUT
+                  "TARGET_APP=$appName" >> $env:GITHUB_OUTPUT
+                  "TARGET_VERSION=$version" >> $env:GITHUB_OUTPUT
+              } else {
+                  Write-Host "Tag does not match AppName-vX.Y.Z pattern. Skipping release."
+                  "IS_TAG_RELEASE=false" >> $env:GITHUB_OUTPUT
+              }
+          } else {
+              "IS_TAG_RELEASE=false" >> $env:GITHUB_OUTPUT
+              if ('${{ github.event.inputs.app }}') {
+                  "TARGET_APP=${{ github.event.inputs.app }}" >> $env:GITHUB_OUTPUT
+                  "TARGET_VERSION=${{ github.event.inputs.version || '0.0.0' }}" >> $env:GITHUB_OUTPUT
+              }
+          }
+
+      - name: Build Selected Apps
         shell: pwsh
         run: |
           $apps = $env:APPS_JSON | ConvertFrom-Json
-          $solution = $env:SOLUTION
+          $targetApp = '${{ steps.target.outputs.TARGET_APP }}'
+          $isTagRelease = '${{ steps.target.outputs.IS_TAG_RELEASE }}' -eq 'true'
 
-          foreach ($app in $apps) {
-              Write-Host "=== Processing $($app.BaseName) ==="
+          $appsToBuild = $apps
+          if ($isTagRelease -and $targetApp) {
+              $appsToBuild = @($apps | Where-Object { $_.BaseName -eq $targetApp })
+              if ($appsToBuild.Count -eq 0) {
+                  throw "App '$targetApp' not found in solution."
+              }
+          }
+
+          foreach ($app in $appsToBuild) {
+              Write-Host "=== Building $($app.BaseName) ==="
 
               $publishDir = "publish/$($app.BaseName)"
               dotnet publish $app.RelativePath -c Release -r win-x64 `
                   --self-contained true -p:PublishSingleFile=true `
                   -o $publishDir
 
-              # Build installer using reusable .iss
-              choco install innosetup -y | Out-Null
+              # Version for this build
+              $version = '${{ steps.target.outputs.TARGET_VERSION }}'
+              if (-not $version) { $version = '0.0.0' }
 
+              # Build installer
+              choco install innosetup -y | Out-Null
               $setupDir = "_setup/$($app.BaseName)"
               New-Item -ItemType Directory -Force -Path $setupDir | Out-Null
 
               & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
                   "/DAppName=$($app.BaseName)" `
-                  "/DAppVersion=0.0.0" `          # TODO: Replace with real versioning
+                  "/DAppVersion=$version" `
                   "/DPublishDir=$publishDir" `
                   "installer\installer.iss"
 
-              # Move the generated setup.exe
-              Move-Item "_setup\$($app.BaseName)-Setup-v0.0.0.exe" "$setupDir\$($app.BaseName)-Setup-v0.0.0.exe" -Force
+              # Rename and move installer
+              $installerName = "$($app.BaseName)-Setup-v$version.exe"
+              Move-Item "_setup\$installerName" "$setupDir\$installerName" -Force -ErrorAction SilentlyContinue
 
-              # Upload per-app artifacts
+              # Create zip
               Compress-Archive -Path "$publishDir\*" -DestinationPath "$($app.BaseName).zip" -Force
-
-              Write-Host "Artifacts created for $($app.BaseName)"
           }
 
-      - name: Upload Artifacts
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: DCSMissionInspector-Builds
+          name: builds
           path: |
             **/*.zip
             **/*-Setup-*.exe
@@ -125,7 +164,9 @@ jobs:
     name: Create Release
     runs-on: windows-latest
     needs: build
-    if: github.event.inputs.create_release == 'true'
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
     permissions:
       contents: write
 
@@ -133,13 +174,13 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: DCSMissionInspector-Builds
+          name: builds
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.app || 'manual' }}-v0.0.0
-          name: ${{ github.event.inputs.app || 'All Apps' }} v0.0.0
+          tag_name: ${{ github.ref_name }}
+          name: ${{ steps.target.outputs.TARGET_APP || github.ref_name }} ${{ steps.target.outputs.TARGET_VERSION || '' }}
           files: |
             **/*.zip
             **/*-Setup-*.exe
