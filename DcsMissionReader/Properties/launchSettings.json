@@ -2,7 +2,7 @@
   "profiles": {
     "DcsMissionReader": {
       "commandName": "Project",
-      "commandLineArgs": "--html --json --full --kml \"D:\\SavedGames\\DCS.openbeta\\Missions\\NTTR Test Mission Test AI times 4.miz\""
+      "commandLineArgs": "--html --json --full --kml \"C:\\Users\\vyper\\Source\\repos\\DCS-Missions\\missions\\Tomcat AA Practice PG\\Tomcat AA Practice TU-22M PG - AI Test.miz\""
     }
   }
 }

@@ -2,7 +2,8 @@ name: Build and Release Single Exe
 
 on:
   push:
-    branches: [ main ]
+    tags:
+      - 'v*.*.*.*'
     paths-ignore:
       - '.github/workflows/**'
   workflow_dispatch:
@@ -281,41 +282,30 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
-          git fetch --tags --force
-          $global:LASTEXITCODE = 0
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+              git fetch --tags --force
 
-          $latestTag = git tag --list "v[0-9]*.[0-9]*.[0-9]*.[0-9]*" --sort=-v:refname | Select-Object -First 1
-          $global:LASTEXITCODE = 0
+              $tagName = git tag --list "v[0-9]*.[0-9]*.[0-9]*.[0-9]*" --sort=-v:refname | Select-Object -First 1
 
-          if (-not $latestTag) {
-              $major = 1
-              $minor = 0
-              $patch = 0
-              $revision = 0
+              if (-not $tagName) {
+                  throw "No version tag was found. Create a tag like v1.0.0.0 or run this workflow from a tagged commit."
+              }
           } else {
-              $baseVer = $latestTag.TrimStart('v')
-
-              $parts = $baseVer -split '\.'
-              while ($parts.Count -lt 4) { $parts += '0' }
-              if ($parts.Count -gt 4) { $parts = $parts[0..3] }
-
-              $major = [int]$parts[0]
-              $minor = [int]$parts[1]
-              $patch = [int]$parts[2]
-              $revision = [int]$parts[3]
+              $tagName = "${{ github.ref_name }}"
           }
 
-          $revision++
+          if ($tagName -notmatch '^v\d+\.\d+\.\d+\.\d+$') {
+              throw "Invalid version tag '$tagName'. Expected format: vX.X.X.X"
+          }
 
-          $asmVer = "$major.$minor.$patch.$revision"
-          $fileVer = "$major.$minor.$patch.$revision"
+          $version = $tagName.TrimStart('v')
 
-          "VERSION=$asmVer" >> $env:GITHUB_OUTPUT
-          "FILE_VERSION=$fileVer" >> $env:GITHUB_OUTPUT
+          "VERSION=$version" >> $env:GITHUB_OUTPUT
+          "FILE_VERSION=$version" >> $env:GITHUB_OUTPUT
 
-          Write-Host "Latest existing tag: $latestTag"
-          Write-Host "Next Assembly/File Version: $asmVer"
-
+          Write-Host "Using version tag: $tagName"
+          Write-Host "Assembly/File Version: $version"
+          
       - name: Dotnet Publish
         shell: pwsh
         run: |
@@ -340,40 +330,6 @@ jobs:
           Compress-Archive -Path "./publish/*" -DestinationPath $zipFileName -Force
 
           "ZIP_FILE_NAME=$zipFileName" >> $env:GITHUB_ENV
-
-      - name: Create and Push Version Tag
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-
-          $tagName = "v${{ steps.versioning.outputs.VERSION }}"
-
-          git fetch --tags --force
-          $global:LASTEXITCODE = 0
-
-          git show-ref --tags --verify --quiet "refs/tags/$tagName"
-          $tagExists = ($global:LASTEXITCODE -eq 0)
-          $global:LASTEXITCODE = 0
-
-          if ($tagExists) {
-              Write-Host "Tag $tagName already exists — skipping tag creation"
-              exit 0
-          }
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git tag $tagName
-          if ($global:LASTEXITCODE -ne 0) {
-              throw "Failed to create local tag $tagName."
-          }
-
-          git push origin $tagName
-          if ($global:LASTEXITCODE -ne 0) {
-              throw "Failed to push tag $tagName."
-          }
-
-          Write-Host "Created and pushed tag $tagName"
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2

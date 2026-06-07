@@ -8,12 +8,10 @@ namespace DcsMissionReaderTests
     public class CoordinateConverterServiceTests
     {
         private readonly CoordinateConverterService _service;
-        private readonly Mock<ITheatreProjectionProvider> _mockProvider;
 
         public CoordinateConverterServiceTests()
         {
-            _mockProvider = new Mock<ITheatreProjectionProvider>();
-            _service = new CoordinateConverterService(_mockProvider.Object);
+            _service = new CoordinateConverterService();
         }
 
         [Theory]
