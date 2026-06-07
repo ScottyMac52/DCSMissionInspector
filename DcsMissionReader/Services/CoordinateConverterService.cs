@@ -103,29 +103,71 @@ namespace DcsMissionReader.Services
             return t == "persiangulf" || t == "pg" || t == "persian";
         }
 
-        private static (double lat, double lon) ConvertPersianGulf(double dcsX, double dcsY, bool highAccuracy = true)
+        private static (double lat, double lon) ConvertPersianGulf(double dcsX, double dcsZ, bool highAccuracy = true)
         {
-            // Single anchor calculated from the three calibration points you provided
-            // (Carrier + two inland points)
-            // This is the compromise that minimizes average error across your data
-            const double anchorLat = 27.35;
-            const double anchorLon = 55.42;
+            const double centralMeridian = 57.0;
+            const double falseEasting = 75755.99999999645;
+            const double falseNorthing = -2894933.0000000377;
+            const double k0 = 0.9996;
 
-            return ConvertGeneric(dcsX, dcsY, anchorLat, anchorLon);
+            const double a = 6378137.0;
+            const double f = 1.0 / 298.257223563;
+            const double e2 = f * (2 - f);
+            const double ePrime2 = e2 / (1.0 - e2);
+
+            double e1 = (1 - Math.Sqrt(1 - e2)) / (1 + Math.Sqrt(1 - e2));
+
+            // DCS PG projection axis mapping:
+            // DCS X  -> projected northing
+            // DCS Z / mission "y" -> projected easting
+            double projectedEasting = dcsZ;
+            double projectedNorthing = dcsX;
+
+            double x = (projectedEasting - falseEasting) / k0;
+            double y = (projectedNorthing - falseNorthing) / k0;
+
+            double mu = y / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256));
+
+            double phi1 = mu;
+
+            if (highAccuracy)
+            {
+                phi1 += (3 * e1 / 2 - 27 * Math.Pow(e1, 3) / 32) * Math.Sin(2 * mu)
+                      + (21 * e1 * e1 / 16 - 55 * Math.Pow(e1, 4) / 32) * Math.Sin(4 * mu)
+                      + (151 * Math.Pow(e1, 3) / 96) * Math.Sin(6 * mu)
+                      + (1097 * Math.Pow(e1, 4) / 512) * Math.Sin(8 * mu);
+            }
+            else
+            {
+                phi1 += (3 * e1 / 2) * Math.Sin(2 * mu);
+            }
+
+            double sinPhi1 = Math.Sin(phi1);
+            double cosPhi1 = Math.Cos(phi1);
+            double tanPhi1 = Math.Tan(phi1);
+
+            double N1 = a / Math.Sqrt(1 - e2 * sinPhi1 * sinPhi1);
+            double T1 = tanPhi1 * tanPhi1;
+            double C1 = ePrime2 * cosPhi1 * cosPhi1;
+            double R1 = a * (1 - e2) / Math.Pow(1 - e2 * sinPhi1 * sinPhi1, 1.5);
+            double D = x / N1;
+
+            double latRad = phi1 - (N1 * tanPhi1 / R1) *
+            (
+                D * D / 2
+                - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ePrime2) * Math.Pow(D, 4) / 24
+                + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ePrime2 - 3 * C1 * C1) * Math.Pow(D, 6) / 720
+            );
+
+            double lonRad = centralMeridian * Math.PI / 180.0 +
+            (
+                D
+                - (1 + 2 * T1 + C1) * Math.Pow(D, 3) / 6
+                + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * C1 + 24 * T1 * T1) * Math.Pow(D, 5) / 120
+            ) / cosPhi1;
+
+            return (latRad * 180.0 / Math.PI, lonRad * 180.0 / Math.PI);
         }
-
-        // Original attempt using the official DCS Transverse Mercator parameters for the Persian Gulf map, which is more complex and less accurate for your specific calibration points than the simplified anchor method above. Keeping this here for reference, but the single-anchor method provides better overall accuracy for your use case.
-        /*
-        private static (double lat, double lon) ConvertPersianGulf(double dcsX, double dcsY, bool highAccuracy = true)
-        {
-            // Calibrated anchor using your three real points (carrier + two inland)
-            // Best compromise for the whole map
-            const double anchorLat = 27.5;
-            const double anchorLon = 55.0;
-
-            return ConvertGeneric(dcsX, dcsY, anchorLat, anchorLon);
-        }
-        */
 
         /// <summary>
         /// High-precision conversion using the WGS 84 Reference Ellipsoid.

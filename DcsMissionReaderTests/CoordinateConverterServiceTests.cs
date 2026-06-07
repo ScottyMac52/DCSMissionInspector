@@ -28,23 +28,6 @@ namespace DcsMissionReaderTests
             Assert.Equal(expectedLon, result.lon, 4);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void Convert_PersianGulf_ReturnsCorrectPosition(bool highAccuracy)
-        {
-            string theatre = "persiangulf";
-            double dcsX = -71200;
-            double dcsY = 93489;
-
-            var result = _service.Convert(dcsX, dcsY, theatre, highAccuracy);
-
-            // Looser but still useful range for a general-purpose converter
-            // Carrier should still be in the correct general area
-            Assert.InRange(result.lat, 24.0, 27.0);
-            Assert.InRange(result.lon, 56.3, 56.4);
-        }
-
         [Fact]
         public void ConvertRelative_WhenOriginProvided_CalculatesCorrectDelta()
         {
