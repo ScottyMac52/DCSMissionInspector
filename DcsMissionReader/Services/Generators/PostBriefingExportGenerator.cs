@@ -4,7 +4,7 @@ using DcsMissionReader.Services.Interfaces;
 namespace DcsMissionReader.Services.Generators
 {
     /// <summary>
-    /// Export strategy for generating Google Earth KML post-briefing output
+    /// Export strategy for generating Google Earth KMZ post-briefing output
     /// from a zipped Tacview ACMI file.
     /// </summary>
     public sealed class PostBriefingExportGenerator(
@@ -42,7 +42,7 @@ namespace DcsMissionReader.Services.Generators
 
             Directory.CreateDirectory(context.ReportDir);
 
-            string outputKmlFilePath = ResolveOutputKmlPath(context);
+            string outputKmzFilePath = ResolveOutputKmlPath(context);
 
             var kmlOptions = new PostBriefingKmlOptions
             {
@@ -57,10 +57,10 @@ namespace DcsMissionReader.Services.Generators
 
             var result = postBriefingService.CreatePostBriefingKml(
                 acmiZipFilePath,
-                outputKmlFilePath,
+                outputKmzFilePath,
                 kmlOptions);
 
-            Console.WriteLine($" 🗺️ Post-brief KML created → {result.OutputKmlFilePath}");
+            Console.WriteLine($" 🗺️ Post-brief KMZ created → {result.OutputKmlFilePath}");
             Console.WriteLine($"    Group tracks:        {result.GroupTrackCount}");
             Console.WriteLine($"    Weapon employments:  {result.WeaponEmploymentCount}");
             Console.WriteLine($"    Weapon results:      {result.WeaponResultCount}");
@@ -83,7 +83,7 @@ namespace DcsMissionReader.Services.Generators
 
             return Path.Combine(
                 context.ReportDir,
-                $"{cleanName}.postbrief.kml");
+                $"{cleanName}.postbrief.kmz");
         }
 
         private static string GetSortieNameFromAcmiZipPath(string? acmiZipFilePath)

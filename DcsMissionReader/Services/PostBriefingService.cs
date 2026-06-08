@@ -9,9 +9,9 @@ namespace DcsMissionReader.Services
     public sealed class PostBriefingService(IWeaponDatabaseService weaponDatabaseService) : IPostBriefingService
     {
         public PostBriefingKmlResult CreatePostBriefingKml(
-            string acmiZipFilePath,
-            string? outputKmlFilePath = null,
-            PostBriefingKmlOptions? options = null)
+        string acmiZipFilePath,
+        string? outputKmlFilePath = null,
+        PostBriefingKmlOptions? options = null)
         {
             if (string.IsNullOrWhiteSpace(acmiZipFilePath))
             {
@@ -24,13 +24,15 @@ namespace DcsMissionReader.Services
             }
 
             options ??= new PostBriefingKmlOptions();
-            outputKmlFilePath ??= CreateDefaultOutputPath(acmiZipFilePath);
+
+            outputKmlFilePath = EnsureKmzOutputPath(
+                outputKmlFilePath ?? CreateDefaultOutputPath(acmiZipFilePath));
 
             var parseResult = ParseZippedAcmi(acmiZipFilePath);
 
             string kml = BuildKml(parseResult, options);
 
-            File.WriteAllText(outputKmlFilePath, kml, Encoding.UTF8);
+            WritePostBriefingOutput(outputKmlFilePath, kml);
 
             return new PostBriefingKmlResult
             {
@@ -38,7 +40,9 @@ namespace DcsMissionReader.Services
                 OutputKmlFilePath = outputKmlFilePath,
                 GroupTrackCount = parseResult.GroupTracks.Count,
                 WeaponEmploymentCount = parseResult.WeaponEngagements.Count,
-                WeaponResultCount = parseResult.WeaponEngagements.Sum(e => e.Results.Count) + parseResult.UnmatchedWeaponResults.Count
+                WeaponResultCount =
+                    parseResult.WeaponEngagements.Sum(e => e.Results.Count)
+                    + parseResult.UnmatchedWeaponResults.Count
             };
         }
 
@@ -52,7 +56,90 @@ namespace DcsMissionReader.Services
                 fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileNameWithoutExtension);
             }
 
-            return Path.Combine(directory, $"{fileNameWithoutExtension}.postbrief.kml");
+            return Path.Combine(directory, $"{fileNameWithoutExtension}.postbrief.kmz");
+        }
+
+        private static string EnsureKmzOutputPath(string outputPath)
+        {
+            string directory = Path.GetDirectoryName(outputPath) ?? Environment.CurrentDirectory;
+            string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(outputPath);
+
+            if (outputPath.EndsWith(".postbrief.kml", StringComparison.OrdinalIgnoreCase))
+            {
+                fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileNameWithoutExtension);
+            }
+
+            return Path.Combine(directory, $"{fileNameWithoutExtension}.kmz");
+        }
+
+        private static void WritePostBriefingOutput(
+            string outputFilePath,
+            string kml)
+        {
+            string kmzOutputPath = EnsureKmzOutputPath(outputFilePath);
+
+            string? outputDirectory = Path.GetDirectoryName(kmzOutputPath);
+
+            if (!string.IsNullOrWhiteSpace(outputDirectory))
+            {
+                Directory.CreateDirectory(outputDirectory);
+            }
+
+            WriteKmz(kmzOutputPath, kml);
+        }
+
+        private static void WriteKmz(
+            string outputKmzFilePath,
+            string kml)
+        {
+            if (File.Exists(outputKmzFilePath))
+            {
+                File.Delete(outputKmzFilePath);
+            }
+
+            using ZipArchive archive = ZipFile.Open(outputKmzFilePath, ZipArchiveMode.Create);
+
+            ZipArchiveEntry kmlEntry = archive.CreateEntry("doc.kml", CompressionLevel.Optimal);
+
+            using (Stream stream = kmlEntry.Open())
+            using (StreamWriter writer = new(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
+            {
+                writer.Write(kml);
+            }
+
+            AddIconToKmzIfAvailable(archive, "missile.png");
+            AddIconToKmzIfAvailable(archive, "bomb.png");
+            AddIconToKmzIfAvailable(archive, "sam.png");
+        }
+
+        private static void AddIconToKmzIfAvailable(
+            ZipArchive archive,
+            string iconFileName)
+        {
+            string? iconPath = FindKmlIconPath(iconFileName);
+
+            if (string.IsNullOrWhiteSpace(iconPath) || !File.Exists(iconPath))
+            {
+                return;
+            }
+
+            archive.CreateEntryFromFile(
+                iconPath,
+                $"icons/{iconFileName}",
+                CompressionLevel.Optimal);
+        }
+
+        private static string? FindKmlIconPath(string iconFileName)
+        {
+            string[] candidatePaths =
+            [
+                Path.Combine(AppContext.BaseDirectory, "Data", "KmlIcons", iconFileName),
+                Path.Combine(Environment.CurrentDirectory, "Data", "KmlIcons", iconFileName),
+                Path.Combine(AppContext.BaseDirectory, "KmlIcons", iconFileName),
+                Path.Combine(Environment.CurrentDirectory, "KmlIcons", iconFileName)
+            ];
+
+            return candidatePaths.FirstOrDefault(File.Exists);
         }
 
         private AcmiParseResult ParseZippedAcmi(string zipFilePath)
@@ -79,8 +166,8 @@ namespace DcsMissionReader.Services
         {
             Dictionary<string, TacviewObjectTrack> objects = new(StringComparer.OrdinalIgnoreCase);
             List<TacviewEventRecord> events = new();
-            TacviewMissionInfo mission = new();
             List<TacviewRemovalRecord> removals = new();
+            TacviewMissionInfo mission = new();
 
             double currentTimeSeconds = 0;
             DateTimeOffset? referenceTimeUtc = null;
@@ -186,7 +273,6 @@ namespace DcsMissionReader.Services
                         referenceLatitude);
                 }
             }
-
             List<TacviewObjectTrack> groupTracks = objects.Values
                 .Where(o => !ShouldSuppressFromObjectTracks(o))
                 .Where(o => o.Samples.Count > 0)
@@ -201,19 +287,19 @@ namespace DcsMissionReader.Services
                 .Select(o => CreateWeaponEmployment(o, objects))
                 .ToList();
 
+            List<TacviewWeaponResult> weaponResults = events
+                .Where(e =>
+                    e.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
+                    || e.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
+                .Select(e => CreateWeaponResult(e, objects))
+                .ToList();
+
             List<TacviewObjectTrack> weaponTracks = objects.Values
                 .Where(o => o.IsWeapon)
                 .Where(o => o.Samples.Count > 0)
                 .Where(IsKnownDatabaseWeapon)
                 .OrderBy(o => o.Name ?? o.ObjectId, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(o => o.ObjectId, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            List<TacviewWeaponResult> weaponResults = events
-                .Where(e =>
-                    e.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
-                    || e.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
-                .Select(e => CreateWeaponResult(e, objects))
                 .ToList();
 
             weaponResults.AddRange(
@@ -237,9 +323,9 @@ namespace DcsMissionReader.Services
         }
 
         private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromRemovals(
-    IReadOnlyList<TacviewRemovalRecord> removals,
-    IReadOnlyDictionary<string, TacviewObjectTrack> objects,
-    IReadOnlyList<TacviewObjectTrack> weaponTracks)
+            IReadOnlyList<TacviewRemovalRecord> removals,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
+            IReadOnlyList<TacviewObjectTrack> weaponTracks)
         {
             var results = new List<TacviewWeaponResult>();
 
@@ -475,37 +561,7 @@ namespace DcsMissionReader.Services
                 if (key.Equals("Event", StringComparison.OrdinalIgnoreCase))
                 {
                     events.Add(ParseEvent(value, currentTimeSeconds, currentReferenceTimeUtc));
-                }
-
-                if (key.Equals("ReferenceTime", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (DateTimeOffset.TryParse(
-                            value,
-                            CultureInfo.InvariantCulture,
-                            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                            out DateTimeOffset parsedReferenceTime))
-                    {
-                        referenceTimeUtc = parsedReferenceTime;
-                    }
-
                     continue;
-                }
-
-                if (key.Equals("ReferenceLongitude", StringComparison.OrdinalIgnoreCase))
-                {
-                    referenceLongitude = ParseDoubleOrDefault(value);
-                    continue;
-                }
-
-                if (key.Equals("ReferenceLatitude", StringComparison.OrdinalIgnoreCase))
-                {
-                    referenceLatitude = ParseDoubleOrDefault(value);
-                    continue;
-                }
-
-                if (key.Equals("Event", StringComparison.OrdinalIgnoreCase))
-                {
-                    events.Add(ParseEvent(value, currentTimeSeconds, currentReferenceTimeUtc));
                 }
             }
         }
@@ -685,7 +741,12 @@ namespace DcsMissionReader.Services
             TacviewObjectTrack weapon,
             IReadOnlyDictionary<string, TacviewObjectTrack> objects)
         {
-            TacviewObjectTrack? shooter = ResolveWeaponShooter(weapon, objects);
+            TacviewObjectTrack? parent = null;
+
+            if (!string.IsNullOrWhiteSpace(weapon.ParentObjectId))
+            {
+                objects.TryGetValue(weapon.ParentObjectId, out parent);
+            }
 
             return new TacviewWeaponEmployment
             {
@@ -694,173 +755,14 @@ namespace DcsMissionReader.Services
                 WeaponType = weapon.Type,
                 ParentObjectId = weapon.ParentObjectId,
 
-                ParentName = shooter is null
+                // Prefer the flight/group name over the aircraft type.
+                // Example: "Springfield 1" is more useful than "F/A-18C".
+                ParentName = parent is null
                     ? null
-                    : GetDisplayName(shooter),
+                    : GetDisplayName(parent),
 
                 Position = weapon.Start!
             };
-        }
-
-        private static TacviewObjectTrack? ResolveWeaponShooter(
-    TacviewObjectTrack weapon,
-    IReadOnlyDictionary<string, TacviewObjectTrack> objects)
-        {
-            if (!string.IsNullOrWhiteSpace(weapon.ParentObjectId))
-            {
-                string parentId = weapon.ParentObjectId.Trim();
-
-                if (objects.TryGetValue(parentId, out TacviewObjectTrack? directParent))
-                {
-                    return directParent;
-                }
-
-                string normalizedParentId = NormalizeTacviewObjectId(parentId);
-
-                TacviewObjectTrack? normalizedParent = objects
-                    .FirstOrDefault(pair =>
-                        NormalizeTacviewObjectId(pair.Key)
-                            .Equals(normalizedParentId, StringComparison.OrdinalIgnoreCase))
-                    .Value;
-
-                if (normalizedParent is not null)
-                {
-                    return normalizedParent;
-                }
-            }
-
-            return FindClosestLikelyShooterAtLaunch(weapon, objects.Values);
-        }
-
-        private static string NormalizeTacviewObjectId(string value)
-        {
-            return value
-                .Trim()
-                .TrimStart('#')
-                .Trim('{', '}')
-                .Trim();
-        }
-
-        private static TacviewObjectTrack? FindClosestLikelyShooterAtLaunch(
-    TacviewObjectTrack weapon,
-    IEnumerable<TacviewObjectTrack> objects)
-        {
-            if (weapon.Start is null)
-            {
-                return null;
-            }
-
-            const double maxShooterDistanceMeters = 2_000.0;
-            const double maxTimeDifferenceSeconds = 5.0;
-
-            TacviewObjectTrack? bestObject = null;
-            double bestDistanceMeters = double.MaxValue;
-
-            foreach (TacviewObjectTrack candidate in objects)
-            {
-                if (candidate.ObjectId.Equals(weapon.ObjectId, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (candidate.IsWeapon)
-                {
-                    continue;
-                }
-
-                if (candidate.Samples.Count == 0)
-                {
-                    continue;
-                }
-
-                TacviewPositionSample? candidateSample =
-                    FindSampleClosestToTime(candidate.Samples, weapon.Start.TimeSeconds);
-
-                if (candidateSample is null)
-                {
-                    continue;
-                }
-
-                double timeDifference = Math.Abs(candidateSample.TimeSeconds - weapon.Start.TimeSeconds);
-
-                if (timeDifference > maxTimeDifferenceSeconds)
-                {
-                    continue;
-                }
-
-                double distanceMeters = CalculateDistanceMeters(
-                    weapon.Start.Latitude,
-                    weapon.Start.Longitude,
-                    candidateSample.Latitude,
-                    candidateSample.Longitude);
-
-                if (distanceMeters > maxShooterDistanceMeters)
-                {
-                    continue;
-                }
-
-                if (distanceMeters < bestDistanceMeters)
-                {
-                    bestDistanceMeters = distanceMeters;
-                    bestObject = candidate;
-                }
-            }
-
-            return bestObject;
-        }
-
-        private static TacviewPositionSample? FindSampleClosestToTime(
-    IReadOnlyList<TacviewPositionSample> samples,
-    double timeSeconds)
-        {
-            if (samples.Count == 0)
-            {
-                return null;
-            }
-
-            TacviewPositionSample bestSample = samples[0];
-            double bestDifference = Math.Abs(bestSample.TimeSeconds - timeSeconds);
-
-            for (int i = 1; i < samples.Count; i++)
-            {
-                double difference = Math.Abs(samples[i].TimeSeconds - timeSeconds);
-
-                if (difference < bestDifference)
-                {
-                    bestDifference = difference;
-                    bestSample = samples[i];
-                }
-            }
-
-            return bestSample;
-        }
-
-        private static double CalculateDistanceMeters(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2)
-        {
-            const double earthRadiusMeters = 6_371_000.0;
-
-            double lat1Rad = DegreesToRadians(lat1);
-            double lat2Rad = DegreesToRadians(lat2);
-            double deltaLatRad = DegreesToRadians(lat2 - lat1);
-            double deltaLonRad = DegreesToRadians(lon2 - lon1);
-
-            double a =
-                Math.Sin(deltaLatRad / 2.0) * Math.Sin(deltaLatRad / 2.0)
-                + Math.Cos(lat1Rad) * Math.Cos(lat2Rad)
-                * Math.Sin(deltaLonRad / 2.0) * Math.Sin(deltaLonRad / 2.0);
-
-            double c = 2.0 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1.0 - a));
-
-            return earthRadiusMeters * c;
-        }
-
-        private static double DegreesToRadians(double degrees)
-        {
-            return degrees * Math.PI / 180.0;
         }
 
         private static string GetShooterDisplayName(
@@ -1412,7 +1314,7 @@ namespace DcsMissionReader.Services
     <IconStyle>
         <scale>0.75</scale>
         <color>ff00ffff</color>
-        <Icon><href>https://maps.google.com/mapfiles/kml/shapes/target.png</href></Icon>
+        <Icon><href>icons/missile.png</href></Icon>
     </IconStyle>
     <LabelStyle><scale>0.75</scale></LabelStyle>
 </Style>
@@ -1432,8 +1334,7 @@ namespace DcsMissionReader.Services
 <Style id="weaponEmploymentBombStyle">
     <IconStyle>
         <scale>0.9</scale>
-        <color>ff00ffff</color>
-        <Icon><href>https://maps.google.com/mapfiles/kml/shapes/target.png</href></Icon>
+        <Icon><href>icons/bomb.png</href></Icon>
     </IconStyle>
     <LabelStyle><scale>0.85</scale></LabelStyle>
 </Style>
@@ -1443,14 +1344,21 @@ namespace DcsMissionReader.Services
 <Style id="weaponEmploymentMissileStyle">
     <IconStyle>
         <scale>0.9</scale>
-        <color>ff00ffff</color>
-        <Icon><href>https://maps.google.com/mapfiles/kml/shapes/track.png</href></Icon>
+        <Icon><href>icons/missile.png</href></Icon>
     </IconStyle>
     <LabelStyle><scale>0.85</scale></LabelStyle>
 </Style>
 """);
 
             builder.AppendLine("""
+<Style id="weaponEmploymentSamStyle">
+    <IconStyle>
+        <scale>0.9</scale>
+        <Icon><href>icons/sam.png</href></Icon>
+    </IconStyle>
+    <LabelStyle><scale>0.85</scale></LabelStyle>
+</Style>
+
 <Style id="weaponEmploymentBulletStyle">
     <IconStyle>
         <scale>0.8</scale>
@@ -1460,7 +1368,43 @@ namespace DcsMissionReader.Services
     <LabelStyle><scale>0.85</scale></LabelStyle>
 </Style>
 """);
+            builder.AppendLine("""
+<Style id="blueSamStartStyle">
+    <IconStyle>
+        <scale>1.1</scale>
+        <Icon><href>icons/sam.png</href></Icon>
+    </IconStyle>
+</Style>
+""");
 
+            builder.AppendLine("""
+<Style id="redSamStartStyle">
+    <IconStyle>
+        <scale>1.1</scale>
+        <Icon><href>icons/sam.png</href></Icon>
+    </IconStyle>
+</Style>
+""");
+
+            builder.AppendLine("""
+<Style id="neutralSamStartStyle">
+    <IconStyle>
+        <scale>1.1</scale>
+        <Icon><href>icons/sam.png</href></Icon>
+    </IconStyle>
+</Style>
+""");
+
+        }
+
+        private static void AppendFolderStart(
+            StringBuilder builder,
+            string name,
+            bool visible = true)
+        {
+            builder.AppendLine("<Folder>");
+            builder.AppendElement("name", name);
+            builder.AppendElement("visibility", visible ? "1" : "0");
         }
 
         private static void AppendGroupTracksFolder(
@@ -1703,6 +1647,11 @@ namespace DcsMissionReader.Services
             return earthRadiusMeters * c;
         }
 
+        private static double DegreesToRadians(double degrees)
+        {
+            return degrees * Math.PI / 180.0;
+        }
+
         private static void AppendWeaponsFolder(
             StringBuilder builder,
             IReadOnlyList<TacViewWeaponEngagement> engagements,
@@ -1782,7 +1731,7 @@ namespace DcsMissionReader.Services
                 $"Weapon Name: {employment.WeaponName ?? "Unknown"}\n" +
                 $"Weapon Type: {employment.WeaponType ?? "Unknown"}\n" +
                 $"Weapon Kind: {GetWeaponEmploymentKind(employment)}\n" +
-                $"Shooter: {employment.ParentName ?? $"Unknown Parent={employment.ParentObjectId ?? "None"}"}\n" +
+                $"Shooter: {employment.ParentName ?? employment.ParentObjectId ?? "Unknown"}\n" +
                 $"Launch Time: {FormatTime(employment.Position)}\n" +
                 $"Track Samples: {weapon.Samples.Count}\n" +
                 $"Result Count: {engagement.Results.Count}\n\n" +
@@ -1840,7 +1789,10 @@ namespace DcsMissionReader.Services
                 ? weapon.Name
                 : weapon.ObjectId;
 
-            AppendFolderStart(builder, "Weapon Track", visible: false);
+            AppendFolderStart(
+                builder,
+                "Weapon Track",
+                visible: false);
 
             if (sampledTrack.Count >= 2)
             {
@@ -1849,7 +1801,7 @@ namespace DcsMissionReader.Services
                     $"{displayName} Track",
                     BuildObjectDescription(weapon, options),
                     sampledTrack,
-                    "#weaponTrackStyle", false);
+                    "#weaponTrackStyle");
             }
 
             if (weapon.End is not null && !ReferenceEquals(weapon.Start, weapon.End))
@@ -1934,12 +1886,10 @@ namespace DcsMissionReader.Services
             string name,
             string description,
             TacviewPositionSample sample,
-            string? styleUrl = null,
-            bool visible = true)
+            string? styleUrl = null)
         {
             builder.AppendLine("<Placemark>");
             builder.AppendElement("name", name);
-            builder.AppendElement("visibility", visible ? "1" : "0");
             builder.AppendElement("description", description);
 
             if (!string.IsNullOrWhiteSpace(styleUrl))
@@ -1966,15 +1916,17 @@ namespace DcsMissionReader.Services
             StringBuilder builder,
             TacviewObjectTrack track,
             IReadOnlyList<TacviewPositionSample> sampledTrack,
-            PostBriefingKmlOptions options,
-            bool visible = false)
+            PostBriefingKmlOptions options)
         {
             if (sampledTrack.Count == 0)
             {
                 return;
             }
 
-            AppendFolderStart(builder, "Track Points", visible: false);
+            AppendFolderStart(
+                builder,
+                "Track Points",
+                visible: false);
 
             string styleUrl = GetSamplePointStyleUrl(track, options);
 
@@ -1984,7 +1936,6 @@ namespace DcsMissionReader.Services
 
                 builder.AppendLine("<Placemark>");
                 builder.AppendElement("name", $"Point {i + 1}");
-                builder.AppendElement("visibility", visible ? "1" : "0");
                 builder.AppendElement(
                     "description",
                     $"Object: {GetDisplayName(track)}\n" +
@@ -2044,11 +1995,10 @@ namespace DcsMissionReader.Services
             string name,
             string description,
             IReadOnlyList<TacviewPositionSample> samples,
-            string styleUrl, bool visible = true)
+            string styleUrl)
         {
             builder.AppendLine("<Placemark>");
             builder.AppendElement("name", name);
-            builder.AppendElement("visibility", visible ? "1" : "0");
             builder.AppendElement("description", description);
             builder.AppendLine($"<styleUrl>{styleUrl}</styleUrl>");
             builder.AppendLine("<LineString>");
@@ -2153,8 +2103,8 @@ namespace DcsMissionReader.Services
         }
 
         private static string GetStartStyleUrl(
-            TacviewObjectTrack track,
-            PostBriefingKmlOptions options)
+    TacviewObjectTrack track,
+    PostBriefingKmlOptions options)
         {
             string coalition = GetCoalitionPrefix(track, options);
             string objectKind = GetObjectKind(track);
@@ -2182,6 +2132,13 @@ namespace DcsMissionReader.Services
                     _ => "#neutralShipStartStyle"
                 },
 
+                "sam" => coalition switch
+                {
+                    "blue" => "#blueSamStartStyle",
+                    "red" => "#redSamStartStyle",
+                    _ => "#neutralSamStartStyle"
+                },
+
                 _ => coalition switch
                 {
                     "blue" => "#blueGroundStartStyle",
@@ -2190,6 +2147,7 @@ namespace DcsMissionReader.Services
                 }
             };
         }
+
 
         private static string GetCoalitionPrefix(
             TacviewObjectTrack track,
@@ -2522,39 +2480,17 @@ namespace DcsMissionReader.Services
             return builder.ToString();
         }
 
-        private static void AppendFolderStart(
-    StringBuilder builder,
-    string name,
-    bool visible = true)
-        {
-            builder.AppendLine("<Folder>");
-            builder.AppendElement("name", name);
-            builder.AppendElement("visibility", visible ? "1" : "0");
-        }
-
-        private static void AppendPlacemarkStart(
-            StringBuilder builder,
-            string name,
-            string description,
-            bool visible = true,
-            string? styleUrl = null)
-        {
-            builder.AppendLine("<Placemark>");
-            builder.AppendElement("name", name);
-            builder.AppendElement("visibility", visible ? "1" : "0");
-            builder.AppendElement("description", description);
-
-            if (!string.IsNullOrWhiteSpace(styleUrl))
-            {
-                builder.AppendLine($"<styleUrl>{styleUrl}</styleUrl>");
-            }
-        }
-
         private static string GetObjectKind(TacviewObjectTrack track)
         {
             string type = track.Type ?? string.Empty;
             string name = track.Name ?? string.Empty;
-            string combined = $"{type} {name}";
+            string group = track.Group ?? string.Empty;
+            string combined = $"{type} {name} {group}";
+
+            if (LooksLikeSam(combined))
+            {
+                return "sam";
+            }
 
             if (combined.Contains("Helicopter", StringComparison.OrdinalIgnoreCase)
                 || combined.Contains("Rotorcraft", StringComparison.OrdinalIgnoreCase)
@@ -2589,6 +2525,7 @@ namespace DcsMissionReader.Services
         {
             return GetWeaponEmploymentKind(employment) switch
             {
+                "sam" => "#weaponEmploymentSamStyle",
                 "bomb" => "#weaponEmploymentBombStyle",
                 "bullet" => "#weaponEmploymentBulletStyle",
                 _ => "#weaponEmploymentMissileStyle"
@@ -2599,6 +2536,11 @@ namespace DcsMissionReader.Services
         {
             string combined =
                 $"{employment.WeaponName} {employment.WeaponType}".Trim();
+
+            if (LooksLikeSam(combined))
+            {
+                return "sam";
+            }
 
             if (LooksLikeBomb(combined))
             {
@@ -2624,6 +2566,24 @@ namespace DcsMissionReader.Services
                 || value.Contains("fab", StringComparison.OrdinalIgnoreCase);
         }
 
+        private static bool LooksLikeSam(string value)
+        {
+            return value.Contains("SAM", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("SA-", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("S-300", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("S-400", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("Buk", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("Tor", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("Tunguska", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("Kub", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("Osa", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("Hawk", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("Patriot", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("Rapier", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("Roland", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("NASAMS", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static bool LooksLikeBullet(string value)
         {
             return value.Contains("bullet", StringComparison.OrdinalIgnoreCase)
@@ -2634,18 +2594,17 @@ namespace DcsMissionReader.Services
                 || value.Contains("projectile", StringComparison.OrdinalIgnoreCase);
         }
 
+        private sealed record TacviewRemovalRecord(
+            string ObjectId,
+            double TimeSeconds,
+            DateTimeOffset? AbsoluteTimeUtc);
+
         private sealed record AcmiParseResult(
             TacviewMissionInfo Mission,
             IReadOnlyList<TacviewObjectTrack> GroupTracks,
             IReadOnlyList<TacViewWeaponEngagement> WeaponEngagements,
             IReadOnlyList<TacviewWeaponResult> UnmatchedWeaponResults,
             DateTimeOffset? ReferenceTimeUtc);
-
-        private sealed record TacviewRemovalRecord(
-            string ObjectId,
-            double TimeSeconds,
-            DateTimeOffset? AbsoluteTimeUtc);
-
     }
 
     internal static class StringBuilderXmlExtensions
@@ -2680,5 +2639,4 @@ namespace DcsMissionReader.Services
         }
 
     }
-
 }

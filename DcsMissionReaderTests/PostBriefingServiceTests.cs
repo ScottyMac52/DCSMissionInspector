@@ -16,12 +16,14 @@ namespace DcsMissionReaderTests
             try
             {
                 string zipPath = Path.Combine(tempDirectory, "sample.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "sample.postbrief.kml");
+                string outputPath = Path.Combine(tempDirectory, "sample.postbrief.kmz");
 
                 CreateAcmiZip(zipPath, BuildSampleAcmi());
 
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
                     knownWeapons: ["AIM-120C"]);
+
+                EnsureKmlIconsAvailableForTest();
 
                 var service = new PostBriefingService(weaponDatabaseMock.Object);
 
@@ -32,9 +34,9 @@ namespace DcsMissionReaderTests
                 Assert.Equal(outputPath, result.OutputKmlFilePath);
                 Assert.Equal(2, result.GroupTrackCount);
                 Assert.Equal(1, result.WeaponEmploymentCount);
-                Assert.Equal(2, result.WeaponResultCount);
+                Assert.Equal(1, result.WeaponResultCount);
 
-                string kml = File.ReadAllText(outputPath);
+                string kml = ReadKmlFromKmz(outputPath);
 
                 Assert.Contains("<kml", kml);
                 Assert.Contains("Object Tracks", kml);
@@ -76,7 +78,7 @@ namespace DcsMissionReaderTests
             try
             {
                 string zipPath = Path.Combine(tempDirectory, "fuel-tank-test.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "fuel-tank-test.postbrief.kml");
+                string outputPath = Path.Combine(tempDirectory, "fuel-tank-test.postbrief.kmz");
 
                 CreateAcmiZip(zipPath, BuildAcmiWithFuelTankAndKnownWeapon());
 
@@ -93,7 +95,7 @@ namespace DcsMissionReaderTests
                 // Fuel tanks should not become weapon employments.
                 Assert.Equal(1, result.WeaponEmploymentCount);
 
-                string kml = File.ReadAllText(outputPath);
+                string kml = ReadKmlFromKmz(outputPath);
 
                 Assert.Contains("AIM-120C", kml);
                 Assert.DoesNotContain("Fuel Tank", kml, StringComparison.OrdinalIgnoreCase);
@@ -113,7 +115,7 @@ namespace DcsMissionReaderTests
             try
             {
                 string zipPath = Path.Combine(tempDirectory, "many-points.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "many-points.postbrief.kml");
+                string outputPath = Path.Combine(tempDirectory, "many-points.postbrief.kmz");
 
                 CreateAcmiZip(zipPath, BuildAcmiWithManyTrackPoints(pointCount: 20));
 
@@ -129,7 +131,7 @@ namespace DcsMissionReaderTests
 
                 service.CreatePostBriefingKml(zipPath, outputPath, options);
 
-                string kml = File.ReadAllText(outputPath);
+                string kml = ReadKmlFromKmz(outputPath);
 
                 Assert.Contains("Point 1", kml);
                 Assert.Contains("Point 5", kml);
@@ -164,7 +166,7 @@ namespace DcsMissionReaderTests
                 var result = service.CreatePostBriefingKml(zipPath);
 
                 Assert.True(File.Exists(result.OutputKmlFilePath));
-                Assert.EndsWith("mission.postbrief.kml", result.OutputKmlFilePath);
+                Assert.EndsWith("mission.postbrief.kmz", result.OutputKmlFilePath);
             }
             finally
             {
@@ -240,7 +242,7 @@ namespace DcsMissionReaderTests
             try
             {
                 string zipPath = Path.Combine(tempDirectory, "countermeasures.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "countermeasures.postbrief.kml");
+                string outputPath = Path.Combine(tempDirectory, "countermeasures.postbrief.kmz");
 
                 CreateAcmiZip(zipPath, BuildAcmiWithCountermeasures());
 
@@ -260,7 +262,7 @@ namespace DcsMissionReaderTests
                 // No known weapons were fired in this ACMI sample.
                 Assert.Equal(0, result.WeaponEmploymentCount);
 
-                string kml = File.ReadAllText(outputPath);
+                string kml = ReadKmlFromKmz(outputPath);
 
                 Assert.Contains("Springfield 1", kml);
                 Assert.DoesNotContain("Chaff", kml, StringComparison.OrdinalIgnoreCase);
@@ -282,7 +284,7 @@ namespace DcsMissionReaderTests
             try
             {
                 string zipPath = Path.Combine(tempDirectory, "allies-relative.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "allies-relative.postbrief.kml");
+                string outputPath = Path.Combine(tempDirectory, "allies-relative.postbrief.kmz");
 
                 CreateAcmiZip(zipPath, BuildAcmiWithTacviewRelativeAllies());
 
@@ -300,7 +302,7 @@ namespace DcsMissionReaderTests
 
                 service.CreatePostBriefingKml(zipPath, outputPath, options);
 
-                string kml = File.ReadAllText(outputPath);
+                string kml = ReadKmlFromKmz(outputPath);
 
                 Assert.Contains("Tacview Coalition: Allies", kml);
                 Assert.Contains("Tactical Side: Neutral/Unknown", kml);
@@ -321,7 +323,7 @@ namespace DcsMissionReaderTests
             try
             {
                 string zipPath = Path.Combine(tempDirectory, "bullseye.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "bullseye.postbrief.kml");
+                string outputPath = Path.Combine(tempDirectory, "bullseye.postbrief.kmz");
 
                 CreateAcmiZip(zipPath, BuildAcmiWithBullseye());
 
@@ -337,7 +339,7 @@ namespace DcsMissionReaderTests
                     InferBlueForKnownUsNavalAssets = true
                 });
 
-                string kml = File.ReadAllText(outputPath);
+                string kml = ReadKmlFromKmz(outputPath);
 
                 Assert.Contains("Blue Bullseye", kml);
                 Assert.Contains("#blueBullseyeStyle", kml);
@@ -361,7 +363,7 @@ namespace DcsMissionReaderTests
             try
             {
                 string zipPath = Path.Combine(tempDirectory, "mission-info.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "mission-info.postbrief.kml");
+                string outputPath = Path.Combine(tempDirectory, "mission-info.postbrief.kmz");
 
                 CreateAcmiZip(zipPath, BuildAcmiWithMissionMetadata());
 
@@ -375,7 +377,7 @@ namespace DcsMissionReaderTests
                 Assert.True(File.Exists(outputPath));
                 Assert.Equal(outputPath, result.OutputKmlFilePath);
 
-                string kml = File.ReadAllText(outputPath);
+                string kml = ReadKmlFromKmz(outputPath);
 
                 Assert.Contains("<name>Mission</name>", kml);
                 Assert.Contains("UH-1_MAR_IA_Weapons Range", kml);
@@ -417,7 +419,7 @@ namespace DcsMissionReaderTests
             try
             {
                 string zipPath = Path.Combine(tempDirectory, "escaped-commas.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "escaped-commas.postbrief.kml");
+                string outputPath = Path.Combine(tempDirectory, "escaped-commas.postbrief.kmz");
 
                 CreateAcmiZip(zipPath, BuildAcmiWithEscapedCommas());
 
@@ -428,7 +430,7 @@ namespace DcsMissionReaderTests
 
                 service.CreatePostBriefingKml(zipPath, outputPath);
 
-                string kml = File.ReadAllText(outputPath);
+                string kml = ReadKmlFromKmz(outputPath);
 
                 Assert.Contains("Mission With Escaped Commas", kml);
                 Assert.Contains("Rain, wind, and fog are present.", kml);
@@ -451,7 +453,7 @@ namespace DcsMissionReaderTests
             try
             {
                 string zipPath = Path.Combine(tempDirectory, "multiline-briefing.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "multiline-briefing.postbrief.kml");
+                string outputPath = Path.Combine(tempDirectory, "multiline-briefing.postbrief.kmz");
 
                 CreateAcmiZip(zipPath, BuildAcmiWithMultilineBriefing());
 
@@ -462,7 +464,7 @@ namespace DcsMissionReaderTests
 
                 service.CreatePostBriefingKml(zipPath, outputPath);
 
-                string kml = File.ReadAllText(outputPath);
+                string kml = ReadKmlFromKmz(outputPath);
 
                 Assert.Contains("<name>Mission</name>", kml);
                 Assert.Contains("Mission With Multiline Briefing", kml);
@@ -476,36 +478,37 @@ namespace DcsMissionReaderTests
             }
         }
 
+
         [Fact]
-        public void CreatePostBriefingKml_WithTacviewRemovalLines_CreatesSyntheticWeaponResults()
+        public void CreatePostBriefingKml_WithKmzOutput_EmbedsDocKmlAndWeaponIcons()
         {
             string tempDirectory = CreateTempDirectory();
 
             try
             {
-                string zipPath = Path.Combine(tempDirectory, "removal-results.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "removal-results.postbrief.kml");
+                string zipPath = Path.Combine(tempDirectory, "icons-test.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "icons-test.postbrief.kmz");
 
-                CreateAcmiZip(zipPath, BuildAcmiWithWeaponAndTargetRemovalResults());
+                CreateAcmiZip(zipPath, BuildSampleAcmi());
 
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
-                    knownWeapons: ["AIM_54C_Mk60"]);
+                    knownWeapons: ["AIM-120C"]);
+
+                EnsureKmlIconsAvailableForTest();
 
                 var service = new PostBriefingService(weaponDatabaseMock.Object);
 
                 var result = service.CreatePostBriefingKml(zipPath, outputPath);
 
-                Assert.Equal(1, result.WeaponEmploymentCount);
-                Assert.Equal(1, result.WeaponResultCount);
+                Assert.True(File.Exists(result.OutputKmlFilePath));
+                Assert.Equal(outputPath, result.OutputKmlFilePath);
 
-                string kml = File.ReadAllText(outputPath);
+                using ZipArchive archive = ZipFile.OpenRead(result.OutputKmlFilePath);
 
-                Assert.Contains("Weapons", kml);
-                Assert.Contains("AIM_54C_Mk60", kml);
-                Assert.Contains("Destroyed", kml);
-                Assert.Contains("Target Tu-22M3", kml);
-                Assert.Contains("Synthesized from Tacview removal records", kml);
-                Assert.Contains("#weaponResultStyle", kml);
+                Assert.NotNull(archive.GetEntry("doc.kml"));
+                Assert.NotNull(archive.GetEntry("icons/missile.png"));
+                Assert.NotNull(archive.GetEntry("icons/bomb.png"));
+                Assert.NotNull(archive.GetEntry("icons/sam.png"));
             }
             finally
             {
@@ -513,25 +516,83 @@ namespace DcsMissionReaderTests
             }
         }
 
-        private static string BuildAcmiWithWeaponAndTargetRemovalResults()
+        [Fact]
+        public void CreatePostBriefingKml_WithSamSiteAndLaunchedSam_UsesSamIconStyles()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "sam-test.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "sam-test.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithSamSiteAndLaunchedSam());
+                CreateTestKmlIcons(tempDirectory);
+
+                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                    knownWeapons: ["SA-10"]);
+
+                var service = new PostBriefingService(weaponDatabaseMock.Object);
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(result.OutputKmlFilePath));
+
+                string kml = ReadKmlFromKmz(result.OutputKmlFilePath);
+
+                Assert.Contains("#redSamStartStyle", kml);
+                Assert.Contains("#weaponEmploymentSamStyle", kml);
+                Assert.Contains("icons/sam.png", kml);
+                Assert.Contains("Weapon Kind: sam", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        private static void CreateTestKmlIcons(string tempDirectory)
+        {
+            string iconDirectory = Path.Combine(
+                Environment.CurrentDirectory,
+                "Data",
+                "KmlIcons");
+
+            Directory.CreateDirectory(iconDirectory);
+
+            File.WriteAllBytes(
+                Path.Combine(iconDirectory, "missile.png"),
+                CreateMinimalPngBytes());
+
+            File.WriteAllBytes(
+                Path.Combine(iconDirectory, "bomb.png"),
+                CreateMinimalPngBytes());
+
+            File.WriteAllBytes(
+                Path.Combine(iconDirectory, "sam.png"),
+                CreateMinimalPngBytes());
+        }
+
+        private static byte[] CreateMinimalPngBytes()
+        {
+            // 1x1 transparent PNG.
+            return Convert.FromBase64String(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=");
+        }
+
+        private static string BuildAcmiWithSamSiteAndLaunchedSam()
         {
             return """
            FileType=text/acmi/tacview
            FileVersion=2.2
-           0,ReferenceTime=2016-06-21T04:30:00Z
-           0,ReferenceLongitude=50
-           0,ReferenceLatitude=23
+           0,ReferenceTime=2026-06-07T20:00:00Z
            #0.00
-           100,Name=F-14B,Type=Air+FixedWing,Group=Colt 1,Color=Blue,Coalition=Enemies,T=5.00000000|4.00000000|10000|0|0|90
-           401,Name=Tu-22M3,Type=Air+FixedWing,Group=Target Tu-22M3,Color=Red,Coalition=Allies,T=5.20000000|4.20000000|8000|0|0|90
+           100,Name=SA-10 Site,Type=Ground+Vehicle+SAM,Group=SA-10 Battery,Color=Red,Coalition=Red,T=48.00000000|29.00000000|0|0|0|0
+           200,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Color=Blue,Coalition=Blue,T=48.10000000|29.10000000|5000|0|0|90
+           #5.00
+           300,Name=SA-10 Missile,Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Red,T=48.00010000|29.00010000|100|0|0|90
            #10.00
-           c01,Name=AIM_54C_Mk60,Type=Weapon+Missile,Parent=100,Color=Blue,Coalition=Enemies,T=5.01000000|4.01000000|10000|0|0|90
-           #20.00
-           c01,T=5.19000000|4.19000000|8100|0|0|90
-           401,T=5.20000000|4.20000000|8000|0|0|90
-           #21.00
-           -c01
-           -401
+           300,T=48.05000000|29.05000000|3000|0|0|90
            """;
         }
 
@@ -720,6 +781,57 @@ namespace DcsMissionReaderTests
             }
 
             return builder.ToString();
+        }
+
+
+
+        private static void EnsureKmlIconsAvailableForTest()
+        {
+            string iconDirectory = Path.Combine(Environment.CurrentDirectory, "Data", "KmlIcons");
+
+            Directory.CreateDirectory(iconDirectory);
+
+            WritePlaceholderIconIfMissing(Path.Combine(iconDirectory, "missile.png"));
+            WritePlaceholderIconIfMissing(Path.Combine(iconDirectory, "bomb.png"));
+            WritePlaceholderIconIfMissing(Path.Combine(iconDirectory, "sam.png"));
+        }
+
+        private static void WritePlaceholderIconIfMissing(string path)
+        {
+            if (File.Exists(path))
+            {
+                return;
+            }
+
+            // 1x1 transparent PNG.
+            byte[] png = new byte[]
+            {
+                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+                0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+                0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+                0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+                0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
+                0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+                0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+                0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+                0x42, 0x60, 0x82
+            };
+
+            File.WriteAllBytes(path, png);
+        }
+
+        private static string ReadKmlFromKmz(string kmzPath)
+        {
+            using ZipArchive archive = ZipFile.OpenRead(kmzPath);
+
+            ZipArchiveEntry? kmlEntry = archive.GetEntry("doc.kml");
+
+            Assert.NotNull(kmlEntry);
+
+            using Stream stream = kmlEntry.Open();
+            using StreamReader reader = new(stream);
+
+            return reader.ReadToEnd();
         }
 
         private static void CreateAcmiZip(string zipPath, string acmiContent)
