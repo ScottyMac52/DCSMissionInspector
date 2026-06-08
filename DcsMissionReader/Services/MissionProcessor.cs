@@ -102,6 +102,7 @@ namespace DcsMissionReader.Services
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "DCSMission_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempDir);
+            archiveService.ExtractToDirectory(mizPath, tempDir);
 
             try
             {

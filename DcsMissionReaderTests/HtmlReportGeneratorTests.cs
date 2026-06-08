@@ -522,5 +522,80 @@ namespace DcsMissionReaderTests
             Assert.Equal(105, targets[1].x);
             Assert.Equal(205, targets[1].y);
         }
+
+        [Fact]
+        public void Export_WithDictionaryBackedBriefingFields_RendersResolvedBriefingText()
+        {
+            // Arrange
+            var script = new Script();
+
+            var missionTable = new Table(script);
+
+            var dateTable = new Table(script);
+            dateTable.Set("Year", DynValue.NewNumber(2026));
+            dateTable.Set("Month", DynValue.NewNumber(6));
+            dateTable.Set("Day", DynValue.NewNumber(8));
+
+            missionTable.Set("date", DynValue.NewTable(dateTable));
+            missionTable.Set("start_time", DynValue.NewNumber(28800));
+            missionTable.Set("version", DynValue.NewString("23"));
+
+            missionTable.Set("descriptionText", DynValue.NewString("DictKey_descriptionText_1"));
+            missionTable.Set("descriptionBlueTask", DynValue.NewString("DictKey_descriptionBlueTask_3"));
+            missionTable.Set("descriptionRedTask", DynValue.NewString("DictKey_descriptionRedTask_2"));
+
+            var dictTable = new Table(script);
+            dictTable.Set("DictKey_descriptionText_1", DynValue.NewString("Actual briefing text from dictionary."));
+            dictTable.Set("DictKey_descriptionBlueTask_3", DynValue.NewString("Defend."));
+            dictTable.Set("DictKey_descriptionRedTask_2", DynValue.NewString("Destroy the AWACS."));
+
+            string testRoot = Path.Combine(Path.GetTempPath(), "DcsMissionReaderTests_" + Guid.NewGuid().ToString("N"));
+            string reportDir = Path.Combine(testRoot, "Report");
+            string tempDir = Path.Combine(testRoot, "Temp");
+
+            Directory.CreateDirectory(reportDir);
+            Directory.CreateDirectory(tempDir);
+
+            _fileMock.Setup(m => m.CopyKneeboards(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(0);
+
+            _threatDbMock.Setup(m => m.GetThreatData())
+                .Returns(new Dictionary<string, ThreatData>());
+
+            var context = new MissionContext
+            {
+                ReportDir = reportDir,
+                TempDir = tempDir,
+                Sortie = "Dictionary Test Mission",
+                MissionTable = missionTable,
+                DictTable = dictTable,
+                Options = new AppOptions { CreateHtml = true }
+            };
+
+            try
+            {
+                // Act
+                _generator.Export(context);
+
+                string htmlPath = Path.Combine(reportDir, "index.html");
+                string html = File.ReadAllText(htmlPath);
+
+                // Assert
+                Assert.Contains("Actual briefing text from dictionary.", html);
+                Assert.Contains("Defend.", html);
+                Assert.Contains("Destroy the AWACS.", html);
+
+                Assert.DoesNotContain("DictKey_descriptionText_1", html);
+                Assert.DoesNotContain("DictKey_descriptionBlueTask_3", html);
+                Assert.DoesNotContain("DictKey_descriptionRedTask_2", html);
+            }
+            finally
+            {
+                if (Directory.Exists(testRoot))
+                {
+                    Directory.Delete(testRoot, recursive: true);
+                }
+            }
+        }
     }
 }

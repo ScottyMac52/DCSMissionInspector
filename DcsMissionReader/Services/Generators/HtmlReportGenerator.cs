@@ -25,9 +25,9 @@ namespace DcsMissionReader.Services.Generators
             int kneeboardCount = fileManagementService.CopyKneeboards(context.TempDir, kneeboardsDir);
 
             string mapName = File.Exists(Path.Combine(context.TempDir, "theatre")) ? File.ReadAllText(Path.Combine(context.TempDir, "theatre")).Trim() : "Unknown";
-            string description = MissionUtils.Resolve(context.MissionTable.Get("descriptionText"), null);
-            string blueTask = MissionUtils.Resolve(context.MissionTable.Get("descriptionBlueTask"), null);
-            string redTask = MissionUtils.Resolve(context.MissionTable.Get("descriptionRedTask"), null);
+            string description = MissionUtils.Resolve(context.MissionTable.Get("descriptionText"), context.DictTable);
+            string blueTask = MissionUtils.Resolve(context.MissionTable.Get("descriptionBlueTask"), context.DictTable);
+            string redTask = MissionUtils.Resolve(context.MissionTable.Get("descriptionRedTask"), context.DictTable);
             var dateTable = context.MissionTable.Get("date").Table;
             string fullDate = $"{(int)dateTable.Get("Year").Number}-{(int)dateTable.Get("Month").Number:D2}-{(int)dateTable.Get("Day").Number:D2}";
             double startSec = context.MissionTable.Get("start_time").Number;

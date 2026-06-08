@@ -24,5 +24,11 @@ namespace DcsMissionReader.Services
             using var reader = new StreamReader(entry.Open());
             return await reader.ReadToEndAsync();
         }
+
+        public void ExtractToDirectory(string zipFilePath, string destinationDirectory)
+        {
+            Directory.CreateDirectory(destinationDirectory);
+            ZipFile.ExtractToDirectory(zipFilePath, destinationDirectory, overwriteFiles: true);
+        }
     }
 }
