@@ -476,6 +476,65 @@ namespace DcsMissionReaderTests
             }
         }
 
+        [Fact]
+        public void CreatePostBriefingKml_WithTacviewRemovalLines_CreatesSyntheticWeaponResults()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "removal-results.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "removal-results.postbrief.kml");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithWeaponAndTargetRemovalResults());
+
+                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                    knownWeapons: ["AIM_54C_Mk60"]);
+
+                var service = new PostBriefingService(weaponDatabaseMock.Object);
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = File.ReadAllText(outputPath);
+
+                Assert.Contains("Weapons", kml);
+                Assert.Contains("AIM_54C_Mk60", kml);
+                Assert.Contains("Destroyed", kml);
+                Assert.Contains("Target Tu-22M3", kml);
+                Assert.Contains("Synthesized from Tacview removal records", kml);
+                Assert.Contains("#weaponResultStyle", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        private static string BuildAcmiWithWeaponAndTargetRemovalResults()
+        {
+            return """
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+           0,ReferenceLongitude=50
+           0,ReferenceLatitude=23
+           #0.00
+           100,Name=F-14B,Type=Air+FixedWing,Group=Colt 1,Color=Blue,Coalition=Enemies,T=5.00000000|4.00000000|10000|0|0|90
+           401,Name=Tu-22M3,Type=Air+FixedWing,Group=Target Tu-22M3,Color=Red,Coalition=Allies,T=5.20000000|4.20000000|8000|0|0|90
+           #10.00
+           c01,Name=AIM_54C_Mk60,Type=Weapon+Missile,Parent=100,Color=Blue,Coalition=Enemies,T=5.01000000|4.01000000|10000|0|0|90
+           #20.00
+           c01,T=5.19000000|4.19000000|8100|0|0|90
+           401,T=5.20000000|4.20000000|8000|0|0|90
+           #21.00
+           -c01
+           -401
+           """;
+        }
+
         private static string BuildAcmiWithMissionMetadata()
         {
             return """

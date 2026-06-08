@@ -80,6 +80,7 @@ namespace DcsMissionReader.Services
             Dictionary<string, TacviewObjectTrack> objects = new(StringComparer.OrdinalIgnoreCase);
             List<TacviewEventRecord> events = new();
             TacviewMissionInfo mission = new();
+            List<TacviewRemovalRecord> removals = new();
 
             double currentTimeSeconds = 0;
             DateTimeOffset? referenceTimeUtc = null;
@@ -116,6 +117,21 @@ namespace DcsMissionReader.Services
                             out double parsedTime))
                     {
                         currentTimeSeconds = parsedTime;
+                    }
+
+                    continue;
+                }
+
+                if (line.StartsWith("-", StringComparison.Ordinal))
+                {
+                    string removedObjectId = line[1..].Trim();
+
+                    if (!string.IsNullOrWhiteSpace(removedObjectId))
+                    {
+                        removals.Add(new TacviewRemovalRecord(
+                            removedObjectId,
+                            currentTimeSeconds,
+                            AddSeconds(referenceTimeUtc, currentTimeSeconds)));
                     }
 
                     continue;
@@ -170,79 +186,6 @@ namespace DcsMissionReader.Services
                         referenceLatitude);
                 }
             }
-            /*
-            while ((line = reader.ReadLine()) is not null)
-            {
-                line = line.Trim();
-
-                if (line.Length == 0 || line.StartsWith("//", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                if (line.StartsWith("#", StringComparison.Ordinal))
-                {
-                    if (double.TryParse(
-                            line[1..],
-                            NumberStyles.Float,
-                            CultureInfo.InvariantCulture,
-                            out double parsedTime))
-                    {
-                        currentTimeSeconds = parsedTime;
-                    }
-
-                    continue;
-                }
-
-                int commaIndex = line.IndexOf(',');
-
-                if (commaIndex <= 0)
-                {
-                    continue;
-                }
-
-                string objectId = line[..commaIndex].Trim();
-                string payload = line[(commaIndex + 1)..].Trim();
-
-                if (objectId == "0")
-                {
-                    ParseGlobalOrEventPayload(
-                        payload,
-                        currentTimeSeconds,
-                        referenceTimeUtc,
-                        events,
-                        ref referenceLongitude,
-                        ref referenceLatitude,
-                        ref referenceTimeUtc);
-
-                    continue;
-                }
-
-                TacviewObjectTrack track = GetOrCreateObject(objects, objectId);
-
-                foreach (string token in SplitPropertyTokens(payload))
-                {
-                    int equalsIndex = token.IndexOf('=');
-
-                    if (equalsIndex <= 0)
-                    {
-                        continue;
-                    }
-
-                    string key = token[..equalsIndex].Trim();
-                    string value = token[(equalsIndex + 1)..].Trim();
-
-                    ApplyObjectProperty(
-                        track,
-                        key,
-                        value,
-                        currentTimeSeconds,
-                        referenceTimeUtc,
-                        referenceLongitude,
-                        referenceLatitude);
-                }
-            }
-            */
 
             List<TacviewObjectTrack> groupTracks = objects.Values
                 .Where(o => !ShouldSuppressFromObjectTracks(o))
@@ -258,13 +201,6 @@ namespace DcsMissionReader.Services
                 .Select(o => CreateWeaponEmployment(o, objects))
                 .ToList();
 
-            List<TacviewWeaponResult> weaponResults = events
-                .Where(e =>
-                    e.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
-                    || e.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
-                .Select(e => CreateWeaponResult(e, objects))
-                .ToList();
-
             List<TacviewObjectTrack> weaponTracks = objects.Values
                 .Where(o => o.IsWeapon)
                 .Where(o => o.Samples.Count > 0)
@@ -272,6 +208,19 @@ namespace DcsMissionReader.Services
                 .OrderBy(o => o.Name ?? o.ObjectId, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(o => o.ObjectId, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+            List<TacviewWeaponResult> weaponResults = events
+                .Where(e =>
+                    e.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
+                    || e.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
+                .Select(e => CreateWeaponResult(e, objects))
+                .ToList();
+
+            weaponResults.AddRange(
+                CreateWeaponResultsFromRemovals(
+                    removals,
+                    objects,
+                    weaponTracks));
 
             List<TacViewWeaponEngagement> weaponEngagements = CreateWeaponEngagements(
                 weaponTracks,
@@ -285,6 +234,83 @@ namespace DcsMissionReader.Services
                 weaponEngagements,
                 unmatchedWeaponResults,
                 referenceTimeUtc);
+        }
+
+        private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromRemovals(
+    IReadOnlyList<TacviewRemovalRecord> removals,
+    IReadOnlyDictionary<string, TacviewObjectTrack> objects,
+    IReadOnlyList<TacviewObjectTrack> weaponTracks)
+        {
+            var results = new List<TacviewWeaponResult>();
+
+            Dictionary<string, TacviewObjectTrack> weaponTracksById = weaponTracks
+                .ToDictionary(w => w.ObjectId, StringComparer.OrdinalIgnoreCase);
+
+            List<TacviewRemovalRecord> targetRemovals = removals
+                .Where(r => objects.TryGetValue(r.ObjectId, out TacviewObjectTrack? removedObject)
+                    && !removedObject.IsWeapon
+                    && !IsSuppressedResultObject(removedObject))
+                .ToList();
+
+            foreach (TacviewRemovalRecord weaponRemoval in removals)
+            {
+                if (!weaponTracksById.TryGetValue(
+                        weaponRemoval.ObjectId,
+                        out TacviewObjectTrack? weapon))
+                {
+                    continue;
+                }
+
+                TacviewRemovalRecord? matchingTargetRemoval = targetRemovals
+                    .Where(r => Math.Abs(r.TimeSeconds - weaponRemoval.TimeSeconds) <= 0.25)
+                    .Where(r => !r.ObjectId.Equals(weaponRemoval.ObjectId, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(r => Math.Abs(r.TimeSeconds - weaponRemoval.TimeSeconds))
+                    .FirstOrDefault();
+
+                if (matchingTargetRemoval is not null
+                    && objects.TryGetValue(matchingTargetRemoval.ObjectId, out TacviewObjectTrack? target))
+                {
+                    results.Add(new TacviewWeaponResult
+                    {
+                        EventType = "Destroyed",
+                        TimeSeconds = weaponRemoval.TimeSeconds,
+                        AbsoluteTimeUtc = weaponRemoval.AbsoluteTimeUtc,
+                        SourceObjectId = weapon.ObjectId,
+                        SourceName = weapon.Name,
+                        TargetObjectId = target.ObjectId,
+                        TargetName = GetDisplayName(target),
+                        Outcome = "Object removed at same Tacview time as weapon",
+                        Description = $"Synthesized from Tacview removal records: -{weapon.ObjectId} and -{target.ObjectId}",
+                        Position = target.End ?? weapon.End
+                    });
+
+                    continue;
+                }
+
+                results.Add(new TacviewWeaponResult
+                {
+                    EventType = "Timeout",
+                    TimeSeconds = weaponRemoval.TimeSeconds,
+                    AbsoluteTimeUtc = weaponRemoval.AbsoluteTimeUtc,
+                    SourceObjectId = weapon.ObjectId,
+                    SourceName = weapon.Name,
+                    TargetObjectId = null,
+                    TargetName = null,
+                    Outcome = "Weapon removed without matching target removal",
+                    Description = $"Synthesized from Tacview removal record: -{weapon.ObjectId}",
+                    Position = weapon.End
+                });
+            }
+
+            return results;
+        }
+
+        private static bool IsSuppressedResultObject(TacviewObjectTrack track)
+        {
+            string combined = $"{track.Name} {track.Type} {track.Group}";
+
+            return IsCountermeasureOrDecoy(combined)
+                || IsJettisonedStore(combined);
         }
 
         private bool ShouldSuppressFromObjectTracks(TacviewObjectTrack track)
@@ -2583,6 +2609,12 @@ namespace DcsMissionReader.Services
             IReadOnlyList<TacViewWeaponEngagement> WeaponEngagements,
             IReadOnlyList<TacviewWeaponResult> UnmatchedWeaponResults,
             DateTimeOffset? ReferenceTimeUtc);
+
+        private sealed record TacviewRemovalRecord(
+            string ObjectId,
+            double TimeSeconds,
+            DateTimeOffset? AbsoluteTimeUtc);
+
     }
 
     internal static class StringBuilderXmlExtensions
