@@ -513,12 +513,12 @@ namespace DcsMissionReaderTests
             Assert.Equal(2, targets.Count);
 
             // First target should resolve by Group ID and pull coordinates from the unit
-            Assert.Equal("Convoy Bravo", targets[0].name);
+            Assert.Equal("Task: Convoy Bravo", targets[0].name);
             Assert.Equal(100, targets[0].x);
             Assert.Equal(200, targets[0].y);
 
             // Second target should resolve by Coordinate Proximity
-            Assert.Equal("Strike: BTR-80", targets[1].name);
+            Assert.Equal("Task: BTR-80", targets[1].name);
             Assert.Equal(105, targets[1].x);
             Assert.Equal(205, targets[1].y);
         }
