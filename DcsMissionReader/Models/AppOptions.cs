@@ -61,8 +61,28 @@
         public bool UninstallRegistration { get;  set; } = false;
 
         /// <summary>
+        /// Create a brief post-briefing report in KML format. This option indicates that the user wants to generate a simplified report of the mission's post-briefing information, which may include key events, outcomes, and other relevant data from the mission. When this option is enabled, the application will likely include a step in the processing pipeline to extract the necessary information from the mission files and convert it into KML format for output. The generated KML file can then be used for visualization or analysis of the mission's post-briefing data.
+        /// </summary>
+        public bool PostBrief { get; set; }
+
+        /// <summary>
+        /// Location of the .miz file to read for generating the post-briefing report. This property specifies the path to the DCS mission file that contains the data needed to create the post-briefing report. The application will read this .miz file, extract the relevant information, and use it to generate the KML output for the post-briefing report. If this property is not set or if the specified file does not exist, the application may display an error message or prompt the user to provide a valid .miz file path for generating the post-briefing report.
+        /// </summary>
+        public string? PostBriefAcmiZipFilePath { get; set; }
+
+        /// <summary>
+        /// Location to save the generated KML file for the post-briefing report. This property specifies the path where the application will save the KML output generated from the post-briefing report. If this property is not set, the application may use a default location or prompt the user to specify a valid output path for the KML file. The generated KML file can then be used for visualization or analysis of the mission's post-briefing data in mapping applications like Google Earth.
+        /// </summary>
+        public string? PostBriefKmlOutputPath { get; set; }
+
+        /// <summary>
         /// If no mission files are provided or certain switches are not specified, the application will consider the command line arguments to be invalid and will likely display an error message or prompt the user to provide valid input. This property checks if there are no mission files specified and none of the other options that would cause the application to exit early (like showing help or version information) are enabled. If this condition is true, it indicates that the user has not provided any valid input for the application to process, which can be considered an error state.
         /// </summary>
-        public bool HasErrors => MissionFiles.Count == 0 && !ShowHelp && !ShowVersion && !CheckRegistration && !InstallRegistration && !UninstallRegistration;
+        public bool HasErrors => !PostBrief && string.IsNullOrEmpty(PostBriefAcmiZipFilePath) && MissionFiles.Count == 0 && !ShowHelp && !ShowVersion && !CheckRegistration && !InstallRegistration && !UninstallRegistration;
+
+        /// <summary>
+        /// Max number of track points per unit to include in the post-briefing KML report. This property allows the user to specify a limit on the number of track points that will be included in the generated KML file for the post-briefing report. Track points represent the movement and actions of units in the DCS mission, and including too many track points can lead to performance issues or excessively large KML files. By setting a maximum number of track points, the application can ensure that the generated KML file remains manageable and performs well when visualized in mapping applications. The default value is set to 75, but users can adjust this as needed based on their preferences and requirements for the post-briefing report.
+        /// </summary>
+        public int PostBriefMaxTrackPoints { get; internal set; } = 75;
     }
 }

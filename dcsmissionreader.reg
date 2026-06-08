@@ -2,7 +2,7 @@ Windows Registry Editor Version 5.00
 
 ; 1. Create the Parent Menu
 [HKEY_CLASSES_ROOT\miz_auto_file\shell\DCS]
-"SubCommands"="DCS.HTML;DCS.KML;DCS.JSON;DCS.Extract"
+"SubCommands"="DCS.HTML;DCS.KML;DCS.JSON;DCS.Extract;DCS.POST"
 
 ; 2. Define the individual sub-commands in the CommandStore
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.HTML]
@@ -12,7 +12,7 @@ Windows Registry Editor Version 5.00
 @="\"D:\\DcsMissionReader\\DcsMissionReader.exe\" \"%1\" --html true"
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.KML]
-@="Export KML"
+@="Export KML (Pre Brief)"
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.KML\command]
 @="\"D:\\DcsMissionReader\\DcsMissionReader.exe\" \"%1\" --kml true"
@@ -28,3 +28,12 @@ Windows Registry Editor Version 5.00
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\DCS.Extract\command]
 @="powershell.exe -WindowStyle Hidden -Command \"$p='%1'; $d=$p -replace '\\.miz$',''; $z=$p+'.zip'; Copy-Item -LiteralPath $p -Destination $z; Expand-Archive -LiteralPath $z -DestinationPath $d -Force; Remove-Item -LiteralPath $z\""
+
+[HKEY_CLASSES_ROOT\Tacview.ACMI\shell\DCSMissionPostBrief]
+@="Create DCS Mission Post-Brief KML"
+
+[HKEY_CLASSES_ROOT\Tacview.ACMI\shell\DCSMissionInspectorPostBrief\command]
+@="\"D:\\DcsMissionReader\\DcsMissionReader.exe\" --post-brief true \"%1\""
+
+
+

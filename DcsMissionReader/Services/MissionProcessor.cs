@@ -1,8 +1,6 @@
 ﻿using DcsMissionReader.Models;
 using DcsMissionReader.Services.Interfaces;
 using MoonSharp.Interpreter;
-using System.Text;
-using System.Text.Json;
 
 namespace DcsMissionReader.Services
 {
@@ -22,13 +20,22 @@ namespace DcsMissionReader.Services
 
         public async Task ProcessAsync(AppOptions options)
         {
-            bool anyExport = options.MissionFiles.Count > 0 && (options.CreateHtml || options.CreateJson || options.FullExport);
+            ArgumentNullException.ThrowIfNull(options);
+
+            if (options.PostBrief)
+            {
+                ProcessPostBriefing(options);
+                Console.WriteLine("✅ All done.");
+                return;
+            }
+
+            bool anyExport = options.MissionFiles.Count > 0 &&
+                (options.CreateHtml || options.CreateJson || options.FullExport);
 
             foreach (var mizPath in options.MissionFiles)
             {
                 Console.WriteLine($"📦 Processing: {Path.GetFileName(mizPath)}");
 
-                // FIX: Await the IO operation instead of blocking the thread with .Result
                 string missionData = await archiveService.GetMissionContentAsync(mizPath);
 
                 await ProcessSingleMissionAsync(mizPath, missionData, options, anyExport);
@@ -42,6 +49,48 @@ namespace DcsMissionReader.Services
         #endregion IMissionProcessor implementation
 
         #region Private helper methods
+
+        private void ProcessPostBriefing(AppOptions options)
+        {
+            if (string.IsNullOrWhiteSpace(options.PostBriefAcmiZipFilePath))
+            {
+                throw new InvalidOperationException(
+                    "--post-brief requires a zipped Tacview ACMI file path.");
+            }
+
+            if (!File.Exists(options.PostBriefAcmiZipFilePath))
+            {
+                throw new FileNotFoundException(
+                    "Post-briefing ACMI zip file was not found.",
+                    options.PostBriefAcmiZipFilePath);
+            }
+
+            string sortie = GetPostBriefSortieName(options.PostBriefAcmiZipFilePath);
+            string cleanName = MissionUtils.SanitizeFileName(sortie);
+
+            string reportDir = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                $"{cleanName}_PostBrief_Report");
+
+            Directory.CreateDirectory(reportDir);
+
+            var context = new MissionContext
+            {
+                MizPath = options.PostBriefAcmiZipFilePath,
+                Sortie = sortie,
+                ReportDir = reportDir,
+                TempDir = string.Empty,
+                Theatre = string.Empty,
+                Options = options
+            };
+
+            foreach (var strategy in strategies.Where(s => s.ShouldExport(options)))
+            {
+                strategy.Export(context);
+            }
+
+            Console.WriteLine($"📁 Post-brief exports complete → {context.ReportDir}");
+        }
 
         /// <summary>
         /// Processes a single mission file by extracting relevant data, resolving metadata, and delegating export tasks to the appropriate strategies based on the provided options. This method handles the core logic of reading the mission content, parsing it using MoonSharp, and generating output in various formats as specified by the command line options. It also includes error handling and cleanup of temporary files created during processing.   
@@ -104,7 +153,7 @@ namespace DcsMissionReader.Services
                 };
 
                 // 4. Delegation (Orchestration)
-                if (anyExport || options.CreateKml)
+                if (anyExport || options.CreateKml || options.PostBrief)
                 {
                     string cleanName = MissionUtils.SanitizeFileName(sortie);
                     string reportDir = Path.Combine(Directory.GetCurrentDirectory(), cleanName + "_Report");
@@ -129,6 +178,23 @@ namespace DcsMissionReader.Services
                 if (Directory.Exists(tempDir))
                     Directory.Delete(tempDir, recursive: true);
             }
+        }
+
+        private static string GetPostBriefSortieName(string acmiZipFilePath)
+        {
+            string fileName = Path.GetFileName(acmiZipFilePath);
+
+            if (fileName.EndsWith(".acmi.zip", StringComparison.OrdinalIgnoreCase))
+            {
+                return fileName[..^".acmi.zip".Length];
+            }
+
+            if (fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                return fileName[..^".zip".Length];
+            }
+
+            return Path.GetFileNameWithoutExtension(fileName);
         }
 
         #endregion Private helper methods

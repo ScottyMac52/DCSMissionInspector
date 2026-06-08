@@ -2,7 +2,7 @@
   "profiles": {
     "DcsMissionReader": {
       "commandName": "Project",
-      "commandLineArgs": "--html --json --full --kml \"C:\\Users\\vyper\\Source\\repos\\DCS-Missions\\missions\\Tomcat AA Practice PG\\Tomcat AA Practice TU-22M PG - AI Test.miz\""
+      "commandLineArgs": "--post-brief \"D:\\ACMI\\Tacview-20240303-152022-DCS-Marianis Carrier SEAD.zip.acmi\""
     }
   }
 }

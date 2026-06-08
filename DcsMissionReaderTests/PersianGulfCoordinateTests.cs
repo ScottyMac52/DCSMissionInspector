@@ -1,4 +1,6 @@
-﻿namespace DcsMissionReaderTests
+﻿using DcsMissionReader.Services;
+
+namespace DcsMissionReaderTests
 {
     public class PersianGulfCoordinateTests
     {
@@ -41,6 +43,32 @@
             // treating DCS X as easting and DCS Z/Y as northing is wrong for PG.
             Assert.NotEqual(expectedLat, result.lat, precision: 2);
             Assert.NotEqual(expectedLon, result.lon, precision: 2);
+        }
+
+        [Fact]
+        public void PersianGulf_LincolnCsgCoordinate_MatchesDcsMissionEditor()
+        {
+            // Arrange
+            double dcsX = 448865;
+            double dcsZ = -730142;
+
+            double expectedLat = DmsToDecimal(29, 57, 36.99);
+            double expectedLon = DmsToDecimal(48, 39, 44.50);
+
+            // Act
+            var actual = DcsCoordinateConverter.ConvertDcsToLatLon(
+                "PersianGulf",
+                dcsX,
+                dcsZ);
+
+            // Assert
+            Assert.InRange(actual.lat, expectedLat - 0.00001, expectedLat + 0.00001);
+            Assert.InRange(actual.lon, expectedLon - 0.00001, expectedLon + 0.00001);
+        }
+
+        private static double DmsToDecimal(int degrees, int minutes, double seconds)
+        {
+            return degrees + minutes / 60.0 + seconds / 3600.0;
         }
 
         private static (double lat, double lon) ConvertPersianGulf_Corrected(double dcsX, double dcsZ)

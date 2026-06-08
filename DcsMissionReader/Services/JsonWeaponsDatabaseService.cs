@@ -36,6 +36,48 @@ namespace DcsMissionReader.Services
             }
         }
 
+        public bool IsKnownWeapon(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            string cleanValue = NormalizeWeaponKey(value);
+
+            if (_weapons.ContainsKey(cleanValue))
+            {
+                return true;
+            }
+
+            foreach (var pair in _weapons)
+            {
+                WeaponData weapon = pair.Value;
+
+                if (!string.IsNullOrWhiteSpace(weapon.CLSID)
+                    && NormalizeWeaponKey(weapon.CLSID).Equals(cleanValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(weapon.DisplayName)
+                    && weapon.DisplayName.Equals(value, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(weapon.DisplayName)
+                    && cleanValue.Contains(
+                        NormalizeWeaponKey(weapon.DisplayName),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public string GetWeaponName(string clsid)
         {
             if (string.IsNullOrWhiteSpace(clsid)) return "Empty";
@@ -51,6 +93,15 @@ namespace DcsMissionReader.Services
             return cleanId.Length == 36
                 ? $"Unknown [{cleanId.Substring(0, 8)}]"
                 : cleanId.Replace("_", " ");
+        }
+
+        private static string NormalizeWeaponKey(string value)
+        {
+            return value
+                .Trim()
+                .Trim('{', '}')
+                .Replace("\"", string.Empty, StringComparison.Ordinal)
+                .Replace(" ", string.Empty, StringComparison.Ordinal);
         }
     }
 }

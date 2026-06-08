@@ -42,6 +42,12 @@ namespace DcsMissionReader.Services
                 InstallRegistration = argSet.Contains("-i") || argSet.Contains("--install") || argSet.Contains("--install-registration"),
                 UninstallRegistration = argSet.Contains("-u") || argSet.Contains("--uninstall") || argSet.Contains("--uninstall-registration"),
 
+                // Post-briefing ACMI/KML generation
+                PostBrief = argSet.Contains("--post-brief") || argSet.Contains("--post_brief") || argSet.Contains("--postbrief"),
+
+                // Post-briefing ACMI file: Filter everything that doesn't start with '-' and ends in .acmi.zip
+                PostBriefAcmiZipFilePath = args.Where(a => !a.StartsWith('-') && a.EndsWith(".zip.acmi", StringComparison.OrdinalIgnoreCase)).ToList().FirstOrDefault(),
+
                 // Files: Filter everything that doesn't start with '-' and ends in .miz
                 MissionFiles = args.Where(a => !a.StartsWith('-') && a.EndsWith(".miz", StringComparison.OrdinalIgnoreCase)).ToList()
             };
@@ -69,6 +75,8 @@ namespace DcsMissionReader.Services
             Console.WriteLine("  -f, --full, --full-export  Perform a full data export.");
             Console.WriteLine("  --metric, --real           Select output units (Metric or Imperial/Real).");
             Console.WriteLine("  -k, --kml, --google-earth  Generate KML files for mission routes.");
+            Console.WriteLine("  --post-brief <file.zip>    Generate post-brief KML from zipped Tacview ACMI.");
+            Console.WriteLine("  --post-brief-output <kml>  Optional output path for post-brief KML."); 
             Console.WriteLine("\nExample:");
             Console.WriteLine("  DcsMissionReader.exe --json --metric mission1.miz");
         }

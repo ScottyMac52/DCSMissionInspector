@@ -43,13 +43,14 @@ namespace DcsMissionReader
                 return 0; // Success exit code
             }
 
-            if(options.InstallRegistration || options.UninstallRegistration || options.CheckRegistration)
+            // 4. Handle registration options
+            if (options.InstallRegistration || options.UninstallRegistration || options.CheckRegistration)
             {
                 _commandLineService.HandleRegistration(options);
                 return 0; // Success exit code
             }
 
-            // 5. Execute
+            // 5. Process Missions
             await _missionProcessor.ProcessAsync(options);
 
             return 0; // Success exit code
