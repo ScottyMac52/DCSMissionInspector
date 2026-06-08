@@ -659,12 +659,7 @@ namespace DcsMissionReader.Services
             TacviewObjectTrack weapon,
             IReadOnlyDictionary<string, TacviewObjectTrack> objects)
         {
-            TacviewObjectTrack? parent = null;
-
-            if (!string.IsNullOrWhiteSpace(weapon.ParentObjectId))
-            {
-                objects.TryGetValue(weapon.ParentObjectId, out parent);
-            }
+            TacviewObjectTrack? shooter = ResolveWeaponShooter(weapon, objects);
 
             return new TacviewWeaponEmployment
             {
@@ -673,14 +668,173 @@ namespace DcsMissionReader.Services
                 WeaponType = weapon.Type,
                 ParentObjectId = weapon.ParentObjectId,
 
-                // Prefer the flight/group name over the aircraft type.
-                // Example: "Springfield 1" is more useful than "F/A-18C".
-                ParentName = parent is null
+                ParentName = shooter is null
                     ? null
-                    : GetDisplayName(parent),
+                    : GetDisplayName(shooter),
 
                 Position = weapon.Start!
             };
+        }
+
+        private static TacviewObjectTrack? ResolveWeaponShooter(
+    TacviewObjectTrack weapon,
+    IReadOnlyDictionary<string, TacviewObjectTrack> objects)
+        {
+            if (!string.IsNullOrWhiteSpace(weapon.ParentObjectId))
+            {
+                string parentId = weapon.ParentObjectId.Trim();
+
+                if (objects.TryGetValue(parentId, out TacviewObjectTrack? directParent))
+                {
+                    return directParent;
+                }
+
+                string normalizedParentId = NormalizeTacviewObjectId(parentId);
+
+                TacviewObjectTrack? normalizedParent = objects
+                    .FirstOrDefault(pair =>
+                        NormalizeTacviewObjectId(pair.Key)
+                            .Equals(normalizedParentId, StringComparison.OrdinalIgnoreCase))
+                    .Value;
+
+                if (normalizedParent is not null)
+                {
+                    return normalizedParent;
+                }
+            }
+
+            return FindClosestLikelyShooterAtLaunch(weapon, objects.Values);
+        }
+
+        private static string NormalizeTacviewObjectId(string value)
+        {
+            return value
+                .Trim()
+                .TrimStart('#')
+                .Trim('{', '}')
+                .Trim();
+        }
+
+        private static TacviewObjectTrack? FindClosestLikelyShooterAtLaunch(
+    TacviewObjectTrack weapon,
+    IEnumerable<TacviewObjectTrack> objects)
+        {
+            if (weapon.Start is null)
+            {
+                return null;
+            }
+
+            const double maxShooterDistanceMeters = 2_000.0;
+            const double maxTimeDifferenceSeconds = 5.0;
+
+            TacviewObjectTrack? bestObject = null;
+            double bestDistanceMeters = double.MaxValue;
+
+            foreach (TacviewObjectTrack candidate in objects)
+            {
+                if (candidate.ObjectId.Equals(weapon.ObjectId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (candidate.IsWeapon)
+                {
+                    continue;
+                }
+
+                if (candidate.Samples.Count == 0)
+                {
+                    continue;
+                }
+
+                TacviewPositionSample? candidateSample =
+                    FindSampleClosestToTime(candidate.Samples, weapon.Start.TimeSeconds);
+
+                if (candidateSample is null)
+                {
+                    continue;
+                }
+
+                double timeDifference = Math.Abs(candidateSample.TimeSeconds - weapon.Start.TimeSeconds);
+
+                if (timeDifference > maxTimeDifferenceSeconds)
+                {
+                    continue;
+                }
+
+                double distanceMeters = CalculateDistanceMeters(
+                    weapon.Start.Latitude,
+                    weapon.Start.Longitude,
+                    candidateSample.Latitude,
+                    candidateSample.Longitude);
+
+                if (distanceMeters > maxShooterDistanceMeters)
+                {
+                    continue;
+                }
+
+                if (distanceMeters < bestDistanceMeters)
+                {
+                    bestDistanceMeters = distanceMeters;
+                    bestObject = candidate;
+                }
+            }
+
+            return bestObject;
+        }
+
+        private static TacviewPositionSample? FindSampleClosestToTime(
+    IReadOnlyList<TacviewPositionSample> samples,
+    double timeSeconds)
+        {
+            if (samples.Count == 0)
+            {
+                return null;
+            }
+
+            TacviewPositionSample bestSample = samples[0];
+            double bestDifference = Math.Abs(bestSample.TimeSeconds - timeSeconds);
+
+            for (int i = 1; i < samples.Count; i++)
+            {
+                double difference = Math.Abs(samples[i].TimeSeconds - timeSeconds);
+
+                if (difference < bestDifference)
+                {
+                    bestDifference = difference;
+                    bestSample = samples[i];
+                }
+            }
+
+            return bestSample;
+        }
+
+        private static double CalculateDistanceMeters(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2)
+        {
+            const double earthRadiusMeters = 6_371_000.0;
+
+            double lat1Rad = DegreesToRadians(lat1);
+            double lat2Rad = DegreesToRadians(lat2);
+            double deltaLatRad = DegreesToRadians(lat2 - lat1);
+            double deltaLonRad = DegreesToRadians(lon2 - lon1);
+
+            double a =
+                Math.Sin(deltaLatRad / 2.0) * Math.Sin(deltaLatRad / 2.0)
+                + Math.Cos(lat1Rad) * Math.Cos(lat2Rad)
+                * Math.Sin(deltaLonRad / 2.0) * Math.Sin(deltaLonRad / 2.0);
+
+            double c = 2.0 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1.0 - a));
+
+            return earthRadiusMeters * c;
+        }
+
+        private static double DegreesToRadians(double degrees)
+        {
+            return degrees * Math.PI / 180.0;
         }
 
         private static string GetShooterDisplayName(
@@ -1523,11 +1677,6 @@ namespace DcsMissionReader.Services
             return earthRadiusMeters * c;
         }
 
-        private static double DegreesToRadians(double degrees)
-        {
-            return degrees * Math.PI / 180.0;
-        }
-
         private static void AppendWeaponsFolder(
             StringBuilder builder,
             IReadOnlyList<TacViewWeaponEngagement> engagements,
@@ -1607,7 +1756,7 @@ namespace DcsMissionReader.Services
                 $"Weapon Name: {employment.WeaponName ?? "Unknown"}\n" +
                 $"Weapon Type: {employment.WeaponType ?? "Unknown"}\n" +
                 $"Weapon Kind: {GetWeaponEmploymentKind(employment)}\n" +
-                $"Shooter: {employment.ParentName ?? employment.ParentObjectId ?? "Unknown"}\n" +
+                $"Shooter: {employment.ParentName ?? $"Unknown Parent={employment.ParentObjectId ?? "None"}"}\n" +
                 $"Launch Time: {FormatTime(employment.Position)}\n" +
                 $"Track Samples: {weapon.Samples.Count}\n" +
                 $"Result Count: {engagement.Results.Count}\n\n" +
