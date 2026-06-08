@@ -30,9 +30,9 @@ namespace DcsMissionReaderTests
                 Assert.True(File.Exists(outputPath));
                 Assert.Equal(zipPath, result.SourceAcmiZipFilePath);
                 Assert.Equal(outputPath, result.OutputKmlFilePath);
-                Assert.Equal(1, result.GroupTrackCount);
+                Assert.Equal(2, result.GroupTrackCount);
                 Assert.Equal(1, result.WeaponEmploymentCount);
-                Assert.Equal(1, result.WeaponResultCount);
+                Assert.Equal(2, result.WeaponResultCount);
 
                 string kml = File.ReadAllText(outputPath);
 
