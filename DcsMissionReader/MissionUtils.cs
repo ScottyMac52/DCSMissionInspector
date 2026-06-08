@@ -10,7 +10,7 @@ namespace DcsMissionReader
         /// <param name="val">The DynValue to resolve.</param>
         /// <param name="dictTable">The dictionary table used for resolving localized strings.</param>
         /// <returns>The resolved string.</returns>
-        public static string Resolve(DynValue val, Table dictTable)
+        public static string Resolve(DynValue val, Table? dictTable)
         {
             if (val.Type != DataType.String) return val.ToString() ?? string.Empty;
             string text = val.String;

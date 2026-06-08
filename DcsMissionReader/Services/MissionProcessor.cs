@@ -10,11 +10,9 @@ namespace DcsMissionReader.Services
     /// <remarks>
     /// Ctor
     /// </remarks>
-    /// <param name="threatService">The threat database service used to retrieve threat ranges for units.</param>
     /// <param name="archiveService"> The mission archive service used to read mission files and resources.</param>
-    /// <param name="converter">The coordinate converter service used to convert DCS coordinates to latitude and longitude.</param>
     /// <param name="strategies"> A collection of mission export strategies that determine how to export the processed mission data based on the provided options.</param>
-    public class MissionProcessor(IThreatDatabaseService threatService, IMissionArchiveService archiveService, ICoordinateConverterService converter, IEnumerable<IMissionExportStrategy> strategies) : IMissionProcessor
+    public class MissionProcessor(IMissionArchiveService archiveService, IEnumerable<IMissionExportStrategy> strategies) : IMissionProcessor
     {
         #region IMissionProcessor implementation
 

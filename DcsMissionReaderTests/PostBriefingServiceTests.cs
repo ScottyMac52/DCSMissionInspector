@@ -38,16 +38,25 @@ namespace DcsMissionReaderTests
 
                 Assert.Contains("<kml", kml);
                 Assert.Contains("Object Tracks", kml);
-                Assert.Contains("Weapon Employment", kml);
-                Assert.Contains("Weapon Results and Events", kml);
+                Assert.Contains("<name>Weapons</name>", kml);
+                Assert.Contains("<name>Weapon Information</name>", kml);
+                Assert.Contains("<name>Launch Point</name>", kml);
+                Assert.Contains("<name>Weapon Track</name>", kml);
+                Assert.Contains("<name>Weapon Results</name>", kml);
+
+                Assert.DoesNotContain("<name>Weapon Employment</name>", kml);
+                Assert.DoesNotContain("<name>Weapon Results and Events</name>", kml);
 
                 Assert.Contains("Springfield 1", kml);
                 Assert.DoesNotContain("Springfield 1 START", kml);
                 Assert.DoesNotContain("Springfield 1 END", kml);
 
                 Assert.Contains("AIM-120C", kml);
-                Assert.Contains("Destroyed", kml);
+                Assert.Contains("Weapon Fired - AIM-120C", kml);
+                Assert.Contains("AIM-120C Track", kml);
+                Assert.Contains("Destroyed - Target Truck", kml);
                 Assert.Contains("48.66236111,29.96027500,1500.00", kml);
+                Assert.Contains("48.70000000,29.98000000,0.00", kml);
 
                 weaponDatabaseMock.Verify(
                     x => x.IsKnownWeapon(It.IsAny<string>()),
@@ -408,7 +417,7 @@ namespace DcsMissionReaderTests
             try
             {
                 string zipPath = Path.Combine(tempDirectory, "escaped-commas.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "multiline-briefing.postbrief.kml");
+                string outputPath = Path.Combine(tempDirectory, "escaped-commas.postbrief.kml");
 
                 CreateAcmiZip(zipPath, BuildAcmiWithEscapedCommas());
 

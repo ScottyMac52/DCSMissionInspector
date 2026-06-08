@@ -12,7 +12,7 @@ namespace DcsMissionReader.Services
     {
         private readonly Dictionary<string, ThreatData> _threats;
 
-        public JsonThreatDatabaseService(string jsonFilePath = null)
+        public JsonThreatDatabaseService(string? jsonFilePath = null)
         {
             string path = jsonFilePath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "threats.json");
 

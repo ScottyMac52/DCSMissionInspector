@@ -21,9 +21,7 @@ namespace DcsMissionReaderTests
             mockStrategy.Setup(s => s.ShouldExport(It.IsAny<AppOptions>())).Returns(true);
 
             var processor = new MissionProcessor(
-                new Mock<IThreatDatabaseService>().Object,
                 mockArchive.Object,
-                new Mock<ICoordinateConverterService>().Object,
                 [mockStrategy.Object]
             );
 

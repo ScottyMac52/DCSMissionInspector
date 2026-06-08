@@ -13,7 +13,7 @@ namespace DcsMissionReader.Models
         string Side,
         double X,
         double Y,
-        Table Units,
-        Table RoutePoints
+        Table? Units,
+        Table? RoutePoints
     );
 }

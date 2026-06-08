@@ -135,4 +135,14 @@
 
         public TacviewPositionSample? Position { get; init; }
     }
+
+    public sealed class TacViewWeaponEngagement
+    {
+        public required TacviewObjectTrack WeaponTrack { get; init; }
+
+        public required TacviewWeaponEmployment Employment { get; init; }
+
+        public IReadOnlyList<TacviewWeaponResult> Results { get; init; } =
+            Array.Empty<TacviewWeaponResult>();
+    }
 }

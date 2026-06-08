@@ -37,8 +37,8 @@ namespace DcsMissionReader.Services
                 SourceAcmiZipFilePath = acmiZipFilePath,
                 OutputKmlFilePath = outputKmlFilePath,
                 GroupTrackCount = parseResult.GroupTracks.Count,
-                WeaponEmploymentCount = parseResult.WeaponEmployments.Count,
-                WeaponResultCount = parseResult.WeaponResults.Count
+                WeaponEmploymentCount = parseResult.WeaponEngagements.Count,
+                WeaponResultCount = parseResult.WeaponEngagements.Sum(e => e.Results.Count) + parseResult.UnmatchedWeaponResults.Count
             };
         }
 
@@ -273,12 +273,17 @@ namespace DcsMissionReader.Services
                 .ThenBy(o => o.ObjectId, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            return new AcmiParseResult(
-                mission,
-                groupTracks,
+            List<TacViewWeaponEngagement> weaponEngagements = CreateWeaponEngagements(
                 weaponTracks,
                 weaponEmployments,
                 weaponResults,
+                out List<TacviewWeaponResult> unmatchedWeaponResults);
+
+            return new AcmiParseResult(
+                mission,
+                groupTracks,
+                weaponEngagements,
+                unmatchedWeaponResults,
                 referenceTimeUtc);
         }
 
@@ -860,11 +865,13 @@ namespace DcsMissionReader.Services
 
             AppendPostBriefingStyles(builder);
 
-            AppendMissionFolder(builder, parseResult.Mission); 
+            AppendMissionFolder(builder, parseResult.Mission);
             AppendGroupTracksFolder(builder, parseResult.GroupTracks, options);
-            AppendWeaponTracksFolder(builder, parseResult.WeaponTracks, options);
-            AppendWeaponEmploymentsFolder(builder, parseResult.WeaponEmployments);
-            AppendWeaponResultsFolder(builder, parseResult.WeaponResults);
+            AppendWeaponsFolder(
+                builder,
+                parseResult.WeaponEngagements,
+                parseResult.UnmatchedWeaponResults,
+                options);
 
             builder.AppendLine("</Document>");
             builder.AppendLine("</kml>");
@@ -1397,95 +1404,355 @@ namespace DcsMissionReader.Services
             builder.AppendLine("</Placemark>");
         }
 
-        private static void AppendWeaponEmploymentsFolder(
+        private static List<TacViewWeaponEngagement> CreateWeaponEngagements(
+            IReadOnlyList<TacviewObjectTrack> weaponTracks,
+            IReadOnlyList<TacviewWeaponEmployment> weaponEmployments,
+            IReadOnlyList<TacviewWeaponResult> weaponResults,
+            out List<TacviewWeaponResult> unmatchedWeaponResults)
+        {
+            Dictionary<string, TacviewObjectTrack> tracksByWeaponId = weaponTracks
+                .ToDictionary(track => track.ObjectId, StringComparer.OrdinalIgnoreCase);
+
+            Dictionary<string, TacviewWeaponEmployment> employmentsByWeaponId = weaponEmployments
+                .GroupBy(employment => employment.WeaponObjectId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.First(),
+                    StringComparer.OrdinalIgnoreCase);
+
+            Dictionary<string, List<TacviewWeaponResult>> resultsByWeaponId =
+                new(StringComparer.OrdinalIgnoreCase);
+
+            unmatchedWeaponResults = new List<TacviewWeaponResult>();
+
+            foreach (TacviewWeaponResult result in weaponResults)
+            {
+                string? weaponId = ResolveWeaponResultWeaponId(result, weaponTracks);
+
+                if (!string.IsNullOrWhiteSpace(weaponId)
+                    && tracksByWeaponId.ContainsKey(weaponId))
+                {
+                    if (!resultsByWeaponId.TryGetValue(weaponId, out List<TacviewWeaponResult>? resultsForWeapon))
+                    {
+                        resultsForWeapon = new List<TacviewWeaponResult>();
+                        resultsByWeaponId[weaponId] = resultsForWeapon;
+                    }
+
+                    resultsForWeapon.Add(result);
+                    continue;
+                }
+
+                unmatchedWeaponResults.Add(result);
+            }
+
+            return weaponTracks
+                .Where(track => employmentsByWeaponId.ContainsKey(track.ObjectId))
+                .Select(track => new TacViewWeaponEngagement
+                {
+                    WeaponTrack = track,
+                    Employment = employmentsByWeaponId[track.ObjectId],
+                    Results = resultsByWeaponId.TryGetValue(track.ObjectId, out List<TacviewWeaponResult>? results)
+                        ? results
+                        : Array.Empty<TacviewWeaponResult>()
+                })
+                .OrderBy(engagement => engagement.Employment.Position.TimeSeconds)
+                .ThenBy(engagement => engagement.Employment.WeaponName ?? engagement.Employment.WeaponObjectId)
+                .ToList();
+        }
+
+        private static string? ResolveWeaponResultWeaponId(
+            TacviewWeaponResult result,
+            IReadOnlyList<TacviewObjectTrack> weaponTracks)
+        {
+            if (!string.IsNullOrWhiteSpace(result.SourceObjectId)
+                && weaponTracks.Any(track => track.ObjectId.Equals(result.SourceObjectId, StringComparison.OrdinalIgnoreCase)))
+            {
+                return result.SourceObjectId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.TargetObjectId)
+                && weaponTracks.Any(track => track.ObjectId.Equals(result.TargetObjectId, StringComparison.OrdinalIgnoreCase)))
+            {
+                return result.TargetObjectId;
+            }
+
+            if (result.Position is null)
+            {
+                return null;
+            }
+
+            var candidates = weaponTracks
+                .Where(track => track.Start is not null)
+                .Where(track => track.End is not null)
+                .Where(track => track.Start!.TimeSeconds <= result.TimeSeconds + 0.01)
+                .Select(track => new
+                {
+                    Track = track,
+                    DistanceMeters = CalculateDistanceMeters(track.End!, result.Position),
+                    DeltaTimeSeconds = result.TimeSeconds - track.End!.TimeSeconds
+                })
+                .Where(candidate => candidate.DistanceMeters <= 15000)
+                .Where(candidate => candidate.DeltaTimeSeconds >= -5 && candidate.DeltaTimeSeconds <= 300)
+                .OrderBy(candidate => candidate.DistanceMeters)
+                .ThenBy(candidate => Math.Abs(candidate.DeltaTimeSeconds))
+                .ToList();
+
+            return candidates.Count == 0
+                ? null
+                : candidates[0].Track.ObjectId;
+        }
+
+        private static double CalculateDistanceMeters(
+            TacviewPositionSample first,
+            TacviewPositionSample second)
+        {
+            const double earthRadiusMeters = 6371000.0;
+
+            double lat1 = DegreesToRadians(first.Latitude);
+            double lat2 = DegreesToRadians(second.Latitude);
+            double deltaLat = DegreesToRadians(second.Latitude - first.Latitude);
+            double deltaLon = DegreesToRadians(second.Longitude - first.Longitude);
+
+            double a =
+                Math.Sin(deltaLat / 2.0) * Math.Sin(deltaLat / 2.0)
+                + Math.Cos(lat1) * Math.Cos(lat2)
+                * Math.Sin(deltaLon / 2.0) * Math.Sin(deltaLon / 2.0);
+
+            double c = 2.0 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1.0 - a));
+
+            return earthRadiusMeters * c;
+        }
+
+        private static double DegreesToRadians(double degrees)
+        {
+            return degrees * Math.PI / 180.0;
+        }
+
+        private static void AppendWeaponsFolder(
             StringBuilder builder,
-            IReadOnlyList<TacviewWeaponEmployment> employments)
+            IReadOnlyList<TacViewWeaponEngagement> engagements,
+            IReadOnlyList<TacviewWeaponResult> unmatchedResults,
+            PostBriefingKmlOptions options)
         {
             builder.AppendLine("<Folder>");
-            builder.AppendLine("<name>Weapon Employment</name>");
+            builder.AppendLine("<name>Weapons</name>");
 
-            foreach (TacviewWeaponEmployment employment in employments)
+            foreach (TacViewWeaponEngagement engagement in engagements)
             {
-                string name = string.IsNullOrWhiteSpace(employment.WeaponName)
-                    ? employment.WeaponObjectId
-                    : employment.WeaponName;
+                AppendWeaponEngagementFolder(builder, engagement, options);
+            }
 
-                string description =
-                    $"Weapon Object: {employment.WeaponObjectId}\n" +
-                    $"Weapon Type: {employment.WeaponType ?? "Unknown"}\n" +
-                    $"Weapon Kind: {GetWeaponEmploymentKind(employment)}\n" +
-                    $"Shooter: {employment.ParentName ?? employment.ParentObjectId ?? "Unknown"}\n" +
-                    $"Time: {FormatTime(employment.Position)}";
-
-                AppendPointPlacemark(
-                    builder,
-                    $"Weapon Fired - {name}",
-                    description,
-                    employment.Position,
-                    GetWeaponEmploymentStyleUrl(employment));
+            if (unmatchedResults.Count > 0)
+            {
+                AppendUnmatchedWeaponResultsFolder(builder, unmatchedResults);
             }
 
             builder.AppendLine("</Folder>");
         }
 
-        private static void AppendWeaponTracksFolder(
-    StringBuilder builder,
-    IReadOnlyList<TacviewObjectTrack> weaponTracks,
-    PostBriefingKmlOptions options)
+        private static void AppendWeaponEngagementFolder(
+            StringBuilder builder,
+            TacViewWeaponEngagement engagement,
+            PostBriefingKmlOptions options)
+        {
+            string weaponName = string.IsNullOrWhiteSpace(engagement.Employment.WeaponName)
+                ? engagement.Employment.WeaponObjectId
+                : engagement.Employment.WeaponName;
+
+            string shooterName =
+                engagement.Employment.ParentName
+                ?? engagement.Employment.ParentObjectId
+                ?? "Unknown Shooter";
+
+            string folderName = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{weaponName} - {shooterName} - {FormatTime(engagement.Employment.Position)}");
+
+            builder.AppendLine("<Folder>");
+            builder.AppendElement("name", folderName);
+
+            AppendWeaponInformationFolder(builder, engagement, options);
+            AppendWeaponLaunchFolder(builder, engagement);
+            AppendWeaponTrackFolder(builder, engagement, options);
+            AppendWeaponResultsSubFolder(builder, engagement.Results);
+
+            builder.AppendLine("</Folder>");
+        }
+
+        private static void AppendWeaponInformationFolder(
+            StringBuilder builder,
+            TacViewWeaponEngagement engagement,
+            PostBriefingKmlOptions options)
         {
             builder.AppendLine("<Folder>");
-            builder.AppendLine("<name>Weapon Tracks</name>");
+            builder.AppendLine("<name>Weapon Information</name>");
+            builder.AppendLine("<Placemark>");
+            builder.AppendElement("name", "Weapon Information");
+            builder.AppendElement(
+                "description",
+                BuildWeaponEngagementDescription(engagement, options));
+            builder.AppendLine("</Placemark>");
+            builder.AppendLine("</Folder>");
+        }
 
-            foreach (TacviewObjectTrack weapon in weaponTracks)
+        private static string BuildWeaponEngagementDescription(
+            TacViewWeaponEngagement engagement,
+            PostBriefingKmlOptions options)
+        {
+            TacviewWeaponEmployment employment = engagement.Employment;
+            TacviewObjectTrack weapon = engagement.WeaponTrack;
+
+            return
+                $"Weapon Object: {employment.WeaponObjectId}\n" +
+                $"Weapon Name: {employment.WeaponName ?? "Unknown"}\n" +
+                $"Weapon Type: {employment.WeaponType ?? "Unknown"}\n" +
+                $"Weapon Kind: {GetWeaponEmploymentKind(employment)}\n" +
+                $"Shooter: {employment.ParentName ?? employment.ParentObjectId ?? "Unknown"}\n" +
+                $"Launch Time: {FormatTime(employment.Position)}\n" +
+                $"Track Samples: {weapon.Samples.Count}\n" +
+                $"Result Count: {engagement.Results.Count}\n\n" +
+                BuildObjectDescription(weapon, options);
+        }
+
+        private static void AppendWeaponLaunchFolder(
+            StringBuilder builder,
+            TacViewWeaponEngagement engagement)
+        {
+            TacviewWeaponEmployment employment = engagement.Employment;
+
+            string weaponName = string.IsNullOrWhiteSpace(employment.WeaponName)
+                ? employment.WeaponObjectId
+                : employment.WeaponName;
+
+            string description =
+                $"Weapon Object: {employment.WeaponObjectId}\n" +
+                $"Weapon Type: {employment.WeaponType ?? "Unknown"}\n" +
+                $"Weapon Kind: {GetWeaponEmploymentKind(employment)}\n" +
+                $"Shooter: {employment.ParentName ?? employment.ParentObjectId ?? "Unknown"}\n" +
+                $"Time: {FormatTime(employment.Position)}";
+
+            builder.AppendLine("<Folder>");
+            builder.AppendLine("<name>Launch Point</name>");
+
+            AppendPointPlacemark(
+                builder,
+                $"Weapon Fired - {weaponName}",
+                description,
+                employment.Position,
+                GetWeaponEmploymentStyleUrl(employment));
+
+            builder.AppendLine("</Folder>");
+        }
+
+        private static void AppendWeaponTrackFolder(
+            StringBuilder builder,
+            TacViewWeaponEngagement engagement,
+            PostBriefingKmlOptions options)
+        {
+            TacviewObjectTrack weapon = engagement.WeaponTrack;
+
+            if (weapon.Start is null)
             {
-                if (weapon.Start is null)
-                {
-                    continue;
-                }
+                return;
+            }
 
-                IReadOnlyList<TacviewPositionSample> sampledTrack =
-                    SelectEvenlyDistributedSamples(
-                        weapon.Samples,
-                        options.MaxTrackPointsPerObject);
+            IReadOnlyList<TacviewPositionSample> sampledTrack =
+                SelectEvenlyDistributedSamples(
+                    weapon.Samples,
+                    options.MaxTrackPointsPerObject);
 
-                string displayName = !string.IsNullOrWhiteSpace(weapon.Name)
-                    ? weapon.Name
-                    : weapon.ObjectId;
+            string displayName = !string.IsNullOrWhiteSpace(weapon.Name)
+                ? weapon.Name
+                : weapon.ObjectId;
 
-                builder.AppendLine("<Folder>");
-                builder.AppendElement("name", displayName);
+            builder.AppendLine("<Folder>");
+            builder.AppendLine("<name>Weapon Track</name>");
 
+            if (sampledTrack.Count >= 2)
+            {
+                AppendLineStringPlacemark(
+                    builder,
+                    $"{displayName} Track",
+                    BuildObjectDescription(weapon, options),
+                    sampledTrack,
+                    "#weaponTrackStyle");
+            }
+
+            if (weapon.End is not null && !ReferenceEquals(weapon.Start, weapon.End))
+            {
                 AppendPointPlacemark(
                     builder,
-                    $"{displayName} Launch",
-                    BuildObjectDescription(weapon, options),
-                    weapon.Start,
-                    "#weaponPointStyle");
-
-                if (sampledTrack.Count >= 2)
-                {
-                    AppendLineStringPlacemark(
-                        builder,
-                        $"{displayName} Track",
-                        BuildObjectDescription(weapon, options),
-                        sampledTrack,
-                        "#weaponTrackStyle");
-                }
-
-                if (weapon.End is not null && !ReferenceEquals(weapon.Start, weapon.End))
-                {
-                    AppendPointPlacemark(
-                        builder,
-                        $"{displayName} End",
-                        $"Final known weapon position\n{BuildTrackDescription(weapon, weapon.End, options)}",
-                        weapon.End,
-                        "#weaponResultStyle");
-                }
-
-                builder.AppendLine("</Folder>");
+                    $"{displayName} Final Known Position",
+                    $"Final known weapon position\n{BuildTrackDescription(weapon, weapon.End, options)}",
+                    weapon.End,
+                    "#weaponResultStyle");
             }
 
             builder.AppendLine("</Folder>");
+        }
+
+        private static void AppendWeaponResultsSubFolder(
+            StringBuilder builder,
+            IReadOnlyList<TacviewWeaponResult> results)
+        {
+            builder.AppendLine("<Folder>");
+            builder.AppendLine("<name>Weapon Results</name>");
+
+            if (results.Count == 0)
+            {
+                builder.AppendLine("<Placemark>");
+                builder.AppendElement("name", "No matched weapon result");
+                builder.AppendElement("description", "No destroyed or timeout event could be directly associated with this weapon.");
+                builder.AppendLine("</Placemark>");
+                builder.AppendLine("</Folder>");
+                return;
+            }
+
+            foreach (TacviewWeaponResult result in results)
+            {
+                AppendWeaponResult(builder, result);
+            }
+
+            builder.AppendLine("</Folder>");
+        }
+
+        private static void AppendUnmatchedWeaponResultsFolder(
+            StringBuilder builder,
+            IReadOnlyList<TacviewWeaponResult> unmatchedResults)
+        {
+            builder.AppendLine("<Folder>");
+            builder.AppendLine("<name>Unmatched Weapon Results</name>");
+
+            foreach (TacviewWeaponResult result in unmatchedResults)
+            {
+                AppendWeaponResult(builder, result);
+            }
+
+            builder.AppendLine("</Folder>");
+        }
+
+        private static void AppendWeaponResult(
+            StringBuilder builder,
+            TacviewWeaponResult result)
+        {
+            string displayName = BuildWeaponResultDisplayName(result);
+            string description = BuildWeaponResultDescription(result);
+
+            if (result.Position is not null)
+            {
+                AppendPointPlacemark(
+                    builder,
+                    displayName,
+                    description,
+                    result.Position,
+                    "#weaponResultStyle");
+                return;
+            }
+
+            builder.AppendLine("<Placemark>");
+            builder.AppendElement("name", displayName);
+            builder.AppendElement("description", description);
+            builder.AppendLine("</Placemark>");
         }
 
         private static void AppendPointPlacemark(
@@ -1570,38 +1837,7 @@ namespace DcsMissionReader.Services
             builder.AppendLine("</Folder>");
         }
 
-        private static void AppendWeaponResultsFolder(
-            StringBuilder builder,
-            IReadOnlyList<TacviewWeaponResult> results)
-        {
-            builder.AppendLine("<Folder>");
-            builder.AppendLine("<name>Weapon Results and Events</name>");
 
-            foreach (TacviewWeaponResult result in results)
-            {
-                string displayName = BuildWeaponResultDisplayName(result);
-                string description = BuildWeaponResultDescription(result);
-
-                if (result.Position is not null)
-                {
-                    AppendPointPlacemark(
-                        builder,
-                        displayName,
-                        description,
-                        result.Position,
-                        "#weaponResultStyle");
-                }
-                else
-                {
-                    builder.AppendLine("<Placemark>");
-                    builder.AppendElement("name", displayName);
-                    builder.AppendElement("description", description);
-                    builder.AppendLine("</Placemark>");
-                }
-            }
-
-            builder.AppendLine("</Folder>");
-        }
 
         private static string BuildWeaponResultDisplayName(TacviewWeaponResult result)
         {
@@ -2195,9 +2431,8 @@ namespace DcsMissionReader.Services
         private sealed record AcmiParseResult(
             TacviewMissionInfo Mission,
             IReadOnlyList<TacviewObjectTrack> GroupTracks,
-            IReadOnlyList<TacviewObjectTrack> WeaponTracks,
-            IReadOnlyList<TacviewWeaponEmployment> WeaponEmployments,
-            IReadOnlyList<TacviewWeaponResult> WeaponResults,
+            IReadOnlyList<TacViewWeaponEngagement> WeaponEngagements,
+            IReadOnlyList<TacviewWeaponResult> UnmatchedWeaponResults,
             DateTimeOffset? ReferenceTimeUtc);
     }
 
