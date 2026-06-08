@@ -597,5 +597,119 @@ namespace DcsMissionReaderTests
                 }
             }
         }
+
+        [Fact]
+        public void ProcessTargets_WithAttackUnitTask_ResolvesTargetUnitByUnitId()
+        {
+            // Arrange
+            var script = new Script();
+
+            string luaMission = @"
+    return {
+        coalition = {
+            blue = {
+                country = {
+                    [1] = {
+                        plane = {
+                            group = {
+                                [1] = {
+                                    groupId = 7,
+                                    name = 'Overlord',
+                                    units = {
+                                        [1] = {
+                                            unitId = 13,
+                                            name = 'Aerial-1-5',
+                                            type = 'E-2C',
+                                            x = -71137.711670044,
+                                            y = 93486.854792787
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            red = {
+                country = {
+                    [1] = {
+                        plane = {
+                            group = {
+                                [1] = {
+                                    groupId = 10,
+                                    name = 'AWACS KILLER',
+                                    task = 'Intercept',
+                                    route = {
+                                        points = {
+                                            [1] = {
+                                                x = 61335.657487744,
+                                                y = 32831.012739174,
+                                                task = {
+                                                    id = 'ComboTask',
+                                                    params = {
+                                                        tasks = {
+                                                            [1] = {
+                                                                id = 'AttackUnit',
+                                                                enabled = true,
+                                                                params = {
+                                                                    unitId = 13,
+                                                                    groupAttack = true
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    units = {
+                                        [1] = {
+                                            unitId = 17,
+                                            name = 'Vladamir',
+                                            type = 'MiG-31',
+                                            x = 115765.882812,
+                                            y = 14257.968262
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            neutral = { country = {} }
+        }
+    }";
+
+            var missionTable = script.DoString(luaMission).Table;
+            var indexer = new MissionIndexer(missionTable);
+
+            var tasks = missionTable
+                .Get("coalition").Table
+                .Get("red").Table
+                .Get("country").Table
+                .Get(1).Table
+                .Get("plane").Table
+                .Get("group").Table
+                .Get(1).Table
+                .Get("route").Table
+                .Get("points").Table
+                .Get(1).Table
+                .Get("task").Table
+                .Get("params").Table
+                .Get("tasks").Table;
+
+            // Act
+            var targets = HtmlReportGenerator.ProcessTargets(tasks, indexer, "WP1");
+
+            // Assert
+            var target = Assert.Single(targets);
+
+            Assert.Equal(-71137.711670044, target.x, precision: 3);
+            Assert.Equal(93486.854792787, target.y, precision: 3);
+            Assert.Contains("Attack Unit", target.name);
+            Assert.Contains("Aerial-1-5", target.name);
+            Assert.Contains("E-2C", target.name);
+        }
     }
 }

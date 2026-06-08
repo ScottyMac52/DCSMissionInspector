@@ -48,10 +48,11 @@ body { font-family: system-ui, sans-serif; }
 table { border-collapse: collapse; table-layout: fixed; width: 100%; }
 th, td { padding: 0.75rem; overflow: hidden; }
 th:nth-child(1), td:nth-child(1) { width: 5%; }
-th:nth-child(2), td:nth-child(2) { width: 35%; }
-th:nth-child(3), td:nth-child(3) { width: 15%; text-align: right; }
-th:nth-child(4), td:nth-child(4) { width: 15%; text-align: right; }
-th:nth-child(5), td:nth-child(5) { width: 30%; }
+th:nth-child(2), td:nth-child(2) { width: 25%; }
+th:nth-child(3), td:nth-child(3) { width: 25%; }
+th:nth-child(4), td:nth-child(4) { width: 12%; text-align: right; }
+th:nth-child(5), td:nth-child(5) { width: 12%; text-align: right; }
+th:nth-child(6), td:nth-child(6) { width: 21%; }
 .cursor-pointer { cursor: pointer; }";
 
             string kneeboardHtml = "";
@@ -993,14 +994,18 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
                 foreach (var flight in sideFlights)
                 {
                     sb.AppendLine($@"<details class=""mb-8 bg-gray-900 rounded-2xl p-5""><summary class=""cursor-pointer font-medium text-lg flex items-center gap-3"">✈️ {flight.GroupName} — {flight.Aircraft} ({flight.UnitCount}×) • {flight.Task}</summary>");
-                    sb.AppendLine(@"<div class=""mt-4""><table class=""w-full border-collapse text-xs""><thead><tr class=""bg-gray-800""><th class=""p-2 text-center"" style=""width: 5%"">#</th><th class=""p-2 text-left"" style=""width: 35%"">Action</th><th class=""p-2 text-right"" style=""width: 15%"">Alt (ft)</th><th class=""p-2 text-right"" style=""width: 15%"">Speed (kt)</th><th class=""p-2 text-left"" style=""width: 30%"">DCS (x, y)</th></tr></thead><tbody>");
+                    sb.AppendLine(@"<div class=""mt-4""><table class=""w-full border-collapse text-xs""><thead><tr class=""bg-gray-800""><th class=""p-2 text-center"" style=""width: 5%"">#</th><th class=""p-2 text-left"" style=""width: 25%"">Action</th><th class=""p-2 text-left"" style=""width: 25%"">Tasking</th><th class=""p-2 text-right"" style=""width: 12%"">Alt (ft)</th><th class=""p-2 text-right"" style=""width: 12%"">Speed (kt)</th><th class=""p-2 text-left"" style=""width: 21%"">DCS (x, y)</th></tr></thead><tbody>");
 
                     var waypoints = ParseWaypoints(flight.RoutePoints, indexer);
                     int idx = 1;
 
                     foreach (var wp in waypoints)
                     {
-                        sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-2 text-center font-semibold"">{idx}</td><td class=""p-2 text-left"">{wp.action}</td><td class=""p-2 text-right"">{(int)(wp.alt * 3.28084)}</td><td class=""p-2 text-right"">{(int)(wp.speed * 1.94384)}</td><td class=""p-2 text-left font-mono"">{wp.x:F0}, {wp.y:F0}</td></tr>");
+                        string tasking = wp.targets.Count == 0
+                            ? "—"
+                            : string.Join("<br/>", wp.targets.Select(t => System.Net.WebUtility.HtmlEncode(t.targetName)));
+
+                        sb.AppendLine($@"<tr class=""border-t border-gray-700""><td class=""p-2 text-center font-semibold"">{idx}</td><td class=""p-2 text-left"">{wp.action}</td><td class=""p-2 text-left text-amber-200"">{tasking}</td><td class=""p-2 text-right"">{(int)(wp.alt * 3.28084)}</td><td class=""p-2 text-right"">{(int)(wp.speed * 1.94384)}</td><td class=""p-2 text-left font-mono"">{wp.x:F0}, {wp.y:F0}</td></tr>");
                         idx++;
                     }
                     sb.AppendLine("</tbody></table></div>");
@@ -1149,47 +1154,89 @@ th:nth-child(5), td:nth-child(5) { width: 30%; }
             return sb.ToString();
         }
 
+        private static string GetTaskDisplayName(string taskId)
+        {
+            return taskId switch
+            {
+                "AttackUnit" => "Attack Unit",
+                "AttackGroup" => "Attack Group",
+                "EngageTargets" => "Engage Targets",
+                _ => taskId
+            };
+        }
+
         // ==========================================
         // PARSING & MATH HELPERS
         // ==========================================
         public static List<(double x, double y, string name)> ProcessTargets(Table tasks, MissionIndexer indexer, string wpName)
         {
             var targets = new List<(double x, double y, string name)>();
+
             foreach (var t in tasks.Pairs)
             {
+                if (t.Value.Type != DataType.Table) continue;
+
                 var currentTask = t.Value.Table;
                 var p = currentTask.Get("params")?.Table;
                 if (p == null) continue;
 
-                string tName = "Target";
+                string taskName = GetTaskDisplayName(currentTask.Get("id")?.String ?? "Task");
+
+                string targetName = "Target";
                 bool foundTarget = false;
                 double targetX = p.Get("x")?.Number ?? 0;
                 double targetY = p.Get("y")?.Number ?? 0;
 
-                double gid = p.Get("groupId")?.Number ?? 0;
-                if (gid > 0)
+                double groupId = p.Get("groupId")?.Number ?? 0;
+                if (groupId > 0)
                 {
-                    tName = indexer.ResolveNameFromGroupId(gid);
-                    if (targetX == 0 && targetY == 0 && indexer.GroupsById.TryGetValue(gid, out var groupTable))
+                    targetName = $"{taskName}: {indexer.ResolveNameFromGroupId(groupId)}";
+
+                    if (targetX == 0 && targetY == 0 && indexer.GroupsById.TryGetValue(groupId, out var groupTable))
                     {
                         var units = groupTable.Get("units")?.Table;
                         if (units != null && units.Length > 0)
                         {
-                            targetX = units.Get(1)?.Table.Get("x")?.Number ?? 0;
-                            targetY = units.Get(1)?.Table.Get("y")?.Number ?? 0;
+                            var firstUnit = units.Get(1)?.Table;
+                            targetX = firstUnit?.Get("x")?.Number ?? 0;
+                            targetY = firstUnit?.Get("y")?.Number ?? 0;
                         }
                     }
+
                     foundTarget = true;
                 }
-                else if (targetX != 0 || targetY != 0)
+                else
+                {
+                    double unitId = p.Get("unitId")?.Number ?? 0;
+                    if (unitId > 0)
+                    {
+                        targetName = $"{taskName}: {indexer.ResolveNameFromUnitId(unitId)}";
+
+                        if (targetX == 0 && targetY == 0)
+                        {
+                            indexer.TryGetUnitPosition(unitId, out targetX, out targetY);
+                        }
+
+                        foundTarget = true;
+                    }
+                }
+
+                if (!foundTarget && (targetX != 0 || targetY != 0))
                 {
                     string unitType = indexer.FindUnitTypeAtLocation(targetX, targetY);
-                    tName = !string.IsNullOrEmpty(unitType) ? $"Strike: {unitType}" : $"Strike: {wpName}";
+                    targetName = !string.IsNullOrEmpty(unitType)
+                        ? $"{taskName}: {unitType}"
+                        : $"{taskName}: {wpName}";
+
                     foundTarget = true;
                 }
 
-                if (foundTarget && (targetX != 0 || targetY != 0)) targets.Add((targetX, targetY, tName));
+                if (foundTarget && (targetX != 0 || targetY != 0))
+                {
+                    targets.Add((targetX, targetY, targetName));
+                }
             }
+
             return targets;
         }
 

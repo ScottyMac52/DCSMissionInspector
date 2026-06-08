@@ -6,6 +6,7 @@ namespace DcsMissionReader.Services
     {
         public Dictionary<double, Table> GroupsById { get; } = new();
         public Dictionary<string, Table> GroupsByName { get; } = new();
+        public Dictionary<double, Table> UnitsById { get; } = new();
         public List<(double X, double Y, string UnitType)> UnitLocations { get; } = new();
 
         public MissionIndexer(Table mission)
@@ -63,6 +64,10 @@ namespace DcsMissionReader.Services
                                     double x = unit.Get("x")?.Number ?? 0;
                                     double y = unit.Get("y")?.Number ?? 0;
                                     string type = unit.Get("type")?.String ?? "Unknown";
+                                    double unitId = unit.Get("unitId")?.Number ?? 0;
+
+                                    if (unitId > 0)
+                                        UnitsById[unitId] = unit;
 
                                     if (x != 0 || y != 0)
                                         UnitLocations.Add((x, y, type));
@@ -84,6 +89,37 @@ namespace DcsMissionReader.Services
             if (GroupsById.TryGetValue(groupId, out var group))
                 return group.Get("name")?.String ?? "Unknown Target";
             return "Unknown Target";
+        }
+
+        public string ResolveNameFromUnitId(double unitId)
+        {
+            if (!UnitsById.TryGetValue(unitId, out var unit))
+            {
+                return "Unknown Target";
+            }
+
+            string unitName = unit.Get("name")?.String ?? "Unknown Unit";
+            string unitType = unit.Get("type")?.String ?? string.Empty;
+
+            return string.IsNullOrWhiteSpace(unitType)
+                ? unitName
+                : $"{unitName} ({unitType})";
+        }
+
+        public bool TryGetUnitPosition(double unitId, out double x, out double y)
+        {
+            x = 0;
+            y = 0;
+
+            if (!UnitsById.TryGetValue(unitId, out var unit))
+            {
+                return false;
+            }
+
+            x = unit.Get("x")?.Number ?? 0;
+            y = unit.Get("y")?.Number ?? 0;
+
+            return x != 0 || y != 0;
         }
 
         public string FindUnitTypeAtLocation(double x, double y, double tolerance = 10.0)
