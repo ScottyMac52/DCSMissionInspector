@@ -50,9 +50,14 @@ namespace DcsMissionReader.Services
                 return true;
             }
 
-            foreach (var pair in _weapons)
+            foreach (KeyValuePair<string, WeaponData> pair in _weapons)
             {
                 WeaponData weapon = pair.Value;
+
+                if (NormalizeWeaponKey(pair.Key).Equals(cleanValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
 
                 if (!string.IsNullOrWhiteSpace(weapon.CLSID)
                     && NormalizeWeaponKey(weapon.CLSID).Equals(cleanValue, StringComparison.OrdinalIgnoreCase))
@@ -61,15 +66,13 @@ namespace DcsMissionReader.Services
                 }
 
                 if (!string.IsNullOrWhiteSpace(weapon.DisplayName)
-                    && weapon.DisplayName.Equals(value, StringComparison.OrdinalIgnoreCase))
+                    && NormalizeWeaponKey(weapon.DisplayName).Equals(cleanValue, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
 
-                if (!string.IsNullOrWhiteSpace(weapon.DisplayName)
-                    && cleanValue.Contains(
-                        NormalizeWeaponKey(weapon.DisplayName),
-                        StringComparison.OrdinalIgnoreCase))
+                if (weapon.Aliases.Any(alias =>
+                        NormalizeWeaponKey(alias).Equals(cleanValue, StringComparison.OrdinalIgnoreCase)))
                 {
                     return true;
                 }
@@ -101,7 +104,10 @@ namespace DcsMissionReader.Services
                 .Trim()
                 .Trim('{', '}')
                 .Replace("\"", string.Empty, StringComparison.Ordinal)
-                .Replace(" ", string.Empty, StringComparison.Ordinal);
+                .Replace(" ", string.Empty, StringComparison.Ordinal)
+                .Replace("_", string.Empty, StringComparison.Ordinal)
+                .Replace("-", string.Empty, StringComparison.Ordinal)
+                .ToUpperInvariant();
         }
     }
 }

@@ -6127,7 +6127,12 @@
   "F1243568-8EF0-49D4-9CB5-4DA90D92BC1D": {
     "Type": "F1243568-8EF0-49D4-9CB5-4DA90D92BC1D",
     "DisplayName": "R-33 (AA-9 Amos) - Semi-Act Rdr",
-    "Weight": 490.0
+    "Weight": 490.0,
+    "Aliases": [
+      "P_33E",
+      "R_33E",
+      "R-33E"
+    ]
   },
   "R_3R": {
     "Type": "R_3R",
@@ -9478,5 +9483,43 @@
     "Type": "HB_MK-82_SWA",
     "DisplayName": "(Special Weapons Adapter) Mk-82 - 500lb GP Bomb LD",
     "Weight": 228.0
+  },
+  "SM-2": {
+    "Type": "SM-2",
+    "DisplayName": "SM-2 Standard Missile",
+    "Weight": null,
+    "Aliases": [
+      "SM_2",
+      "SM-2",
+      "SM2",
+      "RIM-66",
+      "RIM_66",
+      "RIM-67",
+      "RIM_67",
+      "SM-2MR",
+      "SM-2ER"
+    ]
+  },
+  "SM-6": {
+    "Type": "SM-6",
+    "DisplayName": "SM-6 Standard Missile",
+    "Weight": null,
+    "Aliases": [
+      "SM_6",
+      "SM-6",
+      "SM6",
+      "RIM-174",
+      "RIM_174"
+    ]
+  },
+  "R-33E": {
+    "Type": "R-33E",
+    "DisplayName": "R-33E",
+    "Weight": null,
+    "Aliases": [
+      "P_33E",
+      "R_33E",
+      "R-33E"
+    ]
   }
 }

@@ -2693,9 +2693,11 @@ namespace DcsMissionReader.Services
                 || value.Contains("Patriot", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("Rapier", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("Roland", StringComparison.OrdinalIgnoreCase)
-                || value.Contains("NASAMS", StringComparison.OrdinalIgnoreCase);
+                || value.Contains("NASAMS", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("SM_2", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("SM-2", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("SM2", StringComparison.OrdinalIgnoreCase);
         }
-
         private static bool LooksLikeBullet(string value)
         {
             return value.Contains("bullet", StringComparison.OrdinalIgnoreCase)
