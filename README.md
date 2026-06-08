@@ -1,104 +1,268 @@
 # DCS Mission Inspector
 
-**Inspects DCS World mission files (.miz) and generates rich reports, data exports, and visualizations.**
+**DCS Mission Inspector** is a command-line utility for inspecting Digital Combat Simulator World mission files (`.miz`) and generating readable mission reports, data exports, and Google Earth mapping output.
 
-This tool reads Digital Combat Simulator (DCS) World mission files (`.miz` files) and extracts everything you need to understand your mission: briefings, kneeboards, player slots, flight plans, waypoints, Air Tasking Orders, Order of Battle, weather, units, and more. It outputs beautiful HTML reports, JSON data, and KML files for Google Earth.
-
----
-
-## Features
-
-- **HTML Report** – A complete, self-contained web page with everything about your mission (expandable sections, embedded route maps, image galleries, and kneeboard viewer).
-- **JSON Exports** – Summary data or full raw mission data.
-- **KML Export** – Google Earth file showing all aircraft/helicopter routes and waypoints.
-- **Multi-mission support** – Process one or more `.miz` files at once.
-- **Unit systems** – Choose real-world (imperial) or metric units.
+The main executable is `DcsMissionReader.exe`. It can process one or more `.miz` files, extract mission metadata and embedded resources, and create output folders containing HTML, JSON, and KML artifacts. It can also create post-briefing Google Earth output from zipped Tacview ACMI files (`.zip.acmi`).
 
 ---
 
-## How to Run
+## What It Does
 
-1. Download the latest release from the [GitHub Releases page](https://github.com/ScottyMac52/DCSMissionInspector/releases).
-2. Extract the zip file anywhere on your computer.
-3. Open a command prompt or terminal and navigate to the folder containing the executable (`DcsMissionReader.exe`).
-4. Run the program using the command below.
+DCS Mission Inspector reads DCS mission archives and helps answer questions like:
 
-### Command-Line Arguments
+- What aircraft, helicopters, ships, ground units, and static objects are in the mission?
+- What player/client slots are available?
+- What are the routes, waypoints, speeds, altitudes, and tasking for each flight?
+- What briefing text, briefing images, and kneeboards are packaged with the mission?
+- What threats, weapons, and target areas are present?
+- What does the mission look like in Google Earth?
+- What happened after the mission when using a Tacview `.zip.acmi` file?
 
-You can combine any of the flags below. The program requires at least one export option (`-h`, `-j`, `--full`, or `-k`) to create output files.
+---
 
-| Short | Long                  | Description |
-|-------|-----------------------|-------------|
-| `-h`  | `--html`              | Generate a full HTML report (`index.html`) in a new folder named after your mission. **This is the most complete and user-friendly output.** |
-| `-j`  | `--json`              | Generate a `mission_summary.json` file with high-level mission information. |
-|       | `--full`              | Generate a `mission_full.json` file with the complete raw mission data (very large). |
-| `-k`  | `--kml`               | Generate a `.kml` file for Google Earth with all routes and waypoints. |
-|       | `--metric`            | Use metric units for distances, altitudes, speeds, etc. (default is real-world/imperial units). |
+## Current Capabilities
 
-**Positional arguments**: One or more paths to `.miz` files.
+- **HTML mission report**
+  - Mission metadata, briefing, blue/red tasking, images, kneeboards, player slots, flights, waypoints, ATO, units/targets, weather, and order of battle.
+- **JSON summary export**
+  - High-level mission information suitable for review or downstream tooling.
+- **Full JSON export**
+  - Raw mission table, dictionary data, and extracted archive file list.
+- **KML pre-brief export**
+  - Google Earth routes, waypoints, ground units, ships, static objects, and threat visualization.
+- **Tacview post-brief KMZ export**
+  - Creates a post-briefing Google Earth file from a zipped Tacview ACMI file.
+- **Windows shell registration support**
+  - Registry integration for adding DCS Mission Inspector actions to `.miz` and Tacview ACMI shell menus.
+- **Multiple mission processing**
+  - Process more than one `.miz` file in a single command.
+- **Unit selection**
+  - Default real-world/imperial output, with optional metric output.
 
-### Examples
+---
 
-```bash
-# Most common: Create the beautiful HTML report
-DcsMissionReader.exe -h "My Mission.miz"
+## Repository Layout
 
-# HTML report + JSON summary + metric units (multiple missions)
-DcsMissionReader.exe -h -j --metric "Mission1.miz" "Mission2.miz"
+```text
+DCSMissionInspector/
+├─ DcsMissionReader/          Main command-line application
+├─ DcsMissionReaderTests/     Test project
+├─ LuaParser/                 Lua parsing/test utility project
+├─ dcsmissionreader.reg       Example Windows shell registration file
+├─ DcsMissionInspector.sln    Visual Studio solution
+└─ README.md
+```
 
-# Everything (HTML + JSON + full data + KML)
-DcsMissionReader.exe -h -j --full -k "My Mission.miz"
+---
 
-# Just the KML for Google Earth
-DcsMissionReader.exe -k "My Mission.miz"
+## Requirements
+
+### To Run a Published Build
+
+- Windows
+- DCS World `.miz` files
+- Optional: Google Earth or another KML/KMZ viewer
+- Optional: Tacview zipped ACMI files for post-brief output
+
+### To Build from Source
+
+- Visual Studio 2022 or later
+- .NET 10 SDK
+
+The main project currently targets `net10.0`.
+
+---
+
+## Build from Source
+
+From the repository root:
+
+```powershell
+dotnet restore .\DcsMissionInspector.sln
+dotnet build .\DcsMissionInspector.sln -c Release
+dotnet test .\DcsMissionInspector.sln -c Release
+```
+
+To publish a Windows x64 single-file executable:
+
+```powershell
+dotnet publish .\DcsMissionReader\DcsMissionReader.csproj `
+  -c Release `
+  -r win-x64 `
+  --self-contained true `
+  -p:PublishSingleFile=true
+```
+
+The published executable will be under:
+
+```text
+DcsMissionReader\bin\Release\net10.0\win-x64\publish\
+```
+
+---
+
+## Command-Line Usage
+
+```text
+DcsMissionReader.exe [options] <mission1.miz> [mission2.miz ...]
+DcsMissionReader.exe --post-brief <sortie.zip.acmi>
+```
+
+### Options
+
+| Option | Aliases | Description |
+|---|---|---|
+| `-h` | `-?`, `--help` | Show help. |
+| `-v` | `--ver`, `--version` | Show application version. |
+| `--html` | `--create-html`, `--out-html` | Generate the HTML mission report. |
+| `-j` | `--json`, `--out-json` | Generate `mission_summary.json`. |
+| `-f` | `--full`, `--full-export` | Generate `mission_full.json`. |
+| `-k` | `--kml`, `--google-earth` | Generate Google Earth KML output. |
+| `--metric` | | Use metric units. Default is real-world/imperial. |
+| `-c` | `--check`, `--check-registration` | Check shell registration. |
+| `-i` | `--install`, `--install-registration` | Install shell registration. |
+| `-u` | `--uninstall`, `--uninstall-registration` | Uninstall shell registration. |
+| `--post-brief` | `--post_brief`, `--postbrief` | Generate post-brief KMZ from a zipped Tacview ACMI file. |
+
+> Important: `-h` means **help**, not HTML. Use `--html` to generate the HTML report.
+
+---
+
+## Examples
+
+### Generate the HTML report for one mission
+
+```powershell
+DcsMissionReader.exe --html "C:\DCS\Missions\My Mission.miz"
+```
+
+### Generate HTML, JSON summary, and KML
+
+```powershell
+DcsMissionReader.exe --html --json --kml "C:\DCS\Missions\My Mission.miz"
+```
+
+### Generate every pre-brief export
+
+```powershell
+DcsMissionReader.exe --html --json --full --kml "C:\DCS\Missions\My Mission.miz"
+```
+
+### Process multiple missions
+
+```powershell
+DcsMissionReader.exe --html --json --metric `
+  "C:\DCS\Missions\Mission 1.miz" `
+  "C:\DCS\Missions\Mission 2.miz"
+```
+
+### Generate only Google Earth KML
+
+```powershell
+DcsMissionReader.exe --kml "C:\DCS\Missions\My Mission.miz"
+```
+
+### Generate a Tacview post-brief KMZ
+
+```powershell
+DcsMissionReader.exe --post-brief "C:\Tacview\Sortie.zip.acmi"
 ```
 
 ---
 
 ## Output Structure
 
-For every `.miz` file you process, the tool creates a new folder named after the mission (e.g. `My Mission Sortie_Report/`). Inside this folder you will find:
+For each `.miz` file, the tool creates a report folder in the current working directory:
 
-- `index.html` – Full HTML report (if `-h` / `--html` was used)
-- `mission_summary.json` – High-level summary (if `-j` / `--json` was used)
-- `mission_full.json` – Complete raw data (if `--full` was used)
-- `My Mission Sortie.kml` – Google Earth file (if `-k` / `--kml` was used)
-- `Images/` – All briefing images
-- `Kneeboards/` – All kneeboard images and PDFs (original folder structure preserved)
+```text
+<Mission Name>_Report/
+├─ index.html             HTML report, if --html was used
+├─ mission_summary.json   JSON summary, if --json was used
+├─ mission_full.json      Full raw export, if --full was used
+├─ <Mission Name>.kml     Google Earth KML, if --kml was used
+├─ images/                Briefing images copied from the mission archive
+└─ kneeboards/            Kneeboard files copied from the mission archive
+```
 
----
+For post-brief Tacview processing, the tool creates:
 
-## What the Tool Provides
-
-### HTML Report (`index.html`)
-This is the main output. It is a single, beautiful web page containing:
-
-- Mission name, map, date, and start time
-- Full briefing text (Blue and Red sides)
-- Briefing image gallery
-- All kneeboards displayed in a clean grid (images and PDFs)
-- Player/client slots with aircraft types and roles
-- **Flights & Waypoints** – Expandable list for every flight showing:
-  - Waypoint table (Action, Altitude, Speed, DCS coordinates, real-world Lat/Lon)
-  - Embedded SVG map of the entire route
-- Required mods list
-- **Air Tasking Order (ATO)** – Summary of every aircraft group, task, aircraft type, quantity, and start time (per coalition)
-- Units & Targets – All ground, sea, and static objects
-- Weather – Clouds, winds (surface / 2000 ft / 8000 ft), visibility, QNH, temperature
-- **Order of Battle (OOB)** – Total counts and breakdowns of aircraft, ships, ground units, and statics per coalition
-
-### JSON Summary (`mission_summary.json`)
-High-level mission metadata including name, map, date, briefing text, tasking, and paths to all images and kneeboards.
-
-### Full Export (`mission_full.json`)
-The complete mission data in JSON format (everything extracted from the `.miz` file).
-
-### KML File
-A Google Earth compatible file showing colored routes for Blue, Red, and Neutral coalitions, with placemarks for every waypoint including name, description, altitude, and speed.
+```text
+<Sortie Name>_PostBrief_Report/
+└─ <Sortie Name>.postbrief.kmz
+```
 
 ---
 
-**That’s it!**  
-Just run the executable with the flags you need and open the generated files. The HTML report is usually all most people want.
+## HTML Report Contents
 
-Questions or suggestions? Open an issue on the GitHub repository.
+The HTML report is usually the most useful output. It includes:
+
+- Mission name, map, date, start time, and mission version
+- Briefing text
+- Blue and red tasking text
+- Briefing images
+- Custom kneeboards
+- Required mods
+- Player/client slots
+- Flights and waypoints
+- Embedded route maps
+- Air Tasking Order summary
+- Units and targets
+- Weather
+- Order of Battle totals and coalition breakdowns
+
+---
+
+## KML / KMZ Output
+
+The pre-brief KML export is intended for route and target planning in Google Earth. It includes:
+
+- Coalition-colored aircraft and helicopter routes
+- Waypoint placemarks
+- Ground unit, ship, and static object placemarks
+- Threat range visualization where threat data is available
+
+The post-brief KMZ export is intended for after-action review using Tacview `.zip.acmi` data. It includes:
+
+- Group tracks
+- Weapon employments
+- Weapon results
+- Reduced track-point density to keep the generated KMZ manageable
+
+---
+
+## Windows Shell Registration
+
+The repository includes `dcsmissionreader.reg` as an example registry file for adding Explorer context-menu actions.
+
+The application also supports registration commands:
+
+```powershell
+DcsMissionReader.exe --check-registration
+DcsMissionReader.exe --install-registration
+DcsMissionReader.exe --uninstall-registration
+```
+
+Depending on where the executable is installed, the registry command paths may need to be adjusted before importing or installing registration entries.
+
+---
+
+## Development Notes
+
+- Main application: `DcsMissionReader`
+- Test project: `DcsMissionReaderTests`
+- Lua parsing utility: `LuaParser`
+- Dependency injection is configured in `Program.cs`
+- Export behavior is strategy-based through `IMissionExportStrategy`
+- Current export strategies include:
+  - `HtmlReportGenerator`
+  - `JsonSummaryGenerator`
+  - `KmlExportGenerator`
+  - `PostBriefingExportGenerator`
+- Threat and weapon lookup data are loaded from JSON files under `DcsMissionReader/Data`
+
+---
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
