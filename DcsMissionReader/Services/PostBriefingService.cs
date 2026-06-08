@@ -1840,8 +1840,7 @@ namespace DcsMissionReader.Services
                 ? weapon.Name
                 : weapon.ObjectId;
 
-            builder.AppendLine("<Folder>");
-            builder.AppendLine("<name>Weapon Track</name>");
+            AppendFolderStart(builder, "Weapon Track", visible: false);
 
             if (sampledTrack.Count >= 2)
             {
@@ -1850,7 +1849,7 @@ namespace DcsMissionReader.Services
                     $"{displayName} Track",
                     BuildObjectDescription(weapon, options),
                     sampledTrack,
-                    "#weaponTrackStyle");
+                    "#weaponTrackStyle", false);
             }
 
             if (weapon.End is not null && !ReferenceEquals(weapon.Start, weapon.End))
@@ -1935,10 +1934,12 @@ namespace DcsMissionReader.Services
             string name,
             string description,
             TacviewPositionSample sample,
-            string? styleUrl = null)
+            string? styleUrl = null,
+            bool visible = true)
         {
             builder.AppendLine("<Placemark>");
             builder.AppendElement("name", name);
+            builder.AppendElement("visibility", visible ? "1" : "0");
             builder.AppendElement("description", description);
 
             if (!string.IsNullOrWhiteSpace(styleUrl))
@@ -1965,15 +1966,15 @@ namespace DcsMissionReader.Services
             StringBuilder builder,
             TacviewObjectTrack track,
             IReadOnlyList<TacviewPositionSample> sampledTrack,
-            PostBriefingKmlOptions options)
+            PostBriefingKmlOptions options,
+            bool visible = false)
         {
             if (sampledTrack.Count == 0)
             {
                 return;
             }
 
-            builder.AppendLine("<Folder>");
-            builder.AppendLine("<name>Track Points</name>");
+            AppendFolderStart(builder, "Track Points", visible: false);
 
             string styleUrl = GetSamplePointStyleUrl(track, options);
 
@@ -1983,6 +1984,7 @@ namespace DcsMissionReader.Services
 
                 builder.AppendLine("<Placemark>");
                 builder.AppendElement("name", $"Point {i + 1}");
+                builder.AppendElement("visibility", visible ? "1" : "0");
                 builder.AppendElement(
                     "description",
                     $"Object: {GetDisplayName(track)}\n" +
@@ -2042,10 +2044,11 @@ namespace DcsMissionReader.Services
             string name,
             string description,
             IReadOnlyList<TacviewPositionSample> samples,
-            string styleUrl)
+            string styleUrl, bool visible = true)
         {
             builder.AppendLine("<Placemark>");
             builder.AppendElement("name", name);
+            builder.AppendElement("visibility", visible ? "1" : "0");
             builder.AppendElement("description", description);
             builder.AppendLine($"<styleUrl>{styleUrl}</styleUrl>");
             builder.AppendLine("<LineString>");
@@ -2519,6 +2522,34 @@ namespace DcsMissionReader.Services
             return builder.ToString();
         }
 
+        private static void AppendFolderStart(
+    StringBuilder builder,
+    string name,
+    bool visible = true)
+        {
+            builder.AppendLine("<Folder>");
+            builder.AppendElement("name", name);
+            builder.AppendElement("visibility", visible ? "1" : "0");
+        }
+
+        private static void AppendPlacemarkStart(
+            StringBuilder builder,
+            string name,
+            string description,
+            bool visible = true,
+            string? styleUrl = null)
+        {
+            builder.AppendLine("<Placemark>");
+            builder.AppendElement("name", name);
+            builder.AppendElement("visibility", visible ? "1" : "0");
+            builder.AppendElement("description", description);
+
+            if (!string.IsNullOrWhiteSpace(styleUrl))
+            {
+                builder.AppendLine($"<styleUrl>{styleUrl}</styleUrl>");
+            }
+        }
+
         private static string GetObjectKind(TacviewObjectTrack track)
         {
             string type = track.Type ?? string.Empty;
@@ -2649,4 +2680,5 @@ namespace DcsMissionReader.Services
         }
 
     }
+
 }
