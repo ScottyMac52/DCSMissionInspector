@@ -419,32 +419,6 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
-                /*
-                TacviewObjectTrack? likelyImpactTarget = FindLikelyWeaponImpactTarget(
-                    weapon,
-                    weaponRemoval,
-                    objects.Values);
-
-                if (likelyImpactTarget is not null)
-                {
-                    results.Add(new TacviewWeaponResult
-                    {
-                        EventType = "Hit",
-                        TimeSeconds = weaponRemoval.TimeSeconds,
-                        AbsoluteTimeUtc = weaponRemoval.AbsoluteTimeUtc,
-                        SourceObjectId = weapon.ObjectId,
-                        SourceName = weapon.Name,
-                        TargetObjectId = likelyImpactTarget.ObjectId,
-                        TargetName = GetDisplayName(likelyImpactTarget),
-                        Outcome = "Weapon removed near surviving object",
-                        Description = $"Synthesized from Tacview removal record: -{weapon.ObjectId}; nearest likely target: {likelyImpactTarget.ObjectId}",
-                        Position = likelyImpactTarget.End ?? weapon.End
-                    });
-
-                    continue;
-                }
-                */
-
                 results.Add(new TacviewWeaponResult
                 {
                     EventType = "Timeout",
@@ -961,83 +935,6 @@ namespace DcsMissionReader.Services
             return bestObject;
         }
 
-        private static TacviewObjectTrack? FindLikelyWeaponImpactTarget(
-            TacviewObjectTrack weapon,
-            TacviewRemovalRecord weaponRemoval,
-            IEnumerable<TacviewObjectTrack> objects)
-        {
-            if (weapon.End is null)
-            {
-                return null;
-            }
-
-            const double maxImpactDistanceMeters = 2_500.0;
-            const double maxTimeDifferenceSeconds = 10.0;
-
-            TacviewObjectTrack? bestObject = null;
-            double bestDistanceMeters = double.MaxValue;
-
-            foreach (TacviewObjectTrack candidate in objects)
-            {
-                if (candidate.ObjectId.Equals(weapon.ObjectId, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (candidate.IsWeapon)
-                {
-                    continue;
-                }
-
-                if (IsSuppressedResultObject(candidate))
-                {
-                    continue;
-                }
-
-                if (!string.IsNullOrWhiteSpace(weapon.ParentObjectId)
-                    && candidate.ObjectId.Equals(weapon.ParentObjectId, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (candidate.Samples.Count == 0)
-                {
-                    continue;
-                }
-
-                TacviewPositionSample? candidateSample =
-                    FindSampleClosestToTime(candidate.Samples, weaponRemoval.TimeSeconds);
-
-                if (candidateSample is null)
-                {
-                    continue;
-                }
-
-                double timeDifference = Math.Abs(candidateSample.TimeSeconds - weaponRemoval.TimeSeconds);
-
-                if (timeDifference > maxTimeDifferenceSeconds)
-                {
-                    continue;
-                }
-
-                double distanceMeters = CalculateDistanceMeters(
-                    weapon.End,
-                    candidateSample);
-
-                if (distanceMeters > maxImpactDistanceMeters)
-                {
-                    continue;
-                }
-
-                if (distanceMeters < bestDistanceMeters)
-                {
-                    bestDistanceMeters = distanceMeters;
-                    bestObject = candidate;
-                }
-            }
-
-            return bestObject;
-        }
 
         private static TacviewPositionSample? FindSampleClosestToTime(
             IReadOnlyList<TacviewPositionSample> samples,
@@ -1240,6 +1137,7 @@ namespace DcsMissionReader.Services
 
             AppendMissionFolder(builder, parseResult.Mission);
             AppendGroupTracksFolder(builder, parseResult.GroupTracks, options, dispositionsByObjectId);
+            AppendDestroyedObjectsFolder(builder, parseResult.GroupTracks, dispositionsByObjectId);
             AppendWeaponsFolder(
                 builder,
                 parseResult.WeaponEngagements,
@@ -1253,13 +1151,10 @@ namespace DcsMissionReader.Services
         }
 
         private static Dictionary<string, ObjectDisposition> BuildObjectDispositionIndex(
-            IReadOnlyList<TacViewWeaponEngagement> weaponEngagements)
+    IReadOnlyList<TacViewWeaponEngagement> weaponEngagements)
         {
-            Dictionary<string, List<ObjectWeaponHit>> hitsByObjectId =
-                new(StringComparer.OrdinalIgnoreCase);
-
-            Dictionary<string, TacviewWeaponResult> destroyedResultsByObjectId =
-                new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, List<ObjectWeaponHit>> hitsByObjectId = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, TacviewWeaponResult> destroyedResultsByObjectId = new(StringComparer.OrdinalIgnoreCase);
 
             foreach (TacViewWeaponEngagement engagement in weaponEngagements)
             {
@@ -1274,12 +1169,12 @@ namespace DcsMissionReader.Services
 
                 foreach (TacviewWeaponResult result in engagement.Results)
                 {
-                    if (string.IsNullOrWhiteSpace(result.TargetObjectId))
+                    string? targetObjectId = result.TargetObjectId;
+
+                    if (string.IsNullOrWhiteSpace(targetObjectId))
                     {
                         continue;
                     }
-
-                    string targetObjectId = result.TargetObjectId;
 
                     if (!hitsByObjectId.TryGetValue(targetObjectId, out List<ObjectWeaponHit>? hits))
                     {
@@ -1293,7 +1188,7 @@ namespace DcsMissionReader.Services
                         shooterName,
                         result.AbsoluteTimeUtc,
                         result.TimeSeconds,
-                        result.Outcome ?? result.EventType,
+                        result.Outcome ?? "Unknown",
                         result.Description ?? string.Empty));
 
                     if (result.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase))
@@ -1303,8 +1198,7 @@ namespace DcsMissionReader.Services
                 }
             }
 
-            Dictionary<string, ObjectDisposition> dispositions =
-                new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, ObjectDisposition> dispositions = new(StringComparer.OrdinalIgnoreCase);
 
             foreach ((string objectId, List<ObjectWeaponHit> hits) in hitsByObjectId)
             {
@@ -1312,28 +1206,17 @@ namespace DcsMissionReader.Services
                     objectId,
                     out TacviewWeaponResult? destroyedResult);
 
-                double dispositionTimeSeconds = wasDestroyed
-                    ? destroyedResult!.TimeSeconds
-                    : hits.Max(hit => hit.HitTimeSeconds);
-
-                DateTimeOffset? dispositionTimeUtc = wasDestroyed
-                    ? destroyedResult!.AbsoluteTimeUtc
-                    : hits
-                        .Where(hit => hit.HitTimeUtc is not null)
-                        .OrderByDescending(hit => hit.HitTimeSeconds)
-                        .Select(hit => hit.HitTimeUtc)
-                        .FirstOrDefault();
-
                 dispositions[objectId] = new ObjectDisposition(
                     objectId,
                     wasDestroyed,
-                    dispositionTimeUtc,
-                    dispositionTimeSeconds,
+                    destroyedResult?.AbsoluteTimeUtc,
+                    destroyedResult?.TimeSeconds ?? hits.Max(hit => hit.HitTimeSeconds),
                     hits
                         .OrderBy(hit => hit.HitTimeUtc)
                         .ThenBy(hit => hit.HitTimeSeconds)
                         .ToList());
             }
+
             return dispositions;
         }
 
@@ -1707,6 +1590,17 @@ namespace DcsMissionReader.Services
     <LabelStyle><scale>0.9</scale></LabelStyle>
 </Style>
 """);
+
+            builder.AppendLine("""
+<Style id="destroyedObjectStyle">
+    <IconStyle>
+        <scale>1.25</scale>
+        <color>ff0000ff</color>
+        <Icon><href>https://maps.google.com/mapfiles/kml/shapes/caution.png</href></Icon>
+    </IconStyle>
+    <LabelStyle><scale>1.0</scale></LabelStyle>
+</Style>
+""");
             builder.AppendLine("""
 <Style id="weaponEmploymentBombStyle">
     <IconStyle>
@@ -2031,6 +1925,122 @@ namespace DcsMissionReader.Services
             return degrees * Math.PI / 180.0;
         }
 
+        private static void AppendDestroyedObjectsFolder(
+            StringBuilder builder,
+            IReadOnlyList<TacviewObjectTrack> groupTracks,
+            IReadOnlyDictionary<string, ObjectDisposition> dispositionsByObjectId)
+        {
+            List<TacviewObjectTrack> destroyedTracks = groupTracks
+                .Where(track => track.End is not null)
+                .Where(track =>
+                    dispositionsByObjectId.TryGetValue(track.ObjectId, out ObjectDisposition? disposition)
+                    && disposition.WasDestroyed)
+                .OrderBy(track => GetDisplayName(track), StringComparer.OrdinalIgnoreCase)
+                .ThenBy(track => track.ObjectId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (destroyedTracks.Count == 0)
+            {
+                return;
+            }
+
+            builder.AppendLine("<Folder>");
+            builder.AppendLine("<name>Destroyed Objects</name>");
+
+            foreach (TacviewObjectTrack track in destroyedTracks)
+            {
+                if (!dispositionsByObjectId.TryGetValue(track.ObjectId, out ObjectDisposition? disposition)
+                    || track.End is null)
+                {
+                    continue;
+                }
+
+                AppendDestroyedObjectPlacemark(builder, track, disposition);
+            }
+
+            builder.AppendLine("</Folder>");
+        }
+
+        private static void AppendDestroyedObjectPlacemark(
+            StringBuilder builder,
+            TacviewObjectTrack track,
+            ObjectDisposition disposition)
+        {
+            TacviewPositionSample? position = track.End;
+
+            if (position is null)
+            {
+                return;
+            }
+
+            string displayName = GetDisplayName(track);
+
+            builder.AppendLine("<Placemark>");
+            builder.AppendElement("name", $"🚫 {displayName}");
+            builder.AppendElement("description", BuildDestroyedObjectDescription(track, disposition));
+            builder.AppendLine("<styleUrl>#destroyedObjectStyle</styleUrl>");
+
+            if (disposition.DestroyedAtUtc is not null)
+            {
+                builder.AppendLine("<TimeStamp>");
+                builder.AppendElement(
+                    "when",
+                    disposition.DestroyedAtUtc.Value.UtcDateTime.ToString("O", CultureInfo.InvariantCulture));
+                builder.AppendLine("</TimeStamp>");
+            }
+
+            builder.AppendLine("<Point>");
+            builder.AppendElement("coordinates", FormatCoordinate(position));
+            builder.AppendLine("</Point>");
+            builder.AppendLine("</Placemark>");
+        }
+
+        private static string BuildDestroyedObjectDescription(
+            TacviewObjectTrack track,
+            ObjectDisposition disposition)
+        {
+            string displayName = GetDisplayName(track);
+            ObjectWeaponHit? killingHit = GetKillingHit(disposition);
+
+            StringBuilder builder = new();
+
+            builder.AppendLine($"Destroyed Object: {displayName} [{track.ObjectId}]");
+            builder.AppendLine($"Name: {track.Name ?? "Unknown"}");
+            builder.AppendLine($"Type: {track.Type ?? "Unknown"}");
+            builder.AppendLine($"Group: {track.Group ?? "Unknown"}");
+            builder.AppendLine($"Destroyed At: {FormatTime(disposition.DestroyedAtUtc, disposition.DestroyedAtSeconds)}");
+
+            if (killingHit is not null)
+            {
+                builder.AppendLine();
+                builder.AppendLine($"Killed By Weapon: {killingHit.WeaponName} [{killingHit.WeaponObjectId}]");
+                builder.AppendLine($"Shooter: {killingHit.ShooterName}");
+                builder.AppendLine($"Target Object Id: {track.ObjectId}");
+                builder.AppendLine($"Outcome: {killingHit.Outcome}");
+            }
+
+            return builder.ToString().TrimEnd();
+        }
+
+        private static ObjectWeaponHit? GetKillingHit(ObjectDisposition disposition)
+        {
+            if (disposition.WeaponHits.Count == 0)
+            {
+                return null;
+            }
+
+            ObjectWeaponHit? exactTimeHit = disposition.WeaponHits
+                .Where(hit => Math.Abs(hit.HitTimeSeconds - disposition.DestroyedAtSeconds) <= 0.25)
+                .OrderByDescending(hit => hit.HitTimeSeconds)
+                .FirstOrDefault();
+
+            return exactTimeHit
+                ?? disposition.WeaponHits
+                    .OrderByDescending(hit => hit.HitTimeSeconds)
+                    .FirstOrDefault();
+        }
+
+
         private static void AppendWeaponsFolder(
             StringBuilder builder,
             IReadOnlyList<TacViewWeaponEngagement> engagements,
@@ -2146,10 +2156,11 @@ namespace DcsMissionReader.Services
 
             AppendPointPlacemark(
                 builder,
-                $"Launching Unit - {shooterName}",
+                $"Shooter - {shooterName}",
                 description,
                 employment.Position,
-                "#weaponPointStyle");
+                "#weaponPointStyle",
+                visible: false);
 
             builder.AppendLine("</Folder>");
         }
@@ -2176,10 +2187,11 @@ namespace DcsMissionReader.Services
 
             AppendPointPlacemark(
                 builder,
-                $"Weapon Fired - {weaponName}",
+                weaponName,
                 description,
                 employment.Position,
-                GetWeaponEmploymentStyleUrl(employment));
+                GetWeaponEmploymentStyleUrl(employment),
+                visible: false);
 
             builder.AppendLine("</Folder>");
         }
@@ -2307,9 +2319,9 @@ namespace DcsMissionReader.Services
 
         private static bool ShouldShowWeaponResultPlacemark(TacviewWeaponResult result)
         {
-            // Timeout/removal results are useful for debugging but too noisy as visible map markers.
-            // Keep them in the KMZ tree, hidden by default.
-            return !result.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase);
+            // Weapon result placemarks are useful in the KMZ tree, but visible markers
+            // create too much clutter during large engagements.
+            return false;
         }
 
         private static void AppendPointPlacemark(
@@ -2463,7 +2475,6 @@ namespace DcsMissionReader.Services
                 $"{BuildObjectDescription(track, options, dispositionsByObjectId)}\n" +
                 $"Time: {FormatTime(sample)}";
         }
-
         private static string BuildObjectDescription(
             TacviewObjectTrack track,
             PostBriefingKmlOptions options,
