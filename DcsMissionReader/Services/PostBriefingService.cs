@@ -2976,11 +2976,18 @@ namespace DcsMissionReader.Services
                 $"Time: {FormatTime(sample)}";
         }
         private static string BuildObjectDescription(
-            TacviewObjectTrack track,
-            PostBriefingKmlOptions options,
-            IReadOnlyDictionary<string, ObjectDisposition>? dispositionsByObjectId = null)
+     TacviewObjectTrack track,
+     PostBriefingKmlOptions options,
+     IReadOnlyDictionary<string, ObjectDisposition>? dispositionsByObjectId = null)
         {
             StringBuilder builder = new();
+
+            ObjectDisposition? disposition = null;
+
+            if (dispositionsByObjectId is not null)
+            {
+                dispositionsByObjectId.TryGetValue(track.ObjectId, out disposition);
+            }
 
             builder.AppendLine($"Object Id: {track.ObjectId}");
             builder.AppendLine($"Name: {track.Name ?? "Unknown"}");
@@ -2989,13 +2996,18 @@ namespace DcsMissionReader.Services
             builder.AppendLine($"Tactical Side: {GetCoalitionDisplayName(track, options)}");
             builder.AppendLine($"Tacview Coalition: {track.Coalition ?? "Unknown"}");
             builder.AppendLine($"Tacview Color: {track.Color ?? "Unknown"}");
-            builder.AppendLine($"Health Remaining: {FormatHealth(track.Health)}");
 
-            ObjectDisposition? disposition = null;
-
-            if (dispositionsByObjectId is not null)
+            if (track.Health is not null)
             {
-                dispositionsByObjectId.TryGetValue(track.ObjectId, out disposition);
+                builder.AppendLine($"Health Remaining: {FormatHealth(track.Health)}");
+            }
+            else if (disposition is not null && disposition.WeaponHits.Count > 0)
+            {
+                builder.AppendLine("Health Remaining: Unknown / Not exported by Tacview");
+            }
+            else
+            {
+                builder.AppendLine("Health Remaining: Unknown");
             }
 
             builder.AppendLine();
@@ -3014,6 +3026,18 @@ namespace DcsMissionReader.Services
                 if (disposition.WasDestroyed)
                 {
                     builder.AppendLine($"Destroyed At: {FormatTime(disposition.DestroyedAtUtc, disposition.DestroyedAtSeconds)}");
+                }
+
+                if (!disposition.WasDestroyed && disposition.WeaponHits.Count > 0)
+                {
+                    ObjectWeaponHit lastHit = disposition.WeaponHits
+                        .OrderByDescending(hit => hit.HitTimeSeconds)
+                        .First();
+
+                    builder.AppendLine();
+                    builder.AppendLine("Damage Evidence:");
+                    builder.AppendLine($"Inferred / recorded weapon hits: {disposition.WeaponHits.Count}");
+                    builder.AppendLine($"Last recorded hit: {FormatTime(lastHit.HitTimeUtc, lastHit.HitTimeSeconds)}");
                 }
             }
 

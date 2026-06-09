@@ -800,6 +800,70 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
+        public void CreatePostBriefingKml_WithInferredDamageButNoHealthExport_ShowsUnknownHealthWithDamageEvidence()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "inferred-damage-no-health.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "inferred-damage-no-health.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(2, result.GroupTrackCount);
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Health Remaining: Unknown / Not exported by Tacview");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Final Disposition:\nDamaged / Weapon Effect Recorded");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Damage Evidence:");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Inferred / recorded weapon hits: 1");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Last recorded hit: 2016-06-21T04:30:20.0000000Z");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Weapons That Hit / Destroyed This Object:");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "- X_22 [901] from Carrier Killer at 2016-06-21T04:30:20.0000000Z");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
         public void CreatePostBriefingKml_WithWeaponRemovedNearSurvivingShip_AddsInferredDamageWhenWeaponRemovalCorrelatesWithHealthDrop()
         {
             string tempDirectory = CreateTempDirectory();
@@ -967,48 +1031,66 @@ namespace DcsMissionReaderTests
                 .Replace("\r", "\n", StringComparison.Ordinal);
         }
 
+        private static string BuildAcmiWithInferredDamageButNoHealthExport()
+        {
+            return """
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.00
+            101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
+            201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
+            #10.00
+            901,Name=X_22,Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
+            #20.00
+            901,T=57.17663780|25.53163180|50|0|0|270
+            -901
+            #21.00
+            101,T=57.17663780|25.53163180|0|0|0|90
+            """;
+        }
 
         private static string BuildAcmiWithShipHitByKitchen()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2016-06-21T04:30:00Z
-           #0.00
-           101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90,Health=1
-           201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
-           #10.00
-           901,Name=X_22,Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
-           #20.00
-           901,T=57.17663780|25.53163180|50|0|0|270
-           -901
-           #21.00
-           101,T=57.17663780|25.53163180|0|0|0|90,Health=0.75
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.00
+            101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90,Health=1
+            201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
+            #10.00
+            901,Name=X_22,Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
+            #20.00
+            901,T=57.17663780|25.53163180|50|0|0|270
+            -901
+            #21.00
+            101,T=57.17663780|25.53163180|0|0|0|90,Health=0.75
+            """;
         }
 
         private static string BuildAcmiWithPairedKitchenAndSeaSparrowInterception()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2016-06-21T04:30:00Z
-           #0.00
-           101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
-           201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
-           301,Name=CG_60,Type=Sea+Watercraft+Cruiser,Group=Washington CSG Escort,Color=Blue,Coalition=Enemies,T=57.17600000|25.53200000|0|0|0|90
-           #10.00
-           901,Name=X_22,Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
-           #15.00
-           902,Name=SeaSparrow,Type=Weapon+Missile,Parent=301,Color=Blue,Coalition=Enemies,T=57.17600000|25.53200000|100|0|0|270
-           #20.00
-           901,T=57.17663780|25.53163180|50|0|0|270
-           902,T=57.17663800|25.53163200|55|0|0|270
-           -901
-           -902
-           #21.00
-           101,T=57.17663780|25.53163180|0|0|0|90
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.00
+            101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
+            201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
+            301,Name=CG_60,Type=Sea+Watercraft+Cruiser,Group=Washington CSG Escort,Color=Blue,Coalition=Enemies,T=57.17600000|25.53200000|0|0|0|90
+            #10.00
+            901,Name=X_22,Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
+            #15.00
+            902,Name=SeaSparrow,Type=Weapon+Missile,Parent=301,Color=Blue,Coalition=Enemies,T=57.17600000|25.53200000|100|0|0|270
+            #20.00
+            901,T=57.17663780|25.53163180|50|0|0|270
+            902,T=57.17663800|25.53163200|55|0|0|270
+            -901
+            -902
+            #21.00
+            101,T=57.17663780|25.53163180|0|0|0|90
+            """;
         }
 
         private static void AssertPlacemarkDescriptionContains(
@@ -1130,129 +1212,129 @@ namespace DcsMissionReaderTests
         private static string BuildAcmiWithMixedObjectTypes()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2016-06-21T04:30:00Z
-           #0.01
-           101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
-           201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.27663780|25.63163180|9000|0|0|90
-           301,Name=SH-60B,Type=Air+Rotorcraft,Group=Rotary-1,Color=Blue,Coalition=Enemies,T=57.37663780|25.73163180|500|0|0|90
-           #1.00
-           101,T=57.17670000|25.53170000|0|0|0|90
-           201,T=57.27670000|25.63170000|9000|0|0|90
-           301,T=57.37670000|25.73170000|500|0|0|90
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.01
+            101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
+            201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.27663780|25.63163180|9000|0|0|90
+            301,Name=SH-60B,Type=Air+Rotorcraft,Group=Rotary-1,Color=Blue,Coalition=Enemies,T=57.37663780|25.73163180|500|0|0|90
+            #1.00
+            101,T=57.17670000|25.53170000|0|0|0|90
+            201,T=57.27670000|25.63170000|9000|0|0|90
+            301,T=57.37670000|25.73170000|500|0|0|90
+            """;
         }
 
         private static string BuildAcmiWithWeaponKillAndHealth()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2016-06-21T04:30:00Z
-           #0.00
-           100,Name=MiG-31,Type=Air+FixedWing,Group=AWACS KILLER,Color=Red,Coalition=Allies,T=48.00000000|29.00000000|10000|0|0|90,Health=1
-           300,Name=E-2C,Type=Air+FixedWing,Group=Overlord,Color=Blue,Coalition=Enemies,T=48.50000000|29.50000000|9000|0|0|270,Health=1
-           #10.00
-           200,Name=P_33E,Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Allies,T=48.01000000|29.01000000|10000|0|0|90
-           #20.00
-           200,T=48.25000000|29.25000000|9500|0|0|90
-           #30.00
-           300,Health=0
-           200,T=48.50000000|29.50000000|9000|0|0|90
-           -200
-           -300
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.00
+            100,Name=MiG-31,Type=Air+FixedWing,Group=AWACS KILLER,Color=Red,Coalition=Allies,T=48.00000000|29.00000000|10000|0|0|90,Health=1
+            300,Name=E-2C,Type=Air+FixedWing,Group=Overlord,Color=Blue,Coalition=Enemies,T=48.50000000|29.50000000|9000|0|0|270,Health=1
+            #10.00
+            200,Name=P_33E,Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Allies,T=48.01000000|29.01000000|10000|0|0|90
+            #20.00
+            200,T=48.25000000|29.25000000|9500|0|0|90
+            #30.00
+            300,Health=0
+            200,T=48.50000000|29.50000000|9000|0|0|90
+            -200
+            -300
+            """;
         }
 
         private static string BuildAcmiWithSurvivingObjectHealth()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2016-06-21T04:30:00Z
-           #0.00
-           100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|5000|0|0|90,Health=1
-           #10.00
-           100,T=48.01000000|29.01000000|5100|0|0|90
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.00
+            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|5000|0|0|90,Health=1
+            #10.00
+            100,T=48.01000000|29.01000000|5100|0|0|90
+            """;
         }
 
         private static string BuildAcmiWithSh60Rotorcraft()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2016-06-21T04:30:00Z
-           #0.01
-           1301,Name=SH-60B,Type=Air+Rotorcraft,Group=Rotary-1,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|498.45|0|0|90
-           #1.00
-           1301,T=57.17670000|25.53170000|500.00|0|0|90
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.01
+            1301,Name=SH-60B,Type=Air+Rotorcraft,Group=Rotary-1,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|498.45|0|0|90
+            #1.00
+            1301,T=57.17670000|25.53170000|500.00|0|0|90
+            """;
         }
 
         private static string BuildAcmiWithWeaponTimeout()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2016-06-21T04:30:00Z
-           #0.00
-           100,Name=CVN-73,Type=Sea+Watercraft,Group=USS Washington,Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|0|0|0|0
-           #10.00
-           200,Name=SeaSparrow,Type=Weapon+Missile,Parent=100,Color=Blue,Coalition=Enemies,T=48.00100000|29.00100000|100|0|0|90
-           #15.00
-           200,T=48.01000000|29.01000000|500|0|0|90
-           #20.00
-           -200
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.00
+            100,Name=CVN-73,Type=Sea+Watercraft,Group=USS Washington,Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|0|0|0|0
+            #10.00
+            200,Name=SeaSparrow,Type=Weapon+Missile,Parent=100,Color=Blue,Coalition=Enemies,T=48.00100000|29.00100000|100|0|0|90
+            #15.00
+            200,T=48.01000000|29.01000000|500|0|0|90
+            #20.00
+            -200
+            """;
         }
 
         private static string BuildAcmiWithFixedWingCarrierKillerGroup()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2016-06-21T04:30:00Z
-           #0.01
-           e01,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=48.00000000|29.00000000|5000|0|0|90
-           #1.00
-           e01,T=48.01000000|29.01000000|5000|0|0|90
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.01
+            e01,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=48.00000000|29.00000000|5000|0|0|90
+            #1.00
+            e01,T=48.01000000|29.01000000|5000|0|0|90
+            """;
         }
 
         private static string BuildAcmiWithGunShellProjectiles()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2016-06-21T04:30:00Z
-           #0.00
-           100,Name=F/A-18C,Type=Air+FixedWing,Group=Rotary-1,Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|5000|0|0|90
-           #455.55
-           3019101,Name=weapons.shells.M61_20_HE_gr,Type=Projectile+Shell,Parent=100,Color=Blue,Coalition=Enemies,T=48.00100000|29.00100000|4990|0|0|90
-           #455.60
-           3019101,T=48.00110000|29.00110000|4980|0|0|90
-           #455.65
-           3019101,T=48.00120000|29.00120000|4970|0|0|90
-           #455.70
-           -3019101
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.00
+            100,Name=F/A-18C,Type=Air+FixedWing,Group=Rotary-1,Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|5000|0|0|90
+            #455.55
+            3019101,Name=weapons.shells.M61_20_HE_gr,Type=Projectile+Shell,Parent=100,Color=Blue,Coalition=Enemies,T=48.00100000|29.00100000|4990|0|0|90
+            #455.60
+            3019101,T=48.00110000|29.00110000|4980|0|0|90
+            #455.65
+            3019101,T=48.00120000|29.00120000|4970|0|0|90
+            #455.70
+            -3019101
+            """;
         }
 
         private static string BuildAcmiWithUnknownTacviewWeapon()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2026-06-07T20:00:00Z
-           #0.00
-           100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
-           #5.00
-           200,Name=Mystery Missile,Type=Weapon+Missile,Parent=100,T=48.00100000|29.00100000|4900|0|0|90
-           #6.00
-           200,T=48.01000000|29.01000000|4000|0|0|90
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+            #5.00
+            200,Name=Mystery Missile,Type=Weapon+Missile,Parent=100,T=48.00100000|29.00100000|4900|0|0|90
+            #6.00
+            200,T=48.01000000|29.01000000|4000|0|0|90
+            """;
         }
 
         private static void CreateTestKmlIcons(string tempDirectory)
@@ -1281,94 +1363,94 @@ namespace DcsMissionReaderTests
         {
             // 1x1 transparent PNG.
             return Convert.FromBase64String(
-                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=");
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=");
         }
 
         private static string BuildAcmiWithSamSiteAndLaunchedSam()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2026-06-07T20:00:00Z
-           #0.00
-           100,Name=SA-10 Site,Type=Ground+Vehicle+SAM,Group=SA-10 Battery,Color=Red,Coalition=Red,T=48.00000000|29.00000000|0|0|0|0
-           200,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Color=Blue,Coalition=Blue,T=48.10000000|29.10000000|5000|0|0|90
-           #5.00
-           300,Name=SA-10 Missile,Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Red,T=48.00010000|29.00010000|100|0|0|90
-           #10.00
-           300,T=48.05000000|29.05000000|3000|0|0|90
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            100,Name=SA-10 Site,Type=Ground+Vehicle+SAM,Group=SA-10 Battery,Color=Red,Coalition=Red,T=48.00000000|29.00000000|0|0|0|0
+            200,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Color=Blue,Coalition=Blue,T=48.10000000|29.10000000|5000|0|0|90
+            #5.00
+            300,Name=SA-10 Missile,Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Red,T=48.00010000|29.00010000|100|0|0|90
+            #10.00
+            300,T=48.05000000|29.05000000|3000|0|0|90
+            """;
         }
 
         private static string BuildAcmiWithMissionMetadata()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.1
-           0,ReferenceLongitude=141
-           0,ReferenceLatitude=10
-           0,ReferenceTime=2016-03-21T04:30:00Z
-           0,RecordingTime=2024-07-06T17:56:08.145Z
-           0,Title=UH-1_MAR_IA_Weapons Range
-           0,DataRecorder=DCS2ACMI 1.9.3.200
-           0,DataSource=DCS 2.9.5.55918
-           0,Author=Spaz
-           0,Comments=Welcome to the Mariana Islands weapons range on the island Farallon de Medinilla. The weather is overcast with rain\, but the range is open.
-           40000001,T=3.7975415|3.4849998|2000,Type=Navaid+Static+Bullseye,Color=Blue,Coalition=Enemies
-           40000002,T=3.7975415|3.4849998|2000,Type=Navaid+Static+Bullseye,Color=Grey,Coalition=Neutrals
-           40000003,T=3.7975415|3.4849998|2000,Type=Navaid+Static+Bullseye,Color=Red,Coalition=Allies
-           #0.07
-           0,Category=CAS
-           0,Briefing=You are FORD 2 1\, a single USMC UH-1 embarked onboard USS TARAWA (LHA-1). You have two M60 door gunners\, 2 x M-143 mini-guns and 14 x 2.75 Hydra rockets.\
-           \
-           Communications:\
-           Range Control and LHA-1 Tower: 251.00 MHz (UHF).
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.1
+            0,ReferenceLongitude=141
+            0,ReferenceLatitude=10
+            0,ReferenceTime=2016-03-21T04:30:00Z
+            0,RecordingTime=2024-07-06T17:56:08.145Z
+            0,Title=UH-1_MAR_IA_Weapons Range
+            0,DataRecorder=DCS2ACMI 1.9.3.200
+            0,DataSource=DCS 2.9.5.55918
+            0,Author=Spaz
+            0,Comments=Welcome to the Mariana Islands weapons range on the island Farallon de Medinilla. The weather is overcast with rain\, but the range is open.
+            40000001,T=3.7975415|3.4849998|2000,Type=Navaid+Static+Bullseye,Color=Blue,Coalition=Enemies
+            40000002,T=3.7975415|3.4849998|2000,Type=Navaid+Static+Bullseye,Color=Grey,Coalition=Neutrals
+            40000003,T=3.7975415|3.4849998|2000,Type=Navaid+Static+Bullseye,Color=Red,Coalition=Allies
+            #0.07
+            0,Category=CAS
+            0,Briefing=You are FORD 2 1\, a single USMC UH-1 embarked onboard USS TARAWA (LHA-1). You have two M60 door gunners\, 2 x M-143 mini-guns and 14 x 2.75 Hydra rockets.\
+            \
+            Communications:\
+            Range Control and LHA-1 Tower: 251.00 MHz (UHF).
+            """;
         }
 
         private static string BuildAcmiWithEscapedCommas()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.1
-           0,ReferenceLongitude=141
-           0,ReferenceLatitude=10
-           0,ReferenceTime=2016-03-21T04:30:00Z
-           0,Title=Mission With Escaped Commas
-           0,Comments=Rain\, wind\, and fog are present.
-           #0.00
-           100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.1
+            0,ReferenceLongitude=141
+            0,ReferenceLatitude=10
+            0,ReferenceTime=2016-03-21T04:30:00Z
+            0,Title=Mission With Escaped Commas
+            0,Comments=Rain\, wind\, and fog are present.
+            #0.00
+            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+            """;
         }
 
         private static string BuildAcmiWithMultilineBriefing()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.1
-           0,ReferenceLongitude=141
-           0,ReferenceLatitude=10
-           0,ReferenceTime=2016-03-21T04:30:00Z
-           0,Title=Mission With Multiline Briefing
-           #0.00
-           0,Briefing=Line one of briefing.\
-           Line two of briefing.\
-           Line three of briefing.
-           100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.1
+            0,ReferenceLongitude=141
+            0,ReferenceLatitude=10
+            0,ReferenceTime=2016-03-21T04:30:00Z
+            0,Title=Mission With Multiline Briefing
+            #0.00
+            0,Briefing=Line one of briefing.\
+            Line two of briefing.\
+            Line three of briefing.
+            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+            """;
         }
 
         private static string BuildAcmiWithBullseye()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2026-06-07T20:00:00Z
-           #0.00
-           900,Name=Blue Bullseye,Type=ReferencePoint,Group=Blue Bullseye,Coalition=Allies,T=48.00000000|29.00000000|0|0|0|0
-           #1.00
-           900,T=48.00000000|29.00000000|0|0|0|0
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            900,Name=Blue Bullseye,Type=ReferencePoint,Group=Blue Bullseye,Coalition=Allies,T=48.00000000|29.00000000|0|0|0|0
+            #1.00
+            900,T=48.00000000|29.00000000|0|0|0|0
+            """;
         }
 
         private static Mock<IWeaponDatabaseService> CreateWeaponDatabaseMock(
@@ -1391,71 +1473,71 @@ namespace DcsMissionReaderTests
         private static string BuildSampleAcmi()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2026-06-07T20:00:00Z
-           #0.00
-           100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.66236111|29.96027500|1500|0|0|90
-           300,Name=Target Truck,Type=Ground+Vehicle,Group=Target Group,Coalition=Red,T=48.70000000|29.98000000|0|0|0|0
-           #10.00
-           100,T=48.67236111|29.97027500|1600|0|0|90
-           300,T=48.70000000|29.98000000|0|0|0|0
-           #12.50
-           200,Name=AIM-120C,Type=Weapon+Missile,Parent=100,T=48.66300000|29.96100000|1550|0|0|90
-           #15.00
-           200,T=48.69000000|29.97500000|500|0|0|90
-           #20.00
-           0,Event=Destroyed|300|Target destroyed
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.66236111|29.96027500|1500|0|0|90
+            300,Name=Target Truck,Type=Ground+Vehicle,Group=Target Group,Coalition=Red,T=48.70000000|29.98000000|0|0|0|0
+            #10.00
+            100,T=48.67236111|29.97027500|1600|0|0|90
+            300,T=48.70000000|29.98000000|0|0|0|0
+            #12.50
+            200,Name=AIM-120C,Type=Weapon+Missile,Parent=100,T=48.66300000|29.96100000|1550|0|0|90
+            #15.00
+            200,T=48.69000000|29.97500000|500|0|0|90
+            #20.00
+            0,Event=Destroyed|300|Target destroyed
+            """;
         }
 
         private static string BuildAcmiWithFuelTankAndKnownWeapon()
         {
             return """
-                   FileType=text/acmi/tacview
-                   FileVersion=2.2
-                   0,ReferenceTime=2026-06-07T20:00:00Z
-                   #0.00
-                   100,Name=F-14B,Type=Air+FixedWing,Group=Colt 1,Coalition=Blue,T=48.00000000|29.00000000|7000|0|0|90
-                   #5.00
-                   200,Name=Fuel Tank,Type=Weapon+Container,Parent=100,T=48.00100000|29.00100000|6900|0|0|90
-                   #6.00
-                   200,T=48.00200000|29.00200000|6700|0|0|90
-                   #10.00
-                   300,Name=AIM-120C,Type=Weapon+Missile,Parent=100,T=48.00300000|29.00300000|6800|0|0|90
-                   #20.00
-                   0,Event=Destroyed|400|Target destroyed
-                   """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            100,Name=F-14B,Type=Air+FixedWing,Group=Colt 1,Coalition=Blue,T=48.00000000|29.00000000|7000|0|0|90
+            #5.00
+            200,Name=Fuel Tank,Type=Weapon+Container,Parent=100,T=48.00100000|29.00100000|6900|0|0|90
+            #6.00
+            200,T=48.00200000|29.00200000|6700|0|0|90
+            #10.00
+            300,Name=AIM-120C,Type=Weapon+Missile,Parent=100,T=48.00300000|29.00300000|6800|0|0|90
+            #20.00
+            0,Event=Destroyed|400|Target destroyed
+            """;
         }
 
         private static string BuildAcmiWithCountermeasures()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2026-06-07T20:00:00Z
-           #0.00
-           100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
-           #1.00
-           5e01,Name=Unknown,Type=Misc+Decoy+Chaff,Parent=100,T=48.00100000|29.00100000|4990|0|0|90
-           #2.00
-           5e02,Name=Unknown,Type=Misc+Decoy+Flare,Parent=100,T=48.00200000|29.00200000|4980|0|0|90
-           #3.00
-           100,T=48.00300000|29.00300000|5000|0|0|90
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+            #1.00
+            5e01,Name=Unknown,Type=Misc+Decoy+Chaff,Parent=100,T=48.00100000|29.00100000|4990|0|0|90
+            #2.00
+            5e02,Name=Unknown,Type=Misc+Decoy+Flare,Parent=100,T=48.00200000|29.00200000|4980|0|0|90
+            #3.00
+            100,T=48.00300000|29.00300000|5000|0|0|90
+            """;
         }
 
         private static string BuildAcmiWithTacviewRelativeAllies()
         {
             return """
-           FileType=text/acmi/tacview
-           FileVersion=2.2
-           0,ReferenceTime=2026-06-07T20:00:00Z
-           #0.00
-           100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Allies,T=48.00000000|29.00000000|5000|0|0|90
-           #1.00
-           100,T=48.00100000|29.00100000|5000|0|0|90
-           """;
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Allies,T=48.00000000|29.00000000|5000|0|0|90
+            #1.00
+            100,T=48.00100000|29.00100000|5000|0|0|90
+            """;
         }
 
         private static string BuildAcmiWithManyTrackPoints(int pointCount)
