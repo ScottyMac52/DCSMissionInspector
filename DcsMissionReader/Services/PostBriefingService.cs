@@ -2094,10 +2094,10 @@ namespace DcsMissionReader.Services
             builder.AppendLine("""
 <Style id="destroyedObjectStyle">
     <IconStyle>
-        <scale>1.15</scale>
+        <scale>0.75</scale>
         <Icon><href>icons/explode.svg</href></Icon>
     </IconStyle>
-    <LabelStyle><scale>0.85</scale></LabelStyle>
+    <LabelStyle><scale>0</scale></LabelStyle>
 </Style>
 """);
             builder.AppendLine("""
@@ -2398,6 +2398,12 @@ namespace DcsMissionReader.Services
                 : candidates[0].Track.ObjectId;
         }
 
+        private static bool HasNonTimeoutWeaponResult(TacViewWeaponEngagement engagement)
+        {
+            return engagement.Results.Any(result =>
+                !result.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase));
+        }
+
         private static double CalculateDistanceMeters(
             TacviewPositionSample first,
             TacviewPositionSample second)
@@ -2580,8 +2586,10 @@ namespace DcsMissionReader.Services
                 CultureInfo.InvariantCulture,
                 $"{weaponName} - {shooterName} - {FormatTime(engagement.Employment.Position)}");
 
-            builder.AppendLine("<Folder>");
-            builder.AppendElement("name", folderName);
+            AppendFolderStart(
+                builder,
+                folderName,
+                visible: HasNonTimeoutWeaponResult(engagement));
 
             AppendWeaponInformationFolder(builder, engagement, options);
             AppendWeaponShooterFolder(builder, engagement);

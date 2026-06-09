@@ -3,6 +3,7 @@ using DcsMissionReader.Services;
 using DcsMissionReader.Services.Interfaces;
 using Moq;
 using System.IO.Compression;
+using System.Security;
 
 namespace DcsMissionReaderTests
 {
@@ -978,6 +979,10 @@ namespace DcsMissionReaderTests
 
                 AssertPlacemarkContains(kml, "Destroyed - Overlord", "#destroyedObjectStyle");
 
+                Assert.Contains("<Style id=\"destroyedObjectStyle\">", kml);
+                Assert.Contains("<Icon><href>icons/explode.svg</href></Icon>", kml);
+                Assert.Contains("<LabelStyle><scale>0</scale></LabelStyle>", kml);
+
                 Assert.DoesNotContain("🚫 Overlord", kml);
                 Assert.DoesNotContain(
                     "https://maps.google.com/mapfiles/kml/shapes/caution.png",
@@ -985,6 +990,41 @@ namespace DcsMissionReaderTests
 
                 AssertPlacemarkVisibility(kml, "Shooter - AWACS KILLER", expectedVisibility: "0");
                 AssertPlacemarkVisibility(kml, "P_33E", expectedVisibility: "0");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithTimedOutWeapon_HidesWeaponEngagementParentFolderByDefault()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "timed-out-parent-folder.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "timed-out-parent-folder.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithWeaponTimeout());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertFolderVisibility(
+                    kml,
+                    "SeaSparrow - USS Washington - 2016-06-21T04:30:10.0000000Z",
+                    expectedVisibility: "0");
+
+                AssertPlacemarkVisibility(kml, "Timeout - SeaSparrow", expectedVisibility: "0");
             }
             finally
             {
@@ -1096,6 +1136,34 @@ namespace DcsMissionReaderTests
             #21.00
             101,T=57.17663780|25.53163180|0|0|0|90
             """;
+        }
+
+        private static void AssertFolderVisibility(
+    string kml,
+    string folderName,
+    string expectedVisibility)
+        {
+            string normalizedKml = NormalizeLineEndings(kml);
+            string normalizedFolderName = SecurityElement.Escape(folderName) ?? folderName;
+
+            string folderStart = $"<Folder>\n<name>{normalizedFolderName}</name>";
+            int folderStartIndex = normalizedKml.IndexOf(folderStart, StringComparison.Ordinal);
+
+            Assert.True(
+                folderStartIndex >= 0,
+                $"Could not find Folder with name: {folderName}");
+
+            int folderEndIndex = normalizedKml.IndexOf("</Folder>", folderStartIndex, StringComparison.Ordinal);
+
+            Assert.True(
+                folderEndIndex >= 0,
+                $"Could not find end of Folder with name: {folderName}");
+
+            string folder = normalizedKml[folderStartIndex..(folderEndIndex + "</Folder>".Length)];
+
+            Assert.Contains(
+                $"<visibility>{expectedVisibility}</visibility>",
+                folder);
         }
 
         private static void AssertPlacemarkDescriptionContains(
