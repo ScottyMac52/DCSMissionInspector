@@ -71,6 +71,7 @@
 		<None Remove="Data\KmlIcons\explode.png" />
 		<None Remove="Data\KmlIcons\missile.png" />
 		<None Remove="Data\KmlIcons\sam.png" />
+		<None Remove="Data\KmlStyles\briefing-styles.json" />
 		<None Remove="Data\threats.json" />
 		<None Remove="Data\weapons.json" />
 	</ItemGroup>
@@ -89,6 +90,9 @@
 		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="Data\KmlIcons\sam.png">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="Data\KmlStyles\briefing-styles.json">
 		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="Data\threats.json">

@@ -1,0 +1,318 @@
+{
+  "styles": [
+    {
+      "id": "blueTrackStyle",
+      "lineStyle": {
+        "color": "ffff0000",
+        "width": 4.0
+      }
+    },
+    {
+      "id": "redTrackStyle",
+      "lineStyle": {
+        "color": "ff0000ff",
+        "width": 4.0
+      }
+    },
+    {
+      "id": "neutralTrackStyle",
+      "lineStyle": {
+        "color": "ffffffff",
+        "width": 4.0
+      }
+    },
+    {
+      "id": "blueSamplePointStyle",
+      "iconStyle": {
+        "scale": 0.55,
+        "color": "ffff0000",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png"
+      },
+      "labelStyle": {
+        "scale": 0.0
+      }
+    },
+    {
+      "id": "redSamplePointStyle",
+      "iconStyle": {
+        "scale": 0.55,
+        "color": "ff0000ff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png"
+      },
+      "labelStyle": {
+        "scale": 0.0
+      }
+    },
+    {
+      "id": "neutralSamplePointStyle",
+      "iconStyle": {
+        "scale": 0.55,
+        "color": "ffffffff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png"
+      },
+      "labelStyle": {
+        "scale": 0.0
+      }
+    },
+    {
+      "id": "bluePlaneStartStyle",
+      "iconStyle": {
+        "scale": 1.15,
+        "color": "ffff0000",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/airports.png"
+      }
+    },
+    {
+      "id": "redPlaneStartStyle",
+      "iconStyle": {
+        "scale": 1.15,
+        "color": "ff0000ff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/airports.png"
+      }
+    },
+    {
+      "id": "neutralPlaneStartStyle",
+      "iconStyle": {
+        "scale": 1.15,
+        "color": "ffffffff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/airports.png"
+      }
+    },
+    {
+      "id": "blueShipStartStyle",
+      "iconStyle": {
+        "scale": 1.15,
+        "color": "ffff0000",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/marina.png"
+      }
+    },
+    {
+      "id": "redShipStartStyle",
+      "iconStyle": {
+        "scale": 1.15,
+        "color": "ff0000ff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/marina.png"
+      }
+    },
+    {
+      "id": "neutralShipStartStyle",
+      "iconStyle": {
+        "scale": 1.15,
+        "color": "ffffffff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/marina.png"
+      }
+    },
+    {
+      "id": "blueHeloStartStyle",
+      "iconStyle": {
+        "scale": 1.15,
+        "color": "ffff0000",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/heliport.png"
+      }
+    },
+    {
+      "id": "redHeloStartStyle",
+      "iconStyle": {
+        "scale": 1.15,
+        "color": "ff0000ff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/heliport.png"
+      }
+    },
+    {
+      "id": "neutralHeloStartStyle",
+      "iconStyle": {
+        "scale": 1.15,
+        "color": "ffffffff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/heliport.png"
+      }
+    },
+    {
+      "id": "blueGroundStartStyle",
+      "iconStyle": {
+        "scale": 1.1,
+        "color": "ffff0000",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/truck.png"
+      }
+    },
+    {
+      "id": "redGroundStartStyle",
+      "iconStyle": {
+        "scale": 1.1,
+        "color": "ff0000ff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/truck.png"
+      }
+    },
+    {
+      "id": "neutralGroundStartStyle",
+      "iconStyle": {
+        "scale": 1.1,
+        "color": "ffffffff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/truck.png"
+      }
+    },
+    {
+      "id": "blueBullseyeStyle",
+      "iconStyle": {
+        "scale": 1.35,
+        "color": "ffff0000",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/target.png"
+      },
+      "labelStyle": {
+        "scale": 1.0
+      }
+    },
+    {
+      "id": "redBullseyeStyle",
+      "iconStyle": {
+        "scale": 1.35,
+        "color": "ff0000ff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/target.png"
+      },
+      "labelStyle": {
+        "scale": 1.0
+      }
+    },
+    {
+      "id": "neutralBullseyeStyle",
+      "iconStyle": {
+        "scale": 1.35,
+        "color": "ffffffff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/target.png"
+      },
+      "labelStyle": {
+        "scale": 1.0
+      }
+    },
+    {
+      "id": "blueBullseyeRingStyle",
+      "lineStyle": {
+        "color": "ffff0000",
+        "width": 2.0
+      },
+      "polyStyle": {
+        "color": "00000000"
+      }
+    },
+    {
+      "id": "redBullseyeRingStyle",
+      "lineStyle": {
+        "color": "ff0000ff",
+        "width": 2.0
+      },
+      "polyStyle": {
+        "color": "00000000"
+      }
+    },
+    {
+      "id": "neutralBullseyeRingStyle",
+      "lineStyle": {
+        "color": "ffffffff",
+        "width": 2.0
+      },
+      "polyStyle": {
+        "color": "00000000"
+      }
+    },
+    {
+      "id": "weaponTrackStyle",
+      "lineStyle": {
+        "color": "ff00ffff",
+        "width": 3.0
+      }
+    },
+    {
+      "id": "weaponPointStyle",
+      "iconStyle": {
+        "scale": 0.75,
+        "color": "ff00ffff",
+        "href": "icons/missile.png"
+      },
+      "labelStyle": {
+        "scale": 0.75
+      }
+    },
+    {
+      "id": "weaponResultStyle",
+      "iconStyle": {
+        "scale": 0.55,
+        "color": "ff00ffff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png"
+      },
+      "labelStyle": {
+        "scale": 0.0
+      }
+    },
+    {
+      "id": "destroyedObjectStyle",
+      "iconStyle": {
+        "scale": 0.75,
+        "href": "icons/explode.png"
+      },
+      "labelStyle": {
+        "scale": 0.0
+      }
+    },
+    {
+      "id": "weaponEmploymentBombStyle",
+      "iconStyle": {
+        "scale": 0.9,
+        "href": "icons/bomb.png"
+      },
+      "labelStyle": {
+        "scale": 0.85
+      }
+    },
+    {
+      "id": "weaponEmploymentMissileStyle",
+      "iconStyle": {
+        "scale": 0.9,
+        "href": "icons/missile.png"
+      },
+      "labelStyle": {
+        "scale": 0.85
+      }
+    },
+    {
+      "id": "weaponEmploymentSamStyle",
+      "iconStyle": {
+        "scale": 0.9,
+        "href": "icons/sam.png"
+      },
+      "labelStyle": {
+        "scale": 0.85
+      }
+    },
+    {
+      "id": "weaponEmploymentBulletStyle",
+      "iconStyle": {
+        "scale": 0.8,
+        "color": "ff00ffff",
+        "href": "https://maps.google.com/mapfiles/kml/shapes/shaded_dot.png"
+      },
+      "labelStyle": {
+        "scale": 0.85
+      }
+    },
+    {
+      "id": "blueSamStartStyle",
+      "iconStyle": {
+        "scale": 1.1,
+        "href": "icons/sam.png"
+      }
+    },
+    {
+      "id": "redSamStartStyle",
+      "iconStyle": {
+        "scale": 1.1,
+        "href": "icons/sam.png"
+      }
+    },
+    {
+      "id": "neutralSamStartStyle",
+      "iconStyle": {
+        "scale": 1.1,
+        "href": "icons/sam.png"
+      }
+    }
+  ]
+}

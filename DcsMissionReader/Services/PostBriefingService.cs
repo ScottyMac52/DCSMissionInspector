@@ -1,4 +1,4 @@
-﻿using DcsMissionReader.Models;
+using DcsMissionReader.Models;
 using DcsMissionReader.Services.Interfaces;
 using System.Globalization;
 using System.IO.Compression;
@@ -6,8 +6,14 @@ using System.Text;
 
 namespace DcsMissionReader.Services
 {
-    public sealed class PostBriefingService() : IPostBriefingService
+    public sealed class PostBriefingService : IPostBriefingService
     {
+        private readonly IBriefingStylesService _briefingStylesService;
+
+        public PostBriefingService(IBriefingStylesService? briefingStylesService = null)
+        {
+            _briefingStylesService = briefingStylesService ?? new BriefingStylesService();
+        }
         public PostBriefingKmlResult CreatePostBriefingKml(
         string acmiZipFilePath,
         string? outputKmlFilePath = null,
@@ -483,6 +489,11 @@ namespace DcsMissionReader.Services
             return results;
         }
 
+        private static bool HasNonTimeoutWeaponResult(TacViewWeaponEngagement engagement)
+        {
+            return engagement.Results.Any(result =>
+                !result.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase));
+        }
 
         private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromHealthChanges(
             IReadOnlyList<TacviewHealthChangeRecord> healthChanges,
@@ -1576,7 +1587,7 @@ namespace DcsMissionReader.Services
             return referenceTimeUtc?.AddSeconds(seconds);
         }
 
-        private static string BuildKml(
+        private string BuildKml(
             AcmiParseResult parseResult,
             PostBriefingKmlOptions options)
         {
@@ -1587,7 +1598,7 @@ namespace DcsMissionReader.Services
             builder.AppendLine("<Document>");
             builder.AppendLine("<name>DCS Tacview Post Brief</name>");
 
-            AppendPostBriefingStyles(builder);
+            _briefingStylesService.AppendStyles(builder);
 
             Dictionary<string, ObjectDisposition> dispositionsByObjectId =
                 BuildObjectDispositionIndex(parseResult.WeaponEngagements);
@@ -1595,6 +1606,7 @@ namespace DcsMissionReader.Services
             AppendMissionFolder(builder, parseResult.Mission);
             AppendGroupTracksFolder(builder, parseResult.GroupTracks, options, dispositionsByObjectId);
             AppendDestroyedObjectsFolder(builder, parseResult.GroupTracks, dispositionsByObjectId);
+
             AppendWeaponsFolder(
                 builder,
                 parseResult.WeaponEngagements,
@@ -1837,335 +1849,6 @@ namespace DcsMissionReader.Services
             builder.AppendLine("</Folder>");
         }
 
-        private static void AppendPostBriefingStyles(StringBuilder builder)
-        {
-            builder.AppendLine("""
-        <Style id="blueTrackStyle">
-            <LineStyle><color>ffff0000</color><width>4</width></LineStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="redTrackStyle">
-            <LineStyle><color>ff0000ff</color><width>4</width></LineStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="neutralTrackStyle">
-            <LineStyle><color>ffffffff</color><width>4</width></LineStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="blueSamplePointStyle">
-            <IconStyle>
-                <scale>0.55</scale>
-                <color>ffff0000</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon>
-            </IconStyle>
-            <LabelStyle><scale>0</scale></LabelStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="redSamplePointStyle">
-            <IconStyle>
-                <scale>0.55</scale>
-                <color>ff0000ff</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon>
-            </IconStyle>
-            <LabelStyle><scale>0</scale></LabelStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="neutralSamplePointStyle">
-            <IconStyle>
-                <scale>0.55</scale>
-                <color>ffffffff</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon>
-            </IconStyle>
-            <LabelStyle><scale>0</scale></LabelStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="bluePlaneStartStyle">
-            <IconStyle>
-                <scale>1.15</scale>
-                <color>ffff0000</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/airports.png</href></Icon>
-            </IconStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="redPlaneStartStyle">
-            <IconStyle>
-                <scale>1.15</scale>
-                <color>ff0000ff</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/airports.png</href></Icon>
-            </IconStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="neutralPlaneStartStyle">
-            <IconStyle>
-                <scale>1.15</scale>
-                <color>ffffffff</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/airports.png</href></Icon>
-            </IconStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="blueShipStartStyle">
-            <IconStyle>
-                <scale>1.15</scale>
-                <color>ffff0000</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/marina.png</href></Icon>
-            </IconStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="redShipStartStyle">
-            <IconStyle>
-                <scale>1.15</scale>
-                <color>ff0000ff</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/marina.png</href></Icon>
-            </IconStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="neutralShipStartStyle">
-            <IconStyle>
-                <scale>1.15</scale>
-                <color>ffffffff</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/marina.png</href></Icon>
-            </IconStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="blueHeloStartStyle">
-            <IconStyle>
-                <scale>1.15</scale>
-                <color>ffff0000</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/heliport.png</href></Icon>
-            </IconStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="redHeloStartStyle">
-            <IconStyle>
-                <scale>1.15</scale>
-                <color>ff0000ff</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/heliport.png</href></Icon>
-            </IconStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="neutralHeloStartStyle">
-            <IconStyle>
-                <scale>1.15</scale>
-                <color>ffffffff</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/heliport.png</href></Icon>
-            </IconStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="blueGroundStartStyle">
-            <IconStyle>
-                <scale>1.1</scale>
-                <color>ffff0000</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/truck.png</href></Icon>
-            </IconStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="redGroundStartStyle">
-            <IconStyle>
-                <scale>1.1</scale>
-                <color>ff0000ff</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/truck.png</href></Icon>
-            </IconStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-        <Style id="neutralGroundStartStyle">
-            <IconStyle>
-                <scale>1.1</scale>
-                <color>ffffffff</color>
-                <Icon><href>https://maps.google.com/mapfiles/kml/shapes/truck.png</href></Icon>
-            </IconStyle>
-        </Style>
-        """);
-
-            builder.AppendLine("""
-            <Style id="blueBullseyeStyle">
-                <IconStyle>
-                    <scale>1.35</scale>
-                    <color>ffff0000</color>
-                    <Icon><href>https://maps.google.com/mapfiles/kml/shapes/target.png</href></Icon>
-                </IconStyle>
-                <LabelStyle><scale>1.0</scale></LabelStyle>
-            </Style>
-            """);
-
-            builder.AppendLine("""
-            <Style id="redBullseyeStyle">
-                <IconStyle>
-                    <scale>1.35</scale>
-                    <color>ff0000ff</color>
-                    <Icon><href>https://maps.google.com/mapfiles/kml/shapes/target.png</href></Icon>
-                </IconStyle>
-                <LabelStyle><scale>1.0</scale></LabelStyle>
-            </Style>
-            """);
-
-            builder.AppendLine("""
-            <Style id="neutralBullseyeStyle">
-                <IconStyle>
-                    <scale>1.35</scale>
-                    <color>ffffffff</color>
-                    <Icon><href>https://maps.google.com/mapfiles/kml/shapes/target.png</href></Icon>
-                </IconStyle>
-                <LabelStyle><scale>1.0</scale></LabelStyle>
-            </Style>
-            """);
-
-            builder.AppendLine("""
-            <Style id="blueBullseyeRingStyle">
-                <LineStyle><color>ffff0000</color><width>2</width></LineStyle>
-                <PolyStyle><color>00000000</color></PolyStyle>
-            </Style>
-            """);
-
-            builder.AppendLine("""
-            <Style id="redBullseyeRingStyle">
-                <LineStyle><color>ff0000ff</color><width>2</width></LineStyle>
-                <PolyStyle><color>00000000</color></PolyStyle>
-            </Style>
-            """);
-
-            builder.AppendLine("""
-            <Style id="neutralBullseyeRingStyle">
-                <LineStyle><color>ffffffff</color><width>2</width></LineStyle>
-                <PolyStyle><color>00000000</color></PolyStyle>
-            </Style>
-            """);
-
-            builder.AppendLine("""
-<Style id="weaponTrackStyle">
-    <LineStyle><color>ff00ffff</color><width>3</width></LineStyle>
-</Style>
-""");
-
-            builder.AppendLine("""
-<Style id="weaponPointStyle">
-    <IconStyle>
-        <scale>0.75</scale>
-        <color>ff00ffff</color>
-        <Icon><href>icons/missile.png</href></Icon>
-    </IconStyle>
-    <LabelStyle><scale>0.75</scale></LabelStyle>
-</Style>
-""");
-
-            builder.AppendLine("""
-<Style id="weaponResultStyle">
-    <IconStyle>
-        <scale>0.55</scale>
-        <color>ff00ffff</color>
-        <Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon>
-    </IconStyle>
-    <LabelStyle><scale>0</scale></LabelStyle>
-</Style>
-""");
-            builder.AppendLine("""
-<Style id="destroyedObjectStyle">
-    <IconStyle>
-        <scale>0.75</scale>
-        <Icon><href>icons/explode.png</href></Icon>
-    </IconStyle>
-    <LabelStyle><scale>0</scale></LabelStyle>
-</Style>
-""");
-            builder.AppendLine("""
-<Style id="weaponEmploymentBombStyle">
-    <IconStyle>
-        <scale>0.9</scale>
-        <Icon><href>icons/bomb.png</href></Icon>
-    </IconStyle>
-    <LabelStyle><scale>0.85</scale></LabelStyle>
-</Style>
-""");
-
-            builder.AppendLine("""
-<Style id="weaponEmploymentMissileStyle">
-    <IconStyle>
-        <scale>0.9</scale>
-        <Icon><href>icons/missile.png</href></Icon>
-    </IconStyle>
-    <LabelStyle><scale>0.85</scale></LabelStyle>
-</Style>
-""");
-
-            builder.AppendLine("""
-<Style id="weaponEmploymentSamStyle">
-    <IconStyle>
-        <scale>0.9</scale>
-        <Icon><href>icons/sam.png</href></Icon>
-    </IconStyle>
-    <LabelStyle><scale>0.85</scale></LabelStyle>
-</Style>
-
-<Style id="weaponEmploymentBulletStyle">
-    <IconStyle>
-        <scale>0.8</scale>
-        <color>ff00ffff</color>
-        <Icon><href>https://maps.google.com/mapfiles/kml/shapes/shaded_dot.png</href></Icon>
-    </IconStyle>
-    <LabelStyle><scale>0.85</scale></LabelStyle>
-</Style>
-""");
-            builder.AppendLine("""
-<Style id="blueSamStartStyle">
-    <IconStyle>
-        <scale>1.1</scale>
-        <Icon><href>icons/sam.png</href></Icon>
-    </IconStyle>
-</Style>
-""");
-
-            builder.AppendLine("""
-<Style id="redSamStartStyle">
-    <IconStyle>
-        <scale>1.1</scale>
-        <Icon><href>icons/sam.png</href></Icon>
-    </IconStyle>
-</Style>
-""");
-
-            builder.AppendLine("""
-<Style id="neutralSamStartStyle">
-    <IconStyle>
-        <scale>1.1</scale>
-        <Icon><href>icons/sam.png</href></Icon>
-    </IconStyle>
-</Style>
-""");
-
-        }
 
         private static void AppendFolderStart(
             StringBuilder builder,
@@ -2398,12 +2081,6 @@ namespace DcsMissionReader.Services
                 : candidates[0].Track.ObjectId;
         }
 
-        private static bool HasNonTimeoutWeaponResult(TacViewWeaponEngagement engagement)
-        {
-            return engagement.Results.Any(result =>
-                !result.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase));
-        }
-
         private static double CalculateDistanceMeters(
             TacviewPositionSample first,
             TacviewPositionSample second)
@@ -2454,8 +2131,7 @@ namespace DcsMissionReader.Services
 
             foreach (TacviewObjectTrack track in destroyedTracks)
             {
-                if (!dispositionsByObjectId.TryGetValue(track.ObjectId, out ObjectDisposition? disposition)
-                    || track.End is null)
+                if (!dispositionsByObjectId.TryGetValue(track.ObjectId, out ObjectDisposition? disposition))
                 {
                     continue;
                 }
@@ -2471,7 +2147,12 @@ namespace DcsMissionReader.Services
             TacviewObjectTrack track,
             ObjectDisposition disposition)
         {
-            TacviewPositionSample? position = track.End;
+            TacviewPositionSample? position =
+                disposition.DestroyedAtSeconds is null
+                    ? track.End
+                    : FindSampleClosestToTime(track.Samples, disposition.DestroyedAtSeconds ?? 0);
+
+            position ??= track.End;
 
             if (position is null)
             {
@@ -2513,7 +2194,7 @@ namespace DcsMissionReader.Services
             builder.AppendLine($"Name: {track.Name ?? "Unknown"}");
             builder.AppendLine($"Type: {track.Type ?? "Unknown"}");
             builder.AppendLine($"Group: {track.Group ?? "Unknown"}");
-            builder.AppendLine($"Destroyed At: {FormatTime(disposition.DestroyedAtUtc, disposition.DestroyedAtSeconds)}");
+            builder.AppendLine($"Destroyed At: {FormatTime(disposition.DestroyedAtUtc, disposition.DestroyedAtSeconds ?? 0.0)}");
 
             if (killingHit is not null)
             {
@@ -2535,7 +2216,7 @@ namespace DcsMissionReader.Services
             }
 
             ObjectWeaponHit? exactTimeHit = disposition.WeaponHits
-                .Where(hit => Math.Abs(hit.HitTimeSeconds - disposition.DestroyedAtSeconds) <= 0.25)
+                .Where(hit => Math.Abs((hit.HitTimeSeconds ?? 0.00) - (disposition.DestroyedAtSeconds ?? 0)) <= 0.25)
                 .OrderByDescending(hit => hit.HitTimeSeconds)
                 .FirstOrDefault();
 
@@ -2544,7 +2225,6 @@ namespace DcsMissionReader.Services
                     .OrderByDescending(hit => hit.HitTimeSeconds)
                     .FirstOrDefault();
         }
-
 
         private static void AppendWeaponsFolder(
             StringBuilder builder,
@@ -2983,9 +2663,9 @@ namespace DcsMissionReader.Services
                 $"Time: {FormatTime(sample)}";
         }
         private static string BuildObjectDescription(
-     TacviewObjectTrack track,
-     PostBriefingKmlOptions options,
-     IReadOnlyDictionary<string, ObjectDisposition>? dispositionsByObjectId = null)
+            TacviewObjectTrack track,
+            PostBriefingKmlOptions options,
+            IReadOnlyDictionary<string, ObjectDisposition>? dispositionsByObjectId = null)
         {
             StringBuilder builder = new();
 
@@ -3032,7 +2712,7 @@ namespace DcsMissionReader.Services
 
                 if (disposition.WasDestroyed)
                 {
-                    builder.AppendLine($"Destroyed At: {FormatTime(disposition.DestroyedAtUtc, disposition.DestroyedAtSeconds)}");
+                    builder.AppendLine($"Destroyed At: {FormatTime(disposition.DestroyedAtUtc, disposition.DestroyedAtSeconds ?? 0.00)}");
                 }
 
                 if (!disposition.WasDestroyed && disposition.WeaponHits.Count > 0)
@@ -3044,7 +2724,7 @@ namespace DcsMissionReader.Services
                     builder.AppendLine();
                     builder.AppendLine("Damage Evidence:");
                     builder.AppendLine($"Inferred / recorded weapon hits: {disposition.WeaponHits.Count}");
-                    builder.AppendLine($"Last recorded hit: {FormatTime(lastHit.HitTimeUtc, lastHit.HitTimeSeconds)}");
+                    builder.AppendLine($"Last recorded hit: {FormatTime(lastHit.HitTimeUtc, lastHit.HitTimeSeconds ?? 0)}");
                 }
             }
 
@@ -3060,7 +2740,7 @@ namespace DcsMissionReader.Services
                 foreach (ObjectWeaponHit hit in disposition.WeaponHits)
                 {
                     builder.AppendLine(
-                        $"- {hit.WeaponName} [{hit.WeaponObjectId}] from {hit.ShooterName} at {FormatTime(hit.HitTimeUtc, hit.HitTimeSeconds)}");
+                        $"- {hit.WeaponName} [{hit.WeaponObjectId}] from {hit.ShooterName} at {FormatTime(hit.HitTimeUtc, hit.HitTimeSeconds ?? 0)}");
                 }
             }
 
@@ -3757,7 +3437,7 @@ namespace DcsMissionReader.Services
             string ObjectId,
             bool WasDestroyed,
             DateTimeOffset? DestroyedAtUtc,
-            double DestroyedAtSeconds,
+            double? DestroyedAtSeconds,
             IReadOnlyList<ObjectWeaponHit> WeaponHits);
 
         private sealed record ObjectWeaponHit(
@@ -3765,7 +3445,7 @@ namespace DcsMissionReader.Services
             string WeaponObjectId,
             string ShooterName,
             DateTimeOffset? HitTimeUtc,
-            double HitTimeSeconds,
+            double? HitTimeSeconds,
             string Outcome,
             string Description);
     }
