@@ -980,7 +980,7 @@ namespace DcsMissionReaderTests
                 AssertPlacemarkContains(kml, "Destroyed - Overlord", "#destroyedObjectStyle");
 
                 Assert.Contains("<Style id=\"destroyedObjectStyle\">", kml);
-                Assert.Contains("<Icon><href>icons/explode.svg</href></Icon>", kml);
+                Assert.Contains("<Icon><href>icons/explode.png</href></Icon>", kml);
                 Assert.Contains("<LabelStyle><scale>0</scale></LabelStyle>", kml);
 
                 Assert.DoesNotContain("🚫 Overlord", kml);

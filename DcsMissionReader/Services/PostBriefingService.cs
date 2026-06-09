@@ -110,7 +110,7 @@ namespace DcsMissionReader.Services
             AddIconToKmzIfAvailable(archive, "missile.png");
             AddIconToKmzIfAvailable(archive, "bomb.png");
             AddIconToKmzIfAvailable(archive, "sam.png");
-            AddIconToKmzIfAvailable(archive, "explode.svg");
+            AddIconToKmzIfAvailable(archive, "explode.png");
         }
 
         private static void AddIconToKmzIfAvailable(
@@ -2095,7 +2095,7 @@ namespace DcsMissionReader.Services
 <Style id="destroyedObjectStyle">
     <IconStyle>
         <scale>0.75</scale>
-        <Icon><href>icons/explode.svg</href></Icon>
+        <Icon><href>icons/explode.png</href></Icon>
     </IconStyle>
     <LabelStyle><scale>0</scale></LabelStyle>
 </Style>
