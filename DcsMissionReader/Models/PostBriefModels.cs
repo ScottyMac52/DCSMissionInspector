@@ -48,6 +48,8 @@
 
         public string? Color { get; set; }
 
+        public double? Health { get; set; }
+
         public List<TacviewPositionSample> Samples { get; } = new();
 
         public bool IsWeapon

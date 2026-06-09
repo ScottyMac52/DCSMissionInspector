@@ -704,6 +704,169 @@ namespace DcsMissionReaderTests
             }
         }
 
+        [Fact]
+        public void CreatePostBriefingKml_WithDestroyedTarget_AddsDispositionToTargetObjectDescription()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "target-disposition.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "target-disposition.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithWeaponKillAndHealth());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(2, result.GroupTrackCount);
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Overlord",
+                    "Final Disposition:\nDestroyed");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Overlord",
+                    "Health Remaining: 0%");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Overlord",
+                    "Weapons That Hit / Destroyed This Object:\n- P_33E from AWACS KILLER");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithSurvivingObject_AddsSurvivedDispositionToObjectDescription()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "survivor-disposition.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "survivor-disposition.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithSurvivingObjectHealth());
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Springfield 1",
+                    "Health Remaining: 100%");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Springfield 1",
+                    "Final Disposition:\nSurvived / No Weapon Result Recorded");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        private static void AssertPlacemarkDescriptionContains(
+            string kml,
+            string placemarkName,
+            string expectedDescriptionText)
+        {
+            string nameElement = $"<name>{placemarkName}</name>";
+
+            int searchIndex = 0;
+
+            while (true)
+            {
+                int placemarkStart = kml.IndexOf("<Placemark>", searchIndex, StringComparison.Ordinal);
+
+                if (placemarkStart < 0)
+                {
+                    break;
+                }
+
+                int placemarkEnd = kml.IndexOf("</Placemark>", placemarkStart, StringComparison.Ordinal);
+
+                Assert.True(
+                    placemarkEnd > placemarkStart,
+                    $"Found opening Placemark but no closing Placemark while searching for: {placemarkName}");
+
+                string placemark = kml.Substring(
+                    placemarkStart,
+                    placemarkEnd + "</Placemark>".Length - placemarkStart);
+
+                if (placemark.Contains(nameElement, StringComparison.Ordinal))
+                {
+                    string normalizedPlacemark = NormalizeLineEndings(placemark);
+                    string normalizedExpected = NormalizeLineEndings(expectedDescriptionText);
+
+                    Assert.Contains(normalizedExpected, normalizedPlacemark);
+                    return;
+                }
+
+                searchIndex = placemarkEnd + "</Placemark>".Length;
+            }
+
+            Assert.Fail($"Could not find Placemark with name: {placemarkName}");
+        }
+
+        private static string NormalizeLineEndings(string value)
+        {
+            return value
+                .Replace("\r\n", "\n", StringComparison.Ordinal)
+                .Replace("\r", "\n", StringComparison.Ordinal);
+        }
+                
+
+        private static string BuildAcmiWithWeaponKillAndHealth()
+        {
+            return """
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+           #0.00
+           100,Name=MiG-31,Type=Air+FixedWing,Group=AWACS KILLER,Color=Red,Coalition=Allies,T=48.00000000|29.00000000|10000|0|0|90,Health=1
+           300,Name=E-2C,Type=Air+FixedWing,Group=Overlord,Color=Blue,Coalition=Enemies,T=48.50000000|29.50000000|9000|0|0|270,Health=1
+           #10.00
+           200,Name=P_33E,Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Allies,T=48.01000000|29.01000000|10000|0|0|90
+           #20.00
+           200,T=48.25000000|29.25000000|9500|0|0|90
+           #30.00
+           300,Health=0
+           200,T=48.50000000|29.50000000|9000|0|0|90
+           -200
+           -300
+           """;
+        }
+
+        private static string BuildAcmiWithSurvivingObjectHealth()
+        {
+            return """
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+           #0.00
+           100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|5000|0|0|90,Health=1
+           #10.00
+           100,T=48.01000000|29.01000000|5100|0|0|90
+           """;
+        }
+
         private static string BuildAcmiWithSh60Rotorcraft()
         {
             return """
