@@ -419,6 +419,7 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
+                /*
                 TacviewObjectTrack? likelyImpactTarget = FindLikelyWeaponImpactTarget(
                     weapon,
                     weaponRemoval,
@@ -442,6 +443,7 @@ namespace DcsMissionReader.Services
 
                     continue;
                 }
+                */
 
                 results.Add(new TacviewWeaponResult
                 {

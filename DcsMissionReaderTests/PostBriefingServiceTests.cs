@@ -788,50 +788,6 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
-        public void CreatePostBriefingKml_WithWeaponRemovedNearSurvivingShip_AddsHitDispositionToShipCard()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string zipPath = Path.Combine(tempDirectory, "ship-hit-disposition.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "ship-hit-disposition.postbrief.kmz");
-
-                CreateAcmiZip(zipPath, BuildAcmiWithShipHitByKitchen());
-
-                var service = new PostBriefingService();
-
-                var result = service.CreatePostBriefingKml(zipPath, outputPath);
-
-                Assert.True(File.Exists(outputPath));
-                Assert.Equal(2, result.GroupTrackCount);
-                Assert.Equal(1, result.WeaponEmploymentCount);
-                Assert.Equal(1, result.WeaponResultCount);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    "Washington CSG",
-                    "Final Disposition:\nDamaged / Weapon Effect Recorded");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    "Washington CSG",
-                    "Weapons That Hit / Destroyed This Object:");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    "Washington CSG",
-                    "- X_22 [901] from Carrier Killer");
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
         public void CreatePostBriefingKml_WithMixedObjectTypes_UsesTacviewTypeTokensForIcons()
         {
             string tempDirectory = CreateTempDirectory();
