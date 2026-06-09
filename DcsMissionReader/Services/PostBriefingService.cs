@@ -2648,6 +2648,40 @@ namespace DcsMissionReader.Services
             string type = track.Type ?? string.Empty;
             string name = track.Name ?? string.Empty;
             string group = track.Group ?? string.Empty;
+
+            // Prefer explicit Tacview type/category data over names or group names.
+            // Example: Type=Air+FixedWing, Group=Carrier Killer must still be a plane.
+            if (LooksLikeSam(type))
+            {
+                return "sam";
+            }
+
+            if (type.Contains("Helicopter", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Rotorcraft", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Helo", StringComparison.OrdinalIgnoreCase))
+            {
+                return "helo";
+            }
+
+            if (type.Contains("FixedWing", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Aircraft", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Air", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Plane", StringComparison.OrdinalIgnoreCase))
+            {
+                return "plane";
+            }
+
+            if (type.Contains("Sea", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Ship", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Boat", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Carrier", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Frigate", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Destroyer", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Cruiser", StringComparison.OrdinalIgnoreCase))
+            {
+                return "ship";
+            }
+
             string combined = $"{type} {name} {group}";
 
             if (LooksLikeSam(combined))
@@ -2662,6 +2696,14 @@ namespace DcsMissionReader.Services
                 return "helo";
             }
 
+            if (combined.Contains("FixedWing", StringComparison.OrdinalIgnoreCase)
+                || combined.Contains("Aircraft", StringComparison.OrdinalIgnoreCase)
+                || combined.Contains("Air", StringComparison.OrdinalIgnoreCase)
+                || combined.Contains("Plane", StringComparison.OrdinalIgnoreCase))
+            {
+                return "plane";
+            }
+
             if (combined.Contains("Sea", StringComparison.OrdinalIgnoreCase)
                 || combined.Contains("Ship", StringComparison.OrdinalIgnoreCase)
                 || combined.Contains("Boat", StringComparison.OrdinalIgnoreCase)
@@ -2671,14 +2713,6 @@ namespace DcsMissionReader.Services
                 || combined.Contains("Cruiser", StringComparison.OrdinalIgnoreCase))
             {
                 return "ship";
-            }
-
-            if (combined.Contains("FixedWing", StringComparison.OrdinalIgnoreCase)
-                || combined.Contains("Aircraft", StringComparison.OrdinalIgnoreCase)
-                || combined.Contains("Air", StringComparison.OrdinalIgnoreCase)
-                || combined.Contains("Plane", StringComparison.OrdinalIgnoreCase))
-            {
-                return "plane";
             }
 
             return "ground";

@@ -384,6 +384,40 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
+        public void CreatePostBriefingKml_WithFixedWingGroupNameContainingCarrier_RendersAsPlaneNotShip()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "carrier-killer-fixed-wing.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "carrier-killer-fixed-wing.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithFixedWingCarrierKillerGroup());
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath, new PostBriefingKmlOptions
+                {
+                    TreatTacviewAlliesAsBlue = false,
+                    TreatTacviewEnemiesAsRed = false,
+                    InferBlueForKnownUsNavalAssets = false
+                });
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains("Tu-22M3", kml);
+                Assert.Contains("Carrier Killer", kml);
+                Assert.Contains("#redPlaneStartStyle", kml);
+                Assert.DoesNotContain("#redShipStartStyle", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
         public void CreatePostBriefingKml_WithMissionMetadata_CreatesMissionFolder()
         {
             string tempDirectory = CreateTempDirectory();
@@ -603,6 +637,19 @@ namespace DcsMissionReaderTests
             {
                 Directory.Delete(tempDirectory, recursive: true);
             }
+        }
+
+        private static string BuildAcmiWithFixedWingCarrierKillerGroup()
+        {
+            return """
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+           #0.01
+           e01,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=48.00000000|29.00000000|5000|0|0|90
+           #1.00
+           e01,T=48.01000000|29.01000000|5000|0|0|90
+           """;
         }
 
         private static string BuildAcmiWithGunShellProjectiles()
