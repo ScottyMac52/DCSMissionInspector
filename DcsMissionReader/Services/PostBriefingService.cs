@@ -6,7 +6,7 @@ using System.Text;
 
 namespace DcsMissionReader.Services
 {
-    public sealed class PostBriefingService(IWeaponDatabaseService weaponDatabaseService) : IPostBriefingService
+    public sealed class PostBriefingService() : IPostBriefingService
     {
         public PostBriefingKmlResult CreatePostBriefingKml(
         string acmiZipFilePath,
@@ -282,8 +282,8 @@ namespace DcsMissionReader.Services
 
             List<TacviewWeaponEmployment> weaponEmployments = objects.Values
                 .Where(o => o.IsWeapon)
+                .Where(IsRelevantWeaponObject)
                 .Where(o => o.Start is not null)
-                .Where(IsKnownDatabaseWeapon)
                 .Select(o => CreateWeaponEmployment(o, objects))
                 .ToList();
 
@@ -295,9 +295,8 @@ namespace DcsMissionReader.Services
                 .ToList();
 
             List<TacviewObjectTrack> weaponTracks = objects.Values
-                .Where(o => o.IsWeapon)
+                .Where(IsRelevantWeaponObject)
                 .Where(o => o.Samples.Count > 0)
-                .Where(IsKnownDatabaseWeapon)
                 .OrderBy(o => o.Name ?? o.ObjectId, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(o => o.ObjectId, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -437,18 +436,17 @@ namespace DcsMissionReader.Services
                 || value.Contains("tank 1100", StringComparison.OrdinalIgnoreCase);
         }
 
-        private bool IsKnownDatabaseWeapon(TacviewObjectTrack track)
+        private static bool IsRelevantWeaponObject(TacviewObjectTrack track)
         {
-            string combined = $"{track.Name} {track.Type} {track.Group}";
-
-            if (IsCountermeasureOrDecoy(combined) || IsJettisonedStore(combined))
+            if (!track.IsWeapon)
             {
                 return false;
             }
 
-            return weaponDatabaseService.IsKnownWeapon(track.Name ?? string.Empty)
-                || weaponDatabaseService.IsKnownWeapon(track.Type ?? string.Empty)
-                || weaponDatabaseService.IsKnownWeapon(track.ObjectId);
+            string combined = $"{track.Name} {track.Type} {track.Group}";
+
+            return !IsCountermeasureOrDecoy(combined)
+                && !IsJettisonedStore(combined);
         }
 
         private static void ParseGlobalOrEventPayload(
@@ -1808,6 +1806,7 @@ namespace DcsMissionReader.Services
             builder.AppendElement("name", folderName);
 
             AppendWeaponInformationFolder(builder, engagement, options);
+            AppendWeaponShooterFolder(builder, engagement);
             AppendWeaponLaunchFolder(builder, engagement);
             AppendWeaponTrackFolder(builder, engagement, options);
             AppendWeaponResultsSubFolder(builder, engagement.Results);
@@ -1848,6 +1847,42 @@ namespace DcsMissionReader.Services
                 $"Track Samples: {weapon.Samples.Count}\n" +
                 $"Result Count: {engagement.Results.Count}\n\n" +
                 BuildObjectDescription(weapon, options);
+        }
+
+        private static void AppendWeaponShooterFolder(
+    StringBuilder builder,
+    TacViewWeaponEngagement engagement)
+        {
+            TacviewWeaponEmployment employment = engagement.Employment;
+
+            string shooterName =
+                employment.ParentName
+                ?? employment.ParentObjectId
+                ?? "Unknown Shooter";
+
+            string weaponName = string.IsNullOrWhiteSpace(employment.WeaponName)
+                ? employment.WeaponObjectId
+                : employment.WeaponName;
+
+            string description =
+                $"Shooter: {shooterName}\n" +
+                $"Weapon: {weaponName}\n" +
+                $"Weapon Object: {employment.WeaponObjectId}\n" +
+                $"Weapon Type: {employment.WeaponType ?? "Unknown"}\n" +
+                $"Time: {FormatTime(employment.Position)}\n\n" +
+                "Position shown is the weapon launch position. If Tacview supplied a parent object, the shooter name is resolved from that parent.";
+
+            builder.AppendLine("<Folder>");
+            builder.AppendLine("<name>Launching Unit</name>");
+
+            AppendPointPlacemark(
+                builder,
+                $"Launching Unit - {shooterName}",
+                description,
+                employment.Position,
+                "#weaponPointStyle");
+
+            builder.AppendLine("</Folder>");
         }
 
         private static void AppendWeaponLaunchFolder(

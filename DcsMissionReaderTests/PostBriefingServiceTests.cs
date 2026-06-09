@@ -20,12 +20,10 @@ namespace DcsMissionReaderTests
 
                 CreateAcmiZip(zipPath, BuildSampleAcmi());
 
-                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
-                    knownWeapons: ["AIM-120C"]);
 
                 EnsureKmlIconsAvailableForTest();
 
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 var result = service.CreatePostBriefingKml(zipPath, outputPath);
 
@@ -60,9 +58,6 @@ namespace DcsMissionReaderTests
                 Assert.Contains("48.66236111,29.96027500,1500.00", kml);
                 Assert.Contains("48.70000000,29.98000000,0.00", kml);
 
-                weaponDatabaseMock.Verify(
-                    x => x.IsKnownWeapon(It.IsAny<string>()),
-                    Times.AtLeastOnce);
             }
             finally
             {
@@ -71,7 +66,7 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
-        public void CreatePostBriefingKml_WithUnknownWeaponLikeObject_DoesNotCreateWeaponEmployment()
+        public void CreatePostBriefingKml_WithValidZippedAcmi_CreatesKmlWithTracksWeaponsAndResults()
         {
             string tempDirectory = CreateTempDirectory();
 
@@ -82,10 +77,7 @@ namespace DcsMissionReaderTests
 
                 CreateAcmiZip(zipPath, BuildAcmiWithFuelTankAndKnownWeapon());
 
-                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
-                    knownWeapons: ["AIM-120C"]);
-
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 var result = service.CreatePostBriefingKml(zipPath, outputPath);
 
@@ -122,7 +114,7 @@ namespace DcsMissionReaderTests
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
                     knownWeapons: []);
 
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 var options = new DcsMissionReader.Models.PostBriefingKmlOptions
                 {
@@ -161,7 +153,7 @@ namespace DcsMissionReaderTests
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
                     knownWeapons: ["AIM-120C"]);
 
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 var result = service.CreatePostBriefingKml(zipPath);
 
@@ -180,7 +172,7 @@ namespace DcsMissionReaderTests
             Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
                 knownWeapons: []);
 
-            var service = new PostBriefingService(weaponDatabaseMock.Object);
+            var service = new PostBriefingService();
 
             Assert.Throws<FileNotFoundException>(() =>
                 service.CreatePostBriefingKml(@"C:\does-not-exist\missing.acmi.zip"));
@@ -192,7 +184,7 @@ namespace DcsMissionReaderTests
             Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
                 knownWeapons: []);
 
-            var service = new PostBriefingService(weaponDatabaseMock.Object);
+            var service = new PostBriefingService();
 
             Assert.Throws<ArgumentException>(() =>
                 service.CreatePostBriefingKml(""));
@@ -214,7 +206,7 @@ namespace DcsMissionReaderTests
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
                     knownWeapons: []);
 
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 Assert.Throws<InvalidDataException>(() =>
                     service.CreatePostBriefingKml(zipPath));
@@ -249,7 +241,7 @@ namespace DcsMissionReaderTests
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
                     knownWeapons: ["AIM-120C"]);
 
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 var result = service.CreatePostBriefingKml(zipPath, outputPath);
 
@@ -291,7 +283,7 @@ namespace DcsMissionReaderTests
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
                     knownWeapons: []);
 
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 var options = new PostBriefingKmlOptions
                 {
@@ -330,7 +322,7 @@ namespace DcsMissionReaderTests
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
                     knownWeapons: []);
 
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 service.CreatePostBriefingKml(zipPath, outputPath, new PostBriefingKmlOptions
                 {
@@ -370,7 +362,7 @@ namespace DcsMissionReaderTests
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
                     knownWeapons: []);
 
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 var result = service.CreatePostBriefingKml(zipPath, outputPath);
 
@@ -426,7 +418,7 @@ namespace DcsMissionReaderTests
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
                     knownWeapons: []);
 
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 service.CreatePostBriefingKml(zipPath, outputPath);
 
@@ -460,7 +452,7 @@ namespace DcsMissionReaderTests
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
                     knownWeapons: []);
 
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 service.CreatePostBriefingKml(zipPath, outputPath);
 
@@ -491,12 +483,9 @@ namespace DcsMissionReaderTests
 
                 CreateAcmiZip(zipPath, BuildSampleAcmi());
 
-                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
-                    knownWeapons: ["AIM-120C"]);
-
                 EnsureKmlIconsAvailableForTest();
 
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 var result = service.CreatePostBriefingKml(zipPath, outputPath);
 
@@ -529,10 +518,7 @@ namespace DcsMissionReaderTests
                 CreateAcmiZip(zipPath, BuildAcmiWithSamSiteAndLaunchedSam());
                 CreateTestKmlIcons(tempDirectory);
 
-                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
-                    knownWeapons: ["SA-10"]);
-
-                var service = new PostBriefingService(weaponDatabaseMock.Object);
+                var service = new PostBriefingService();
 
                 var result = service.CreatePostBriefingKml(zipPath, outputPath);
 
@@ -549,6 +535,53 @@ namespace DcsMissionReaderTests
             {
                 Directory.Delete(tempDirectory, recursive: true);
             }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithUnknownTacviewWeapon_IncludesWeaponEmployment()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "unknown-weapon.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "unknown-weapon.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithUnknownTacviewWeapon());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(1, result.WeaponEmploymentCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains("Mystery Missile", kml);
+                Assert.Contains("Weapon Fired - Mystery Missile", kml);
+                Assert.Contains("<name>Launching Unit</name>", kml);
+                Assert.Contains("Launching Unit - Springfield 1", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        private static string BuildAcmiWithUnknownTacviewWeapon()
+        {
+            return """
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2026-06-07T20:00:00Z
+           #0.00
+           100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+           #5.00
+           200,Name=Mystery Missile,Type=Weapon+Missile,Parent=100,T=48.00100000|29.00100000|4900|0|0|90
+           #6.00
+           200,T=48.01000000|29.01000000|4000|0|0|90
+           """;
         }
 
         private static void CreateTestKmlIcons(string tempDirectory)
