@@ -2800,47 +2800,95 @@ namespace DcsMissionReader.Services
 
         private static string GetObjectKind(TacviewObjectTrack track)
         {
-            string type = track.Type ?? string.Empty;
-            string name = track.Name ?? string.Empty;
-            string group = track.Group ?? string.Empty;
+            HashSet<string> typeTokens = GetTacviewTypeTokens(track.Type);
 
-            // Explicit Tacview aircraft type/category must win over name/group inference.
-            // Example: Type=Air+Rotorcraft, Name=SH-60B must render as a helicopter, not as SAM.
-            if (type.Contains("Helicopter", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Rotorcraft", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Helo", StringComparison.OrdinalIgnoreCase))
+            // Explicit Tacview Type tokens win.
+            if (IsHelicopterType(typeTokens))
             {
                 return "helo";
             }
 
-            if (type.Contains("FixedWing", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Aircraft", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Air", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Plane", StringComparison.OrdinalIgnoreCase))
-            {
-                return "plane";
-            }
-
-            // Explicit sea type/category should also win before fuzzy name/group inference.
-            if (type.Contains("Sea", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Ship", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Boat", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Carrier", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Frigate", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Destroyer", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Cruiser", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Watercraft", StringComparison.OrdinalIgnoreCase))
+            if (IsShipType(typeTokens))
             {
                 return "ship";
             }
 
-            // SAM should be inferred only after explicit air/sea classifications have been ruled out.
-            if (LooksLikeSam(type))
+            if (IsPlaneType(typeTokens))
+            {
+                return "plane";
+            }
+
+            if (IsSamType(typeTokens, track))
             {
                 return "sam";
             }
 
-            string combined = $"{type} {name} {group}";
+            // Fallback only for weak/missing Tacview Type values.
+            return InferObjectKindFromNameAndGroup(track);
+        }
+
+        private static HashSet<string> GetTacviewTypeTokens(string? type)
+        {
+            if (string.IsNullOrWhiteSpace(type))
+            {
+                return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            return type
+                .Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static bool IsHelicopterType(IReadOnlySet<string> typeTokens)
+        {
+            return typeTokens.Contains("Rotorcraft")
+                || typeTokens.Contains("Helicopter")
+                || typeTokens.Contains("Helo");
+        }
+
+        private static bool IsPlaneType(IReadOnlySet<string> typeTokens)
+        {
+            return typeTokens.Contains("FixedWing")
+                || typeTokens.Contains("Aircraft")
+                || typeTokens.Contains("Airplane")
+                || typeTokens.Contains("Plane");
+        }
+
+        private static bool IsShipType(IReadOnlySet<string> typeTokens)
+        {
+            return typeTokens.Contains("Sea")
+                || typeTokens.Contains("Watercraft")
+                || typeTokens.Contains("Ship")
+                || typeTokens.Contains("Boat")
+                || typeTokens.Contains("AircraftCarrier")
+                || typeTokens.Contains("Frigate")
+                || typeTokens.Contains("Destroyer")
+                || typeTokens.Contains("Cruiser");
+        }
+
+        private static bool IsSamType(
+            IReadOnlySet<string> typeTokens,
+            TacviewObjectTrack track)
+        {
+            if (typeTokens.Contains("Air")
+                || typeTokens.Contains("FixedWing")
+                || typeTokens.Contains("Rotorcraft")
+                || typeTokens.Contains("Sea")
+                || typeTokens.Contains("Watercraft"))
+            {
+                return false;
+            }
+
+            string combined = $"{track.Type} {track.Name} {track.Group}";
+
+            return LooksLikeSam(combined);
+        }
+
+        private static string InferObjectKindFromNameAndGroup(TacviewObjectTrack track)
+        {
+            string name = track.Name ?? string.Empty;
+            string group = track.Group ?? string.Empty;
+            string combined = $"{name} {group}";
 
             if (combined.Contains("Helicopter", StringComparison.OrdinalIgnoreCase)
                 || combined.Contains("Rotorcraft", StringComparison.OrdinalIgnoreCase)
@@ -2849,24 +2897,23 @@ namespace DcsMissionReader.Services
                 return "helo";
             }
 
-            if (combined.Contains("FixedWing", StringComparison.OrdinalIgnoreCase)
-                || combined.Contains("Aircraft", StringComparison.OrdinalIgnoreCase)
-                || combined.Contains("Air", StringComparison.OrdinalIgnoreCase)
-                || combined.Contains("Plane", StringComparison.OrdinalIgnoreCase))
-            {
-                return "plane";
-            }
-
-            if (combined.Contains("Sea", StringComparison.OrdinalIgnoreCase)
+            if (combined.Contains("CVN", StringComparison.OrdinalIgnoreCase)
+                || combined.Contains("USS", StringComparison.OrdinalIgnoreCase)
                 || combined.Contains("Ship", StringComparison.OrdinalIgnoreCase)
                 || combined.Contains("Boat", StringComparison.OrdinalIgnoreCase)
                 || combined.Contains("Carrier", StringComparison.OrdinalIgnoreCase)
                 || combined.Contains("Frigate", StringComparison.OrdinalIgnoreCase)
                 || combined.Contains("Destroyer", StringComparison.OrdinalIgnoreCase)
-                || combined.Contains("Cruiser", StringComparison.OrdinalIgnoreCase)
-                || combined.Contains("Watercraft", StringComparison.OrdinalIgnoreCase))
+                || combined.Contains("Cruiser", StringComparison.OrdinalIgnoreCase))
             {
                 return "ship";
+            }
+
+            if (combined.Contains("FixedWing", StringComparison.OrdinalIgnoreCase)
+                || combined.Contains("Aircraft", StringComparison.OrdinalIgnoreCase)
+                || combined.Contains("Plane", StringComparison.OrdinalIgnoreCase))
+            {
+                return "plane";
             }
 
             if (LooksLikeSam(combined))

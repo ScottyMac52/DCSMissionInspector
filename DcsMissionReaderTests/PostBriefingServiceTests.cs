@@ -825,13 +825,123 @@ namespace DcsMissionReaderTests
             Assert.Fail($"Could not find Placemark with name: {placemarkName}");
         }
 
+        [Fact]
+        public void CreatePostBriefingKml_WithMixedObjectTypes_UsesTacviewTypeTokensForIcons()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "mixed-object-types.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "mixed-object-types.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithMixedObjectTypes());
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath, new PostBriefingKmlOptions
+                {
+                    TreatTacviewAlliesAsBlue = false,
+                    TreatTacviewEnemiesAsRed = false,
+                    InferBlueForKnownUsNavalAssets = true
+                });
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkContains(kml, "Carrier Killer", "#redPlaneStartStyle");
+                AssertPlacemarkContains(kml, "Rotary-1", "#blueHeloStartStyle");
+                AssertPlacemarkContains(kml, "Washington CSG", "#blueShipStartStyle");
+
+                AssertPlacemarkDoesNotContain(kml, "Carrier Killer", "#redShipStartStyle");
+                AssertPlacemarkDoesNotContain(kml, "Rotary-1", "#blueSamStartStyle");
+                AssertPlacemarkDoesNotContain(kml, "Washington CSG", "#bluePlaneStartStyle");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
         private static string NormalizeLineEndings(string value)
         {
             return value
                 .Replace("\r\n", "\n", StringComparison.Ordinal)
                 .Replace("\r", "\n", StringComparison.Ordinal);
         }
-                
+
+        private static void AssertPlacemarkContains(
+    string kml,
+    string placemarkName,
+    string expectedText)
+        {
+            string placemark = FindPlacemark(kml, placemarkName);
+            Assert.Contains(expectedText, placemark);
+        }
+
+        private static void AssertPlacemarkDoesNotContain(
+            string kml,
+            string placemarkName,
+            string unexpectedText)
+        {
+            string placemark = FindPlacemark(kml, placemarkName);
+            Assert.DoesNotContain(unexpectedText, placemark);
+        }
+
+        private static string FindPlacemark(
+            string kml,
+            string placemarkName)
+        {
+            string nameElement = $"<name>{placemarkName}</name>";
+
+            int searchIndex = 0;
+
+            while (true)
+            {
+                int placemarkStart = kml.IndexOf("<Placemark>", searchIndex, StringComparison.Ordinal);
+
+                if (placemarkStart < 0)
+                {
+                    break;
+                }
+
+                int placemarkEnd = kml.IndexOf("</Placemark>", placemarkStart, StringComparison.Ordinal);
+
+                Assert.True(
+                    placemarkEnd > placemarkStart,
+                    $"Found opening Placemark but no closing Placemark while searching for: {placemarkName}");
+
+                string placemark = kml.Substring(
+                    placemarkStart,
+                    placemarkEnd + "</Placemark>".Length - placemarkStart);
+
+                if (placemark.Contains(nameElement, StringComparison.Ordinal))
+                {
+                    return placemark;
+                }
+
+                searchIndex = placemarkEnd + "</Placemark>".Length;
+            }
+
+            Assert.Fail($"Could not find Placemark with name: {placemarkName}");
+            return string.Empty;
+        }
+
+        private static string BuildAcmiWithMixedObjectTypes()
+        {
+            return """
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+           #0.01
+           101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
+           201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.27663780|25.63163180|9000|0|0|90
+           301,Name=SH-60B,Type=Air+Rotorcraft,Group=Rotary-1,Color=Blue,Coalition=Enemies,T=57.37663780|25.73163180|500|0|0|90
+           #1.00
+           101,T=57.17670000|25.53170000|0|0|0|90
+           201,T=57.27670000|25.63170000|9000|0|0|90
+           301,T=57.37670000|25.73170000|500|0|0|90
+           """;
+        }
 
         private static string BuildAcmiWithWeaponKillAndHealth()
         {
