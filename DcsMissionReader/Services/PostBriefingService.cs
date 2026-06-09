@@ -436,6 +436,22 @@ namespace DcsMissionReader.Services
                 || value.Contains("tank 1100", StringComparison.OrdinalIgnoreCase);
         }
 
+        private static bool IsGunRoundOrShell(string value)
+        {
+            return value.Contains("Projectile+Shell", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("weapons.shells", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("shell", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("bullet", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("cannon", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("gun round", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("M61", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("GAU-", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("20_HE", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("20_AP", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("30_HE", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("30_AP", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static bool IsRelevantWeaponObject(TacviewObjectTrack track)
         {
             if (!track.IsWeapon)
@@ -446,9 +462,9 @@ namespace DcsMissionReader.Services
             string combined = $"{track.Name} {track.Type} {track.Group}";
 
             return !IsCountermeasureOrDecoy(combined)
-                && !IsJettisonedStore(combined);
+                && !IsJettisonedStore(combined)
+                && !IsGunRoundOrShell(combined);
         }
-
         private static void ParseGlobalOrEventPayload(
             string payload,
             double currentTimeSeconds,

@@ -269,6 +269,42 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
+        public void CreatePostBriefingKml_WithGunShellProjectiles_DoesNotCreateWeaponEmployments()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "gun-shells.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "gun-shells.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithGunShellProjectiles());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+
+                // Aircraft remains as an object track, but individual gun rounds should not become weapon employments.
+                Assert.Equal(1, result.GroupTrackCount);
+                Assert.Equal(0, result.WeaponEmploymentCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains("Rotary-1", kml);
+                Assert.DoesNotContain("weapons.shells.M61_20_HE_gr", kml);
+                Assert.DoesNotContain("Weapon Fired - weapons.shells.M61_20_HE_gr", kml);
+                Assert.DoesNotContain("Weapon Kind: bullet", kml);
+                Assert.DoesNotContain("<name>Weapons</name>\r\n<Folder>\r\n<name>weapons.shells", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
         public void CreatePostBriefingKml_WithTacviewAllies_DoesNotAutomaticallyColorEverythingBlue()
         {
             string tempDirectory = CreateTempDirectory();
@@ -567,6 +603,25 @@ namespace DcsMissionReaderTests
             {
                 Directory.Delete(tempDirectory, recursive: true);
             }
+        }
+
+        private static string BuildAcmiWithGunShellProjectiles()
+        {
+            return """
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+           #0.00
+           100,Name=F/A-18C,Type=Air+FixedWing,Group=Rotary-1,Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|5000|0|0|90
+           #455.55
+           3019101,Name=weapons.shells.M61_20_HE_gr,Type=Projectile+Shell,Parent=100,Color=Blue,Coalition=Enemies,T=48.00100000|29.00100000|4990|0|0|90
+           #455.60
+           3019101,T=48.00110000|29.00110000|4980|0|0|90
+           #455.65
+           3019101,T=48.00120000|29.00120000|4970|0|0|90
+           #455.70
+           -3019101
+           """;
         }
 
         private static string BuildAcmiWithUnknownTacviewWeapon()
