@@ -305,6 +305,37 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
+        public void CreatePostBriefingKml_WithWeaponTimeout_HidesTimeoutResultPlacemark()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "weapon-timeout.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "weapon-timeout.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithWeaponTimeout());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains("Timeout - SeaSparrow", kml);
+                AssertPlacemarkVisibility(kml, "Timeout - SeaSparrow", expectedVisibility: "0");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
         public void CreatePostBriefingKml_WithTacviewAllies_DoesNotAutomaticallyColorEverythingBlue()
         {
             string tempDirectory = CreateTempDirectory();
@@ -639,6 +670,23 @@ namespace DcsMissionReaderTests
             }
         }
 
+        private static string BuildAcmiWithWeaponTimeout()
+        {
+            return """
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+           #0.00
+           100,Name=CVN-73,Type=Sea+Watercraft,Group=USS Washington,Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|0|0|0|0
+           #10.00
+           200,Name=SeaSparrow,Type=Weapon+Missile,Parent=100,Color=Blue,Coalition=Enemies,T=48.00100000|29.00100000|100|0|0|90
+           #15.00
+           200,T=48.01000000|29.01000000|500|0|0|90
+           #20.00
+           -200
+           """;
+        }
+
         private static string BuildAcmiWithFixedWingCarrierKillerGroup()
         {
             return """
@@ -967,6 +1015,29 @@ namespace DcsMissionReaderTests
             using StreamReader reader = new(stream);
 
             return reader.ReadToEnd();
+        }
+
+        private static void AssertPlacemarkVisibility(
+            string kml,
+            string placemarkName,
+            string expectedVisibility)
+        {
+            string nameElement = $"<name>{placemarkName}</name>";
+            int nameIndex = kml.IndexOf(nameElement, StringComparison.Ordinal);
+
+            Assert.True(nameIndex >= 0, $"Could not find placemark name: {placemarkName}");
+
+            int placemarkStart = kml.LastIndexOf("<Placemark>", nameIndex, StringComparison.Ordinal);
+            int placemarkEnd = kml.IndexOf("</Placemark>", nameIndex, StringComparison.Ordinal);
+
+            Assert.True(placemarkStart >= 0, $"Could not find opening Placemark for: {placemarkName}");
+            Assert.True(placemarkEnd > placemarkStart, $"Could not find closing Placemark for: {placemarkName}");
+
+            string placemark = kml.Substring(
+                placemarkStart,
+                placemarkEnd + "</Placemark>".Length - placemarkStart);
+
+            Assert.Contains($"<visibility>{expectedVisibility}</visibility>", placemark);
         }
 
         private static void CreateAcmiZip(string zipPath, string acmiContent)

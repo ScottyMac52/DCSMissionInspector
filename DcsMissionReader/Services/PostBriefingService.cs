@@ -2026,6 +2026,7 @@ namespace DcsMissionReader.Services
         {
             string displayName = BuildWeaponResultDisplayName(result);
             string description = BuildWeaponResultDescription(result);
+            bool visible = ShouldShowWeaponResultPlacemark(result);
 
             if (result.Position is not null)
             {
@@ -2034,14 +2035,28 @@ namespace DcsMissionReader.Services
                     displayName,
                     description,
                     result.Position,
-                    "#weaponResultStyle");
+                    "#weaponResultStyle",
+                    visible);
                 return;
             }
 
             builder.AppendLine("<Placemark>");
             builder.AppendElement("name", displayName);
+
+            if (!visible)
+            {
+                builder.AppendElement("visibility", "0");
+            }
+
             builder.AppendElement("description", description);
             builder.AppendLine("</Placemark>");
+        }
+
+        private static bool ShouldShowWeaponResultPlacemark(TacviewWeaponResult result)
+        {
+            // Timeout/removal results are useful for debugging but too noisy as visible map markers.
+            // Keep them in the KMZ tree, hidden by default.
+            return !result.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void AppendPointPlacemark(
@@ -2049,11 +2064,16 @@ namespace DcsMissionReader.Services
             string name,
             string description,
             TacviewPositionSample sample,
-            string? styleUrl = null)
+            string? styleUrl = null,
+            bool visible = true)
         {
             builder.AppendLine("<Placemark>");
             builder.AppendElement("name", name);
             builder.AppendElement("description", description);
+            if (!visible)
+            {
+                builder.AppendElement("visibility", "0");
+            }
 
             if (!string.IsNullOrWhiteSpace(styleUrl))
             {
