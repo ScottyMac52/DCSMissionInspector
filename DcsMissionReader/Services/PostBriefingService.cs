@@ -214,6 +214,7 @@ namespace DcsMissionReader.Services
             Dictionary<string, TacviewObjectTrack> objects = new(StringComparer.OrdinalIgnoreCase);
             List<TacviewEventRecord> events = new();
             List<TacviewRemovalRecord> removals = new();
+            List<TacviewHealthChangeRecord> healthChanges = new();
             TacviewMissionInfo mission = new();
 
             double currentTimeSeconds = 0;
@@ -317,7 +318,8 @@ namespace DcsMissionReader.Services
                         currentTimeSeconds,
                         referenceTimeUtc,
                         referenceLongitude,
-                        referenceLatitude);
+                        referenceLatitude,
+                        healthChanges);
                 }
             }
             List<TacviewObjectTrack> groupTracks = objects.Values
@@ -334,7 +336,7 @@ namespace DcsMissionReader.Services
                 .Select(o => CreateWeaponEmployment(o, objects))
                 .ToList();
 
-            List<TacviewWeaponResult> weaponResults = events
+            List<TacviewWeaponResult> explicitWeaponResults = events
                 .Where(IsWeaponResultEventType)
                 .Select(e => CreateWeaponResult(e, objects))
                 .ToList();
@@ -346,11 +348,41 @@ namespace DcsMissionReader.Services
                 .ThenBy(o => o.ObjectId, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
+            List<TacviewWeaponResult> inferredDamageResults = new();
+
+            inferredDamageResults.AddRange(
+                CreateWeaponResultsFromHealthChanges(
+                    healthChanges,
+                    objects,
+                    weaponTracks));
+
+            HashSet<string> weaponIdsWithNonTimeoutResults =
+                BuildWeaponIdsWithNonTimeoutResults(
+                    explicitWeaponResults.Concat(inferredDamageResults),
+                    weaponTracks);
+
+            inferredDamageResults.AddRange(
+                CreateWeaponResultsFromUnpairedWeaponRemovals(
+                    removals,
+                    objects,
+                    weaponTracks,
+                    weaponIdsWithNonTimeoutResults));
+
+            weaponIdsWithNonTimeoutResults =
+                BuildWeaponIdsWithNonTimeoutResults(
+                    explicitWeaponResults.Concat(inferredDamageResults),
+                    weaponTracks);
+
+            List<TacviewWeaponResult> weaponResults = explicitWeaponResults
+                .Concat(inferredDamageResults)
+                .ToList();
+
             weaponResults.AddRange(
                 CreateWeaponResultsFromRemovals(
                     removals,
                     objects,
-                    weaponTracks));
+                    weaponTracks,
+                    weaponIdsWithNonTimeoutResults));
 
             List<TacViewWeaponEngagement> weaponEngagements = CreateWeaponEngagements(
                 weaponTracks,
@@ -378,7 +410,8 @@ namespace DcsMissionReader.Services
         private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromRemovals(
             IReadOnlyList<TacviewRemovalRecord> removals,
             IReadOnlyDictionary<string, TacviewObjectTrack> objects,
-            IReadOnlyList<TacviewObjectTrack> weaponTracks)
+            IReadOnlyList<TacviewObjectTrack> weaponTracks,
+            IReadOnlySet<string> weaponIdsWithNonTimeoutResults)
         {
             var results = new List<TacviewWeaponResult>();
 
@@ -426,6 +459,11 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
+                if (weaponIdsWithNonTimeoutResults.Contains(weapon.ObjectId))
+                {
+                    continue;
+                }
+
                 results.Add(new TacviewWeaponResult
                 {
                     EventType = "Timeout",
@@ -442,6 +480,398 @@ namespace DcsMissionReader.Services
             }
 
             return results;
+        }
+
+
+        private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromHealthChanges(
+            IReadOnlyList<TacviewHealthChangeRecord> healthChanges,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
+            IReadOnlyList<TacviewObjectTrack> weaponTracks)
+        {
+            var results = new List<TacviewWeaponResult>();
+
+            foreach (TacviewHealthChangeRecord healthChange in healthChanges)
+            {
+                if (!objects.TryGetValue(healthChange.ObjectId, out TacviewObjectTrack? target))
+                {
+                    continue;
+                }
+
+                InferredDamageMatch? match = FindBestWeaponForHealthDrop(
+                    healthChange,
+                    target,
+                    weaponTracks);
+
+                if (match is null)
+                {
+                    continue;
+                }
+
+                results.Add(new TacviewWeaponResult
+                {
+                    EventType = "Damage",
+                    TimeSeconds = healthChange.TimeSeconds,
+                    AbsoluteTimeUtc = healthChange.AbsoluteTimeUtc,
+                    SourceObjectId = match.Weapon.ObjectId,
+                    SourceName = match.Weapon.Name,
+                    TargetObjectId = target.ObjectId,
+                    TargetName = GetDisplayName(target),
+                    Outcome = string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Inferred from target health drop {FormatHealth(healthChange.PreviousHealth)} -> {FormatHealth(healthChange.NewHealth)}"),
+                    Description = string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Target health dropped from {FormatHealth(healthChange.PreviousHealth)} to {FormatHealth(healthChange.NewHealth)} near weapon {match.Weapon.ObjectId}; distance {match.DistanceMeters:F0} m"),
+                    Position = healthChange.Position ?? match.TargetPosition
+                });
+            }
+
+            return results;
+        }
+
+        private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromUnpairedWeaponRemovals(
+            IReadOnlyList<TacviewRemovalRecord> removals,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
+            IReadOnlyList<TacviewObjectTrack> weaponTracks,
+            IReadOnlySet<string> weaponIdsWithNonTimeoutResults)
+        {
+            var results = new List<TacviewWeaponResult>();
+
+            Dictionary<string, TacviewObjectTrack> weaponTracksById = weaponTracks
+                .ToDictionary(w => w.ObjectId, StringComparer.OrdinalIgnoreCase);
+
+            foreach (TacviewRemovalRecord weaponRemoval in removals)
+            {
+                if (!weaponTracksById.TryGetValue(
+                        weaponRemoval.ObjectId,
+                        out TacviewObjectTrack? weapon))
+                {
+                    continue;
+                }
+
+                if (weaponIdsWithNonTimeoutResults.Contains(weapon.ObjectId))
+                {
+                    continue;
+                }
+
+                if (HasSynchronizedTargetRemoval(weaponRemoval, removals, objects))
+                {
+                    continue;
+                }
+
+                InferredDamageMatch? match = FindBestUnpairedRemovalDamageTarget(
+                    weapon,
+                    weaponRemoval,
+                    removals,
+                    objects.Values,
+                    weaponTracksById);
+
+                if (match is null)
+                {
+                    continue;
+                }
+
+                results.Add(new TacviewWeaponResult
+                {
+                    EventType = "Damage",
+                    TimeSeconds = weaponRemoval.TimeSeconds,
+                    AbsoluteTimeUtc = weaponRemoval.AbsoluteTimeUtc,
+                    SourceObjectId = weapon.ObjectId,
+                    SourceName = weapon.Name,
+                    TargetObjectId = match.Target.ObjectId,
+                    TargetName = GetDisplayName(match.Target),
+                    Outcome = "Inferred from unpaired opposing weapon removal near target",
+                    Description = string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Weapon {weapon.ObjectId} removed near opposing target {match.Target.ObjectId}; distance {match.DistanceMeters:F0} m; no paired defensive weapon removal found"),
+                    Position = match.TargetPosition
+                });
+            }
+
+            return results;
+        }
+
+        private static HashSet<string> BuildWeaponIdsWithNonTimeoutResults(
+            IEnumerable<TacviewWeaponResult> results,
+            IReadOnlyList<TacviewObjectTrack> weaponTracks)
+        {
+            HashSet<string> weaponIds = weaponTracks
+                .Select(track => track.ObjectId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            HashSet<string> resultWeaponIds = new(StringComparer.OrdinalIgnoreCase);
+
+            foreach (TacviewWeaponResult result in results)
+            {
+                if (result.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(result.SourceObjectId)
+                    && weaponIds.Contains(result.SourceObjectId))
+                {
+                    resultWeaponIds.Add(result.SourceObjectId);
+                }
+
+                if (!string.IsNullOrWhiteSpace(result.TargetObjectId)
+                    && weaponIds.Contains(result.TargetObjectId))
+                {
+                    resultWeaponIds.Add(result.TargetObjectId);
+                }
+            }
+
+            return resultWeaponIds;
+        }
+
+        private static InferredDamageMatch? FindBestWeaponForHealthDrop(
+            TacviewHealthChangeRecord healthChange,
+            TacviewObjectTrack target,
+            IReadOnlyList<TacviewObjectTrack> weaponTracks)
+        {
+            TacviewPositionSample? targetPosition =
+                healthChange.Position
+                ?? target.End
+                ?? FindSampleClosestToTime(target.Samples, healthChange.TimeSeconds);
+
+            if (targetPosition is null)
+            {
+                return null;
+            }
+
+            const double maxDamageDistanceMeters = 5_000.0;
+            const double maxWeaponTimeBeforeDamageSeconds = 20.0;
+            const double maxWeaponTimeAfterDamageSeconds = 3.0;
+
+            return weaponTracks
+                .Where(weapon => weapon.End is not null)
+                .Where(weapon => IsPotentialDamageTargetForWeapon(weapon, target))
+                .Select(weapon => new InferredDamageMatch(
+                    weapon,
+                    target,
+                    targetPosition,
+                    CalculateDistanceMeters(weapon.End!, targetPosition),
+                    healthChange.TimeSeconds - weapon.End!.TimeSeconds))
+                .Where(match => match.DistanceMeters <= maxDamageDistanceMeters)
+                .Where(match => match.DeltaTimeSeconds >= -maxWeaponTimeAfterDamageSeconds
+                    && match.DeltaTimeSeconds <= maxWeaponTimeBeforeDamageSeconds)
+                .OrderBy(match => match.DistanceMeters)
+                .ThenBy(match => Math.Abs(match.DeltaTimeSeconds))
+                .FirstOrDefault();
+        }
+
+        private static InferredDamageMatch? FindBestUnpairedRemovalDamageTarget(
+            TacviewObjectTrack weapon,
+            TacviewRemovalRecord weaponRemoval,
+            IReadOnlyList<TacviewRemovalRecord> removals,
+            IEnumerable<TacviewObjectTrack> objects,
+            IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById)
+        {
+            TacviewPositionSample? weaponPosition =
+                weapon.End
+                ?? FindSampleClosestToTime(weapon.Samples, weaponRemoval.TimeSeconds);
+
+            if (weaponPosition is null)
+            {
+                return null;
+            }
+
+            const double maxInferredDamageDistanceMeters = 3_000.0;
+            const double maxTargetSampleTimeDifferenceSeconds = 15.0;
+
+            InferredDamageMatch? bestMatch = null;
+
+            foreach (TacviewObjectTrack target in objects)
+            {
+                if (target.ObjectId.Equals(weapon.ObjectId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (target.IsWeapon)
+                {
+                    continue;
+                }
+
+                if (target.Samples.Count == 0)
+                {
+                    continue;
+                }
+
+                if (IsSuppressedResultObject(target))
+                {
+                    continue;
+                }
+
+                if (!IsPotentialDamageTargetForWeapon(weapon, target))
+                {
+                    continue;
+                }
+
+                TacviewPositionSample? targetPosition =
+                    FindSampleClosestToTime(target.Samples, weaponRemoval.TimeSeconds);
+
+                if (targetPosition is null)
+                {
+                    continue;
+                }
+
+                double targetTimeDifference = Math.Abs(targetPosition.TimeSeconds - weaponRemoval.TimeSeconds);
+
+                if (targetTimeDifference > maxTargetSampleTimeDifferenceSeconds)
+                {
+                    continue;
+                }
+
+                double distanceMeters = CalculateDistanceMeters(weaponPosition, targetPosition);
+
+                if (distanceMeters > maxInferredDamageDistanceMeters)
+                {
+                    continue;
+                }
+
+                if (HasNearbyDefensiveWeaponRemoval(
+                        weapon,
+                        weaponPosition,
+                        weaponRemoval,
+                        target,
+                        removals,
+                        weaponTracksById))
+                {
+                    continue;
+                }
+
+                var match = new InferredDamageMatch(
+                    weapon,
+                    target,
+                    targetPosition,
+                    distanceMeters,
+                    weaponRemoval.TimeSeconds - weaponPosition.TimeSeconds);
+
+                if (bestMatch is null
+                    || match.DistanceMeters < bestMatch.DistanceMeters
+                    || (Math.Abs(match.DistanceMeters - bestMatch.DistanceMeters) < 0.001
+                        && Math.Abs(match.DeltaTimeSeconds) < Math.Abs(bestMatch.DeltaTimeSeconds)))
+                {
+                    bestMatch = match;
+                }
+            }
+
+            return bestMatch;
+        }
+
+        private static bool HasSynchronizedTargetRemoval(
+            TacviewRemovalRecord weaponRemoval,
+            IReadOnlyList<TacviewRemovalRecord> removals,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects)
+        {
+            return removals
+                .Where(r => Math.Abs(r.TimeSeconds - weaponRemoval.TimeSeconds) <= 0.25)
+                .Where(r => !r.ObjectId.Equals(weaponRemoval.ObjectId, StringComparison.OrdinalIgnoreCase))
+                .Any(r => objects.TryGetValue(r.ObjectId, out TacviewObjectTrack? removedObject)
+                    && !removedObject.IsWeapon
+                    && !IsSuppressedResultObject(removedObject));
+        }
+
+        private static bool HasNearbyDefensiveWeaponRemoval(
+            TacviewObjectTrack weapon,
+            TacviewPositionSample weaponPosition,
+            TacviewRemovalRecord weaponRemoval,
+            TacviewObjectTrack target,
+            IReadOnlyList<TacviewRemovalRecord> removals,
+            IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById)
+        {
+            const double maxDefensivePairTimeDifferenceSeconds = 0.75;
+            const double maxDefensivePairDistanceMeters = 750.0;
+
+            foreach (TacviewRemovalRecord otherRemoval in removals)
+            {
+                if (otherRemoval.ObjectId.Equals(weaponRemoval.ObjectId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (Math.Abs(otherRemoval.TimeSeconds - weaponRemoval.TimeSeconds) > maxDefensivePairTimeDifferenceSeconds)
+                {
+                    continue;
+                }
+
+                if (!weaponTracksById.TryGetValue(otherRemoval.ObjectId, out TacviewObjectTrack? otherWeapon))
+                {
+                    continue;
+                }
+
+                if (!AreSameKnownCoalition(otherWeapon.Coalition, target.Coalition))
+                {
+                    continue;
+                }
+
+                if (AreSameKnownCoalition(otherWeapon.Coalition, weapon.Coalition))
+                {
+                    continue;
+                }
+
+                TacviewPositionSample? otherWeaponPosition =
+                    otherWeapon.End
+                    ?? FindSampleClosestToTime(otherWeapon.Samples, otherRemoval.TimeSeconds);
+
+                if (otherWeaponPosition is null)
+                {
+                    continue;
+                }
+
+                double distanceMeters = CalculateDistanceMeters(weaponPosition, otherWeaponPosition);
+
+                if (distanceMeters <= maxDefensivePairDistanceMeters)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsPotentialDamageTargetForWeapon(
+            TacviewObjectTrack weapon,
+            TacviewObjectTrack target)
+        {
+            if (!weapon.IsWeapon || target.IsWeapon)
+            {
+                return false;
+            }
+
+            if (AreSameKnownCoalition(weapon.Coalition, target.Coalition))
+            {
+                return false;
+            }
+
+            string weaponText = $"{weapon.Name} {weapon.Type} {weapon.Group}";
+            string targetText = $"{target.Name} {target.Type} {target.Group}";
+
+            if (IsCountermeasureOrDecoy(weaponText)
+                || IsJettisonedStore(weaponText)
+                || IsGunRoundOrShell(weaponText))
+            {
+                return false;
+            }
+
+            if (IsCountermeasureOrDecoy(targetText)
+                || IsJettisonedStore(targetText))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool AreSameKnownCoalition(string? first, string? second)
+        {
+            if (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(second))
+            {
+                return false;
+            }
+
+            return first.Trim().Equals(second.Trim(), StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsSuppressedResultObject(TacviewObjectTrack track)
@@ -718,7 +1148,8 @@ namespace DcsMissionReader.Services
             double currentTimeSeconds,
             DateTimeOffset? referenceTimeUtc,
             double referenceLongitude,
-            double referenceLatitude)
+            double referenceLatitude,
+            List<TacviewHealthChangeRecord> healthChanges)
         {
             switch (key)
             {
@@ -753,7 +1184,19 @@ namespace DcsMissionReader.Services
                             CultureInfo.InvariantCulture,
                             out double health))
                     {
+                        double? previousHealth = track.Health;
                         track.Health = health;
+
+                        if (previousHealth is not null && health < previousHealth.Value)
+                        {
+                            healthChanges.Add(new TacviewHealthChangeRecord(
+                                track.ObjectId,
+                                previousHealth.Value,
+                                health,
+                                currentTimeSeconds,
+                                AddSeconds(referenceTimeUtc, currentTimeSeconds),
+                                track.End));
+                        }
                     }
                     break;
 
@@ -3252,6 +3695,21 @@ namespace DcsMissionReader.Services
                 || value.Contains("projectile", StringComparison.OrdinalIgnoreCase);
         }
 
+        private sealed record TacviewHealthChangeRecord(
+            string ObjectId,
+            double PreviousHealth,
+            double NewHealth,
+            double TimeSeconds,
+            DateTimeOffset? AbsoluteTimeUtc,
+            TacviewPositionSample? Position);
+
+        private sealed record InferredDamageMatch(
+            TacviewObjectTrack Weapon,
+            TacviewObjectTrack Target,
+            TacviewPositionSample TargetPosition,
+            double DistanceMeters,
+            double DeltaTimeSeconds);
+
         private sealed record TacviewRemovalRecord(
             string ObjectId,
             double TimeSeconds,
@@ -3310,15 +3768,6 @@ namespace DcsMissionReader.Services
                 .Replace(">", "&gt;", StringComparison.Ordinal)
                 .Replace("\"", "&quot;", StringComparison.Ordinal)
                 .Replace("'", "&apos;", StringComparison.Ordinal);
-        }
-
-        private static bool IsWeaponResultEventType(TacviewEventRecord eventRecord)
-        {
-            return eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase);
         }
 
     }

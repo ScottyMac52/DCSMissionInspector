@@ -52,7 +52,8 @@ namespace DcsMissionReaderTests
                 Assert.DoesNotContain("Springfield 1 END", kml);
 
                 Assert.Contains("AIM-120C", kml);
-                Assert.Contains("AIM-120C", kml);
+                Assert.DoesNotContain("Weapon Fired - AIM-120C", kml);
+                Assert.Contains("<name>AIM-120C</name>", kml);
                 Assert.Contains("AIM-120C Track", kml);
                 Assert.Contains("Destroyed - Target Truck", kml);
                 Assert.Contains("48.66236111,29.96027500,1500.00", kml);
@@ -694,9 +695,10 @@ namespace DcsMissionReaderTests
                 string kml = ReadKmlFromKmz(outputPath);
 
                 Assert.Contains("Mystery Missile", kml);
-                Assert.Contains("Mystery Missile", kml);
+                Assert.DoesNotContain("Weapon Fired - Mystery Missile", kml);
+                Assert.Contains("<name>Mystery Missile</name>", kml);
                 Assert.Contains("<name>Launching Unit</name>", kml);
-                Assert.Contains("Shooter - Springfield 1", kml);
+                Assert.Contains("<name>Shooter - Springfield 1</name>", kml);
             }
             finally
             {
@@ -723,7 +725,7 @@ namespace DcsMissionReaderTests
                 Assert.True(File.Exists(outputPath));
                 Assert.Equal(2, result.GroupTrackCount);
                 Assert.Equal(1, result.WeaponEmploymentCount);
-                Assert.Equal(1, result.WeaponResultCount);
+                Assert.Equal(2, result.WeaponResultCount);
 
                 string kml = ReadKmlFromKmz(outputPath);
 
@@ -798,7 +800,7 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
-        public void CreatePostBriefingKml_WithWeaponRemovedNearSurvivingShip_DoesNotInferHitFromProximityOnly()
+        public void CreatePostBriefingKml_WithWeaponRemovedNearSurvivingShip_AddsInferredDamageWhenWeaponRemovalCorrelatesWithHealthDrop()
         {
             string tempDirectory = CreateTempDirectory();
 
@@ -823,6 +825,57 @@ namespace DcsMissionReaderTests
                 AssertPlacemarkDescriptionContains(
                     kml,
                     "Washington CSG",
+                    "Final Disposition:\nDamaged / Weapon Effect Recorded");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Health Remaining: 75%");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Weapons That Hit / Destroyed This Object:");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "- X_22 [901] from Carrier Killer");
+
+                Assert.DoesNotContain("Timeout - X_22", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithPairedWeaponInterceptionNearShip_DoesNotInferShipHit()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "paired-interception-near-ship.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "paired-interception-near-ship.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithPairedKitchenAndSeaSparrowInterception());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(3, result.GroupTrackCount);
+                Assert.Equal(2, result.WeaponEmploymentCount);
+                Assert.Equal(2, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
                     "Final Disposition:\nSurvived / No Weapon Result Recorded");
 
                 AssertPlacemarkDescriptionContains(
@@ -831,7 +884,9 @@ namespace DcsMissionReaderTests
                     "Weapons That Hit / Destroyed This Object:\n- None recorded");
 
                 Assert.Contains("Timeout - X_22", kml);
+                Assert.Contains("Timeout - SeaSparrow", kml);
                 AssertPlacemarkVisibility(kml, "Timeout - X_22", expectedVisibility: "0");
+                AssertPlacemarkVisibility(kml, "Timeout - SeaSparrow", expectedVisibility: "0");
             }
             finally
             {
@@ -929,6 +984,30 @@ namespace DcsMissionReaderTests
            -901
            #21.00
            101,T=57.17663780|25.53163180|0|0|0|90,Health=0.75
+           """;
+        }
+
+        private static string BuildAcmiWithPairedKitchenAndSeaSparrowInterception()
+        {
+            return """
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+           #0.00
+           101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
+           201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
+           301,Name=CG_60,Type=Sea+Watercraft+Cruiser,Group=Washington CSG Escort,Color=Blue,Coalition=Enemies,T=57.17600000|25.53200000|0|0|0|90
+           #10.00
+           901,Name=X_22,Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
+           #15.00
+           902,Name=SeaSparrow,Type=Weapon+Missile,Parent=301,Color=Blue,Coalition=Enemies,T=57.17600000|25.53200000|100|0|0|270
+           #20.00
+           901,T=57.17663780|25.53163180|50|0|0|270
+           902,T=57.17663800|25.53163200|55|0|0|270
+           -901
+           -902
+           #21.00
+           101,T=57.17663780|25.53163180|0|0|0|90
            """;
         }
 
@@ -1465,54 +1544,21 @@ namespace DcsMissionReaderTests
             string expectedVisibility)
         {
             string nameElement = $"<name>{placemarkName}</name>";
-            string visibilityElement = $"<visibility>{expectedVisibility}</visibility>";
+            int nameIndex = kml.IndexOf(nameElement, StringComparison.Ordinal);
 
-            int searchIndex = 0;
-            int matchingPlacemarkCount = 0;
-            string? firstMatchingPlacemark = null;
+            Assert.True(nameIndex >= 0, $"Could not find placemark name: {placemarkName}");
 
-            while (true)
-            {
-                int placemarkStart = kml.IndexOf("<Placemark>", searchIndex, StringComparison.Ordinal);
+            int placemarkStart = kml.LastIndexOf("<Placemark>", nameIndex, StringComparison.Ordinal);
+            int placemarkEnd = kml.IndexOf("</Placemark>", nameIndex, StringComparison.Ordinal);
 
-                if (placemarkStart < 0)
-                {
-                    break;
-                }
+            Assert.True(placemarkStart >= 0, $"Could not find opening Placemark for: {placemarkName}");
+            Assert.True(placemarkEnd > placemarkStart, $"Could not find closing Placemark for: {placemarkName}");
 
-                int placemarkEnd = kml.IndexOf("</Placemark>", placemarkStart, StringComparison.Ordinal);
+            string placemark = kml.Substring(
+                placemarkStart,
+                placemarkEnd + "</Placemark>".Length - placemarkStart);
 
-                Assert.True(
-                    placemarkEnd > placemarkStart,
-                    $"Found opening Placemark but no closing Placemark while searching for: {placemarkName}");
-
-                string placemark = kml.Substring(
-                    placemarkStart,
-                    placemarkEnd + "</Placemark>".Length - placemarkStart);
-
-                if (placemark.Contains(nameElement, StringComparison.Ordinal))
-                {
-                    matchingPlacemarkCount++;
-                    firstMatchingPlacemark ??= placemark;
-
-                    if (placemark.Contains(visibilityElement, StringComparison.Ordinal))
-                    {
-                        return;
-                    }
-                }
-
-                searchIndex = placemarkEnd + "</Placemark>".Length;
-            }
-
-            if (matchingPlacemarkCount == 0)
-            {
-                Assert.Fail($"Could not find placemark name: {placemarkName}");
-            }
-
-            Assert.Fail(
-                $"Found {matchingPlacemarkCount} Placemark(s) with name '{placemarkName}', " +
-                $"but none contained expected visibility element: {visibilityElement}{Environment.NewLine}{Environment.NewLine}" +
-                $"First matching placemark was:{Environment.NewLine}{firstMatchingPlacemark}");
+            Assert.Contains($"<visibility>{expectedVisibility}</visibility>", placemark);
         }
 
         private static void CreateAcmiZip(string zipPath, string acmiContent)
