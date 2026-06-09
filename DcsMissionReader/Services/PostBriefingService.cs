@@ -335,9 +335,7 @@ namespace DcsMissionReader.Services
                 .ToList();
 
             List<TacviewWeaponResult> weaponResults = events
-                .Where(e =>
-                    e.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
-                    || e.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
+                .Where(IsWeaponResultEventType)
                 .Select(e => CreateWeaponResult(e, objects))
                 .ToList();
 
@@ -366,6 +364,15 @@ namespace DcsMissionReader.Services
                 weaponEngagements,
                 unmatchedWeaponResults,
                 referenceTimeUtc);
+        }
+
+        private static bool IsWeaponResultEventType(TacviewEventRecord eventRecord)
+        {
+            return eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase);
         }
 
         private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromRemovals(
@@ -999,9 +1006,15 @@ namespace DcsMissionReader.Services
             // Event=Timeout|200|Object has timed out
             string? firstKnownObjectId = FindFirstKnownObjectIdInEvent(eventRecord, objects);
 
-            if (eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase))
+            (string? compactSourceObjectId, string? compactTargetObjectId) = FindCompactWeaponEventObjects(eventRecord, objects);
+
+            if (eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase))
             {
-                targetObjectId ??= firstKnownObjectId;
+                sourceObjectId ??= compactSourceObjectId;
+                targetObjectId ??= compactTargetObjectId ?? firstKnownObjectId;
             }
             else if (eventRecord.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
             {
@@ -1220,6 +1233,48 @@ namespace DcsMissionReader.Services
             return dispositions;
         }
 
+        private static (string? SourceObjectId, string? TargetObjectId) FindCompactWeaponEventObjects(
+    TacviewEventRecord eventRecord,
+    IReadOnlyDictionary<string, TacviewObjectTrack> objects)
+        {
+            string? sourceObjectId = null;
+            string? targetObjectId = null;
+
+            foreach (string part in eventRecord.Parts.Skip(1))
+            {
+                string candidate = part.Trim();
+
+                if (!objects.TryGetValue(candidate, out TacviewObjectTrack? candidateObject))
+                {
+                    int colonIndex = candidate.IndexOf(':');
+
+                    if (colonIndex < 0)
+                    {
+                        continue;
+                    }
+
+                    string valueAfterColon = candidate[(colonIndex + 1)..].Trim();
+
+                    if (!objects.TryGetValue(valueAfterColon, out candidateObject))
+                    {
+                        continue;
+                    }
+
+                    candidate = valueAfterColon;
+                }
+
+                if (candidateObject.IsWeapon)
+                {
+                    sourceObjectId ??= candidate;
+                    continue;
+                }
+
+                targetObjectId ??= candidate;
+            }
+
+            return (sourceObjectId, targetObjectId);
+        }
+
         private static string? FindFirstKnownObjectIdInEvent(
     TacviewEventRecord eventRecord,
     IReadOnlyDictionary<string, TacviewObjectTrack> objects)
@@ -1263,12 +1318,14 @@ namespace DcsMissionReader.Services
         }
 
         private static TacviewPositionSample? ResolveWeaponResultPosition(
-            TacviewEventRecord eventRecord,
-            TacviewObjectTrack? sourceObject,
-            TacviewObjectTrack? targetObject)
+     TacviewEventRecord eventRecord,
+     TacviewObjectTrack? sourceObject,
+     TacviewObjectTrack? targetObject)
         {
             if (eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase))
+                || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase))
             {
                 return targetObject?.End
                     ?? sourceObject?.End;
@@ -3253,6 +3310,15 @@ namespace DcsMissionReader.Services
                 .Replace(">", "&gt;", StringComparison.Ordinal)
                 .Replace("\"", "&quot;", StringComparison.Ordinal)
                 .Replace("'", "&apos;", StringComparison.Ordinal);
+        }
+
+        private static bool IsWeaponResultEventType(TacviewEventRecord eventRecord)
+        {
+            return eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase);
         }
 
     }
