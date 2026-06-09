@@ -305,6 +305,40 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
+        public void CreatePostBriefingKml_WithRotorcraftNameContainingSh_DoesNotRenderAsSam()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "rotorcraft-sh60.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "rotorcraft-sh60.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithSh60Rotorcraft());
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath, new PostBriefingKmlOptions
+                {
+                    TreatTacviewAlliesAsBlue = false,
+                    TreatTacviewEnemiesAsRed = false,
+                    InferBlueForKnownUsNavalAssets = false
+                });
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains("Rotary-1", kml);
+                Assert.Contains("SH-60B", kml);
+                Assert.Contains("#blueHeloStartStyle", kml);
+                Assert.DoesNotContain("#blueSamStartStyle", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
         public void CreatePostBriefingKml_WithWeaponTimeout_HidesTimeoutResultPlacemark()
         {
             string tempDirectory = CreateTempDirectory();
@@ -668,6 +702,19 @@ namespace DcsMissionReaderTests
             {
                 Directory.Delete(tempDirectory, recursive: true);
             }
+        }
+
+        private static string BuildAcmiWithSh60Rotorcraft()
+        {
+            return """
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+           #0.01
+           1301,Name=SH-60B,Type=Air+Rotorcraft,Group=Rotary-1,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|498.45|0|0|90
+           #1.00
+           1301,T=57.17670000|25.53170000|500.00|0|0|90
+           """;
         }
 
         private static string BuildAcmiWithWeaponTimeout()

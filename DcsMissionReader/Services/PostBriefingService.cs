@@ -2669,13 +2669,8 @@ namespace DcsMissionReader.Services
             string name = track.Name ?? string.Empty;
             string group = track.Group ?? string.Empty;
 
-            // Prefer explicit Tacview type/category data over names or group names.
-            // Example: Type=Air+FixedWing, Group=Carrier Killer must still be a plane.
-            if (LooksLikeSam(type))
-            {
-                return "sam";
-            }
-
+            // Explicit Tacview aircraft type/category must win over name/group inference.
+            // Example: Type=Air+Rotorcraft, Name=SH-60B must render as a helicopter, not as SAM.
             if (type.Contains("Helicopter", StringComparison.OrdinalIgnoreCase)
                 || type.Contains("Rotorcraft", StringComparison.OrdinalIgnoreCase)
                 || type.Contains("Helo", StringComparison.OrdinalIgnoreCase))
@@ -2691,23 +2686,26 @@ namespace DcsMissionReader.Services
                 return "plane";
             }
 
+            // Explicit sea type/category should also win before fuzzy name/group inference.
             if (type.Contains("Sea", StringComparison.OrdinalIgnoreCase)
                 || type.Contains("Ship", StringComparison.OrdinalIgnoreCase)
                 || type.Contains("Boat", StringComparison.OrdinalIgnoreCase)
                 || type.Contains("Carrier", StringComparison.OrdinalIgnoreCase)
                 || type.Contains("Frigate", StringComparison.OrdinalIgnoreCase)
                 || type.Contains("Destroyer", StringComparison.OrdinalIgnoreCase)
-                || type.Contains("Cruiser", StringComparison.OrdinalIgnoreCase))
+                || type.Contains("Cruiser", StringComparison.OrdinalIgnoreCase)
+                || type.Contains("Watercraft", StringComparison.OrdinalIgnoreCase))
             {
                 return "ship";
             }
 
-            string combined = $"{type} {name} {group}";
-
-            if (LooksLikeSam(combined))
+            // SAM should be inferred only after explicit air/sea classifications have been ruled out.
+            if (LooksLikeSam(type))
             {
                 return "sam";
             }
+
+            string combined = $"{type} {name} {group}";
 
             if (combined.Contains("Helicopter", StringComparison.OrdinalIgnoreCase)
                 || combined.Contains("Rotorcraft", StringComparison.OrdinalIgnoreCase)
@@ -2730,9 +2728,15 @@ namespace DcsMissionReader.Services
                 || combined.Contains("Carrier", StringComparison.OrdinalIgnoreCase)
                 || combined.Contains("Frigate", StringComparison.OrdinalIgnoreCase)
                 || combined.Contains("Destroyer", StringComparison.OrdinalIgnoreCase)
-                || combined.Contains("Cruiser", StringComparison.OrdinalIgnoreCase))
+                || combined.Contains("Cruiser", StringComparison.OrdinalIgnoreCase)
+                || combined.Contains("Watercraft", StringComparison.OrdinalIgnoreCase))
             {
                 return "ship";
+            }
+
+            if (LooksLikeSam(combined))
+            {
+                return "sam";
             }
 
             return "ground";
