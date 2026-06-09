@@ -110,6 +110,7 @@ namespace DcsMissionReader.Services
             AddIconToKmzIfAvailable(archive, "missile.png");
             AddIconToKmzIfAvailable(archive, "bomb.png");
             AddIconToKmzIfAvailable(archive, "sam.png");
+            AddIconToKmzIfAvailable(archive, "explode.svg");
         }
 
         private static void AddIconToKmzIfAvailable(
@@ -2083,22 +2084,20 @@ namespace DcsMissionReader.Services
             builder.AppendLine("""
 <Style id="weaponResultStyle">
     <IconStyle>
-        <scale>1.1</scale>
+        <scale>0.55</scale>
         <color>ff00ffff</color>
-        <Icon><href>https://maps.google.com/mapfiles/kml/shapes/caution.png</href></Icon>
+        <Icon><href>https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon>
     </IconStyle>
-    <LabelStyle><scale>0.9</scale></LabelStyle>
+    <LabelStyle><scale>0</scale></LabelStyle>
 </Style>
 """);
-
             builder.AppendLine("""
 <Style id="destroyedObjectStyle">
     <IconStyle>
-        <scale>1.25</scale>
-        <color>ff0000ff</color>
-        <Icon><href>https://maps.google.com/mapfiles/kml/shapes/caution.png</href></Icon>
+        <scale>1.15</scale>
+        <Icon><href>icons/explode.svg</href></Icon>
     </IconStyle>
-    <LabelStyle><scale>1.0</scale></LabelStyle>
+    <LabelStyle><scale>0.85</scale></LabelStyle>
 </Style>
 """);
             builder.AppendLine("""
@@ -2476,7 +2475,7 @@ namespace DcsMissionReader.Services
             string displayName = GetDisplayName(track);
 
             builder.AppendLine("<Placemark>");
-            builder.AppendElement("name", $"🚫 {displayName}");
+            builder.AppendElement("name", $"Destroyed - {displayName}");
             builder.AppendElement("description", BuildDestroyedObjectDescription(track, disposition));
             builder.AppendLine("<styleUrl>#destroyedObjectStyle</styleUrl>");
 

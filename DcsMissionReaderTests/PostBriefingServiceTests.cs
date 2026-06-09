@@ -751,12 +751,12 @@ namespace DcsMissionReaderTests
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "🚫 Overlord",
+                    "Destroyed - Overlord",
                     "Destroyed Object: Overlord [300]");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "🚫 Overlord",
+                    "Destroyed - Overlord",
                     "Killed By Weapon: P_33E [200]");
             }
             finally
@@ -976,10 +976,15 @@ namespace DcsMissionReaderTests
 
                 string kml = ReadKmlFromKmz(outputPath);
 
-                AssertPlacemarkContains(kml, "🚫 Overlord", "#destroyedObjectStyle");
+                AssertPlacemarkContains(kml, "Destroyed - Overlord", "#destroyedObjectStyle");
+
+                Assert.DoesNotContain("🚫 Overlord", kml);
+                Assert.DoesNotContain(
+                    "https://maps.google.com/mapfiles/kml/shapes/caution.png",
+                    kml);
+
                 AssertPlacemarkVisibility(kml, "Shooter - AWACS KILLER", expectedVisibility: "0");
                 AssertPlacemarkVisibility(kml, "P_33E", expectedVisibility: "0");
-                AssertPlacemarkVisibility(kml, "Destroyed - Overlord", expectedVisibility: "0");
             }
             finally
             {
