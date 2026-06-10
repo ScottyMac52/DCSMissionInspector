@@ -337,6 +337,65 @@ namespace DcsMissionReaderTests
             }
         }
 
+        [Fact]
+        public void CreatePostBriefingKml_WithSyntheticCsgEscortBattle_PromotesTerminalProximityOnlyForSeaTargets()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildSyntheticCsgEscortBattleAcmi());
+
+                var service = new PostBriefingService(
+                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
+                    {
+                        EnableTerminalProximityDamageInference = true,
+                        EnableTerminalProximityNearMissReporting = true
+                    });
+
+                service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                // X_22 901 ends near Washington CSG. Sea target terminal proximity may become Damage.
+                AssertObjectWeaponHitCount(
+                    kml,
+                    objectPlacemarkName: "Washington CSG",
+                    expectedHitCount: 1,
+                    expectedWeaponName: "X_22");
+
+                // X_22 909 ends near Rotary-1, but terminal proximity alone should not damage air targets.
+                // Rotary-1 should only have the one real same-time-removal kill from X_22 911.
+                AssertObjectWeaponHitCount(
+                    kml,
+                    objectPlacemarkName: "Rotary-1",
+                    expectedHitCount: 1,
+                    expectedWeaponName: "X_22");
+
+                // X_22 910 ends near Overlord, but terminal proximity alone should not damage air targets.
+                AssertObjectWeaponHitCount(
+                    kml,
+                    objectPlacemarkName: "Overlord",
+                    expectedHitCount: 0,
+                    expectedWeaponName: "X_22");
+
+                Assert.Equal(
+                    1,
+                    CountPlacemarkNameOccurrences(kml, "Near Miss - Rotary-1"));
+
+                Assert.Equal(
+                    1,
+                    CountPlacemarkNameOccurrences(kml, "Near Miss - Overlord"));
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
 
         private static int CountFolderNamesContainingAll(
     string kml,
@@ -818,24 +877,28 @@ namespace DcsMissionReaderTests
            -1020
 
            #140.00
+           101,T=57.17763780|25.53263180|0|0|0|90
            901,T=57.17763780|25.53263180|50|0|0|270
            -901
 
            #150.00
            909,Name=X_22,Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.30000000|25.70000000|8500|0|0|270
            #160.00
+           301,T=57.17100000|25.52100000|500|0|0|90
            909,T=57.17100000|25.52100000|550|0|0|270
            -909
 
            #170.00
            910,Name=X_22,Type=Weapon+Missile,Parent=202,Color=Red,Coalition=Allies,T=57.30000000|25.70000000|9000|0|0|270
            #180.00
+           302,T=57.25100000|25.62100000|9000|0|0|90
            910,T=57.25100000|25.62100000|9000|0|0|270
            -910
 
            #190.00
            911,Name=X_22,Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.30000000|25.70000000|8500|0|0|270
            #200.00
+           301,T=57.17100000|25.52100000|500|0|0|90
            911,T=57.17100000|25.52100000|550|0|0|270
            -911
            -301
