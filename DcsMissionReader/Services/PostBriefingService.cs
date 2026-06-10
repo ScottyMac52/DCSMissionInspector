@@ -801,8 +801,7 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
-                bool classifyAsDamage = inferenceOptions.EnableTerminalProximityDamageInference;
-
+                bool classifyAsDamage = inferenceOptions.EnableTerminalProximityDamageInference && ShouldPromoteTerminalProximityToDamage(match.Target);
                 results.Add(new TacviewWeaponResult
                 {
                     EventType = classifyAsDamage
@@ -834,6 +833,11 @@ namespace DcsMissionReader.Services
             }
 
             return results;
+        }
+
+        private static bool ShouldPromoteTerminalProximityToDamage(TacviewObjectTrack target)
+        {
+            return TacviewCombatClassifier.GetTargetDomain(target) == TacviewTargetDomain.Sea;
         }
 
         private static HashSet<string> BuildWeaponIdsWithNonTimeoutResults(
