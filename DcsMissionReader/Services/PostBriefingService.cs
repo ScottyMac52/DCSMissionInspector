@@ -38,8 +38,10 @@ namespace DcsMissionReader.Services
             outputKmlFilePath = EnsureKmzOutputPath(
                 outputKmlFilePath ?? CreateDefaultOutputPath(acmiZipFilePath));
 
-            var parseResult = ParseZippedAcmi(
-                acmiZipFilePath,
+            TacviewAcmiParseData acmiData = TacviewAcmiParser.ParseZippedAcmi(acmiZipFilePath);
+
+            AcmiParseResult parseResult = BuildPostBriefingParseResult(
+                acmiData,
                 _weaponResultInferenceOptions);
 
             string kml = BuildKml(parseResult, options);
@@ -56,6 +58,89 @@ namespace DcsMissionReader.Services
                     parseResult.WeaponEngagements.Sum(e => e.Results.Count)
                     + parseResult.UnmatchedWeaponResults.Count
             };
+        }
+
+        private AcmiParseResult BuildPostBriefingParseResult(
+            TacviewAcmiParseData acmiData,
+            WeaponResultInferenceOptions inferenceOptions)
+        {
+            List<TacviewObjectTrack> groupTracks = acmiData.Objects.Values
+                .Where(o => !ShouldSuppressFromObjectTracks(o))
+                .Where(o => o.Samples.Count > 0)
+                .OrderBy(o => o.Group ?? o.Name ?? o.ObjectId, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(o => o.ObjectId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            List<TacviewWeaponEmployment> weaponEmployments = acmiData.Objects.Values
+                .Where(o => o.IsWeapon)
+                .Where(IsRelevantWeaponObject)
+                .Where(o => o.Start is not null)
+                .Select(o => CreateWeaponEmployment(o, acmiData.Objects))
+                .ToList();
+
+            List<TacviewWeaponResult> explicitWeaponResults = acmiData.Events
+                .Where(IsWeaponResultEventType)
+                .Select(e => CreateWeaponResult(e, acmiData.Objects))
+                .ToList();
+
+            List<TacviewObjectTrack> weaponTracks = acmiData.Objects.Values
+                .Where(IsRelevantWeaponObject)
+                .Where(o => o.Samples.Count > 0)
+                .OrderBy(o => o.Name ?? o.ObjectId, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(o => o.ObjectId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            List<TacviewWeaponResult> inferredDamageResults = new();
+
+            inferredDamageResults.AddRange(
+                CreateWeaponResultsFromHealthChanges(
+                    acmiData.HealthChanges,
+                    acmiData.Objects,
+                    weaponTracks,
+                    inferenceOptions));
+
+            HashSet<string> weaponIdsWithNonTimeoutResults =
+                BuildWeaponIdsWithNonTimeoutResults(
+                    explicitWeaponResults.Concat(inferredDamageResults),
+                    weaponTracks);
+
+            inferredDamageResults.AddRange(
+                CreateWeaponResultsFromUnpairedWeaponRemovals(
+                    acmiData.Removals,
+                    acmiData.Objects,
+                    weaponTracks,
+                    weaponIdsWithNonTimeoutResults,
+                    inferenceOptions));
+
+            weaponIdsWithNonTimeoutResults =
+                BuildWeaponIdsWithNonTimeoutResults(
+                    explicitWeaponResults.Concat(inferredDamageResults),
+                    weaponTracks);
+
+            List<TacviewWeaponResult> weaponResults = explicitWeaponResults
+                .Concat(inferredDamageResults)
+                .ToList();
+
+            weaponResults.AddRange(
+                CreateWeaponResultsFromRemovals(
+                    acmiData.Removals,
+                    acmiData.Objects,
+                    weaponTracks,
+                    weaponIdsWithNonTimeoutResults,
+                    inferenceOptions));
+
+            List<TacViewWeaponEngagement> weaponEngagements = CreateWeaponEngagements(
+                weaponTracks,
+                weaponEmployments,
+                weaponResults,
+                out List<TacviewWeaponResult> unmatchedWeaponResults);
+
+            return new AcmiParseResult(
+                acmiData.Mission,
+                groupTracks,
+                weaponEngagements,
+                unmatchedWeaponResults,
+                acmiData.ReferenceTimeUtc);
         }
 
         private static string CreateDefaultOutputPath(string acmiZipFilePath)
@@ -989,6 +1074,7 @@ namespace DcsMissionReader.Services
                      weapon,
                      weaponPosition,
                      weaponRemoval,
+                     target,
                      removals,
                      objects,
                      weaponTracksById,
@@ -1034,6 +1120,7 @@ namespace DcsMissionReader.Services
             TacviewObjectTrack weapon,
             TacviewPositionSample weaponPosition,
             TacviewRemovalRecord weaponRemoval,
+            TacviewObjectTrack target,
             IReadOnlyList<TacviewRemovalRecord> removals,
             IEnumerable<TacviewObjectTrack> objects,
             IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById,
@@ -3668,25 +3755,12 @@ namespace DcsMissionReader.Services
                 || value.Contains("projectile", StringComparison.OrdinalIgnoreCase);
         }
 
-        private sealed record TacviewHealthChangeRecord(
-            string ObjectId,
-            double PreviousHealth,
-            double NewHealth,
-            double TimeSeconds,
-            DateTimeOffset? AbsoluteTimeUtc,
-            TacviewPositionSample? Position);
-
         private sealed record InferredDamageMatch(
             TacviewObjectTrack Weapon,
             TacviewObjectTrack Target,
             TacviewPositionSample TargetPosition,
             double DistanceMeters,
             double DeltaTimeSeconds);
-
-        private sealed record TacviewRemovalRecord(
-            string ObjectId,
-            double TimeSeconds,
-            DateTimeOffset? AbsoluteTimeUtc);
 
         private sealed record AcmiParseResult(
             TacviewMissionInfo Mission,
