@@ -499,10 +499,10 @@ namespace DcsMissionReader.Services
             return results;
         }
 
-        private static bool HasNonTimeoutWeaponResult(TacViewWeaponEngagement engagement)
+        private static bool HasObjectEffectWeaponResult(TacViewWeaponEngagement engagement)
         {
             return engagement.Results.Any(result =>
-                !result.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase));
+                IsObjectEffectWeaponResultType(result.EventType));
         }
 
         private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromHealthChanges(
@@ -560,7 +560,8 @@ namespace DcsMissionReader.Services
             IReadOnlySet<string> weaponIdsWithNonTimeoutResults,
             WeaponResultInferenceOptions inferenceOptions)
         {
-            if (!inferenceOptions.EnableTerminalProximityDamageInference)
+            if (!inferenceOptions.EnableTerminalProximityDamageInference
+                && !inferenceOptions.EnableTerminalProximityNearMissReporting)
             {
                 return Array.Empty<TacviewWeaponResult>();
             }
@@ -606,21 +607,36 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
+                bool classifyAsDamage = inferenceOptions.EnableTerminalProximityDamageInference;
+
                 results.Add(new TacviewWeaponResult
                 {
-                    EventType = "Damage",
+                    EventType = classifyAsDamage
+                        ? "Damage"
+                        : "NearMiss",
+
                     TimeSeconds = weaponRemoval.TimeSeconds,
                     AbsoluteTimeUtc = weaponRemoval.AbsoluteTimeUtc,
                     SourceObjectId = weapon.ObjectId,
                     SourceName = weapon.Name,
                     TargetObjectId = match.Target.ObjectId,
                     TargetName = GetDisplayName(match.Target),
-                    Outcome = "Inferred from unpaired opposing weapon removal near target",
-                    Description = string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"Weapon {weapon.ObjectId} removed near opposing target {match.Target.ObjectId}; distance {match.DistanceMeters:F0} m; no paired defensive weapon removal found"),
+
+                    Outcome = classifyAsDamage
+                        ? "Inferred from unpaired opposing weapon removal near target"
+                        : "Terminal proximity only; not classified as damage",
+
+                    Description = classifyAsDamage
+                        ? string.Create(
+                            CultureInfo.InvariantCulture,
+                            $"Weapon {weapon.ObjectId} removed near opposing target {match.Target.ObjectId}; distance {match.DistanceMeters:F0} m; no paired defensive weapon removal found")
+                        : string.Create(
+                            CultureInfo.InvariantCulture,
+                            $"Weapon {weapon.ObjectId} ended near opposing target {match.Target.ObjectId}; distance {match.DistanceMeters:F0} m; recorded as near miss because terminal proximity alone is not damage"),
+
                     Position = match.TargetPosition
                 });
+
             }
 
             return results;
@@ -859,6 +875,20 @@ namespace DcsMissionReader.Services
             }
 
             return false;
+        }
+
+        private static bool IsObjectEffectWeaponResultType(string eventType)
+        {
+            return eventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
+                || eventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
+                || eventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
+                || eventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsFailedOrDiagnosticWeaponResultType(string eventType)
+        {
+            return eventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase)
+                || eventType.Equals("NearMiss", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsPotentialDamageTargetForWeapon(
@@ -1656,6 +1686,11 @@ namespace DcsMissionReader.Services
 
                 foreach (TacviewWeaponResult result in engagement.Results)
                 {
+                    if (!IsObjectEffectWeaponResultType(result.EventType))
+                    {
+                        continue;
+                    }
+
                     string? targetObjectId = result.TargetObjectId;
 
                     if (string.IsNullOrWhiteSpace(targetObjectId))
@@ -2287,7 +2322,7 @@ namespace DcsMissionReader.Services
             AppendFolderStart(
                 builder,
                 folderName,
-                visible: HasNonTimeoutWeaponResult(engagement));
+                visible: HasObjectEffectWeaponResult(engagement));
 
             AppendWeaponInformationFolder(builder, engagement, options);
             AppendWeaponShooterFolder(builder, engagement);
@@ -2628,6 +2663,15 @@ namespace DcsMissionReader.Services
                 ?? result.SourceName
                 ?? result.SourceObjectId
                 ?? "Unknown";
+
+            if (result.EventType.Equals("NearMiss", StringComparison.OrdinalIgnoreCase))
+            {
+                string targetName = string.IsNullOrWhiteSpace(result.TargetName)
+                    ? "Unknown Target"
+                    : result.TargetName;
+
+                return $"Near Miss - {targetName}";
+            }
 
             return $"{result.EventType} - {subject}";
         }
