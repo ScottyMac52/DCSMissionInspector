@@ -514,11 +514,11 @@ namespace DcsMissionReader.Services
         }
 
         private static IReadOnlyList<TacviewWeaponResult> CreateWeaponVsWeaponRemovalResults(
-    IReadOnlyList<TacviewRemovalRecord> removals,
-    IReadOnlyDictionary<string, TacviewObjectTrack> objects,
-    IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById,
-    ISet<string> weaponIdsWithResults,
-    WeaponResultInferenceOptions inferenceOptions)
+            IReadOnlyList<TacviewRemovalRecord> removals,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
+            IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById,
+            ISet<string> weaponIdsWithResults,
+            WeaponResultInferenceOptions inferenceOptions)
         {
             var results = new List<TacviewWeaponResult>();
             HashSet<string> consumedWeaponIds = new(StringComparer.OrdinalIgnoreCase);
@@ -653,11 +653,11 @@ namespace DcsMissionReader.Services
         }
 
         private static bool TryResolveInterceptorAndInterceptedWeapon(
-    TacviewObjectTrack firstWeapon,
-    TacviewObjectTrack secondWeapon,
-    IReadOnlyDictionary<string, TacviewObjectTrack> objects,
-    out TacviewObjectTrack? interceptor,
-    out TacviewObjectTrack? interceptedWeapon)
+            TacviewObjectTrack firstWeapon,
+            TacviewObjectTrack secondWeapon,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
+            out TacviewObjectTrack? interceptor,
+            out TacviewObjectTrack? interceptedWeapon)
         {
             TacviewObjectTrack? firstLauncher = ResolveWeaponShooter(firstWeapon, objects);
             TacviewObjectTrack? secondLauncher = ResolveWeaponShooter(secondWeapon, objects);
@@ -986,13 +986,13 @@ namespace DcsMissionReader.Services
                 }
 
                 if (HasNearbyDefensiveWeaponRemoval(
-                        weapon,
-                        weaponPosition,
-                        weaponRemoval,
-                        target,
-                        removals,
-                        weaponTracksById,
-                        inferenceOptions))
+                     weapon,
+                     weaponPosition,
+                     weaponRemoval,
+                     removals,
+                     objects,
+                     weaponTracksById,
+                     inferenceOptions))
                 {
                     continue;
                 }
@@ -1034,11 +1034,21 @@ namespace DcsMissionReader.Services
             TacviewObjectTrack weapon,
             TacviewPositionSample weaponPosition,
             TacviewRemovalRecord weaponRemoval,
-            TacviewObjectTrack target,
             IReadOnlyList<TacviewRemovalRecord> removals,
+            IEnumerable<TacviewObjectTrack> objects,
             IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById,
             WeaponResultInferenceOptions inferenceOptions)
         {
+            Dictionary<string, TacviewObjectTrack> objectsById = objects
+                .ToDictionary(o => o.ObjectId, StringComparer.OrdinalIgnoreCase);
+
+            TacviewObjectTrack? inboundLauncher = ResolveWeaponShooter(weapon, objectsById);
+
+            if (!TacviewCombatClassifier.IsOffensiveStrikeWeapon(weapon, inboundLauncher))
+            {
+                return false;
+            }
+
             foreach (TacviewRemovalRecord otherRemoval in removals)
             {
                 if (otherRemoval.ObjectId.Equals(weaponRemoval.ObjectId, StringComparison.OrdinalIgnoreCase))
@@ -1046,7 +1056,9 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
-                if (Math.Abs(otherRemoval.TimeSeconds - weaponRemoval.TimeSeconds) > inferenceOptions.DefensivePairMaxTimeDifferenceSeconds)
+                double timeDifferenceSeconds = Math.Abs(otherRemoval.TimeSeconds - weaponRemoval.TimeSeconds);
+
+                if (timeDifferenceSeconds > inferenceOptions.DefensivePairMaxTimeDifferenceSeconds)
                 {
                     continue;
                 }
@@ -1056,12 +1068,9 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
-                if (!AreSameKnownCoalition(otherWeapon.Coalition, target.Coalition))
-                {
-                    continue;
-                }
+                TacviewObjectTrack? defensiveLauncher = ResolveWeaponShooter(otherWeapon, objectsById);
 
-                if (AreSameKnownCoalition(otherWeapon.Coalition, weapon.Coalition))
+                if (!TacviewCombatClassifier.IsDefensiveInterceptor(otherWeapon, defensiveLauncher))
                 {
                     continue;
                 }
@@ -1075,7 +1084,9 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
-                double distanceMeters = TacviewCombatClassifier.CalculateDistance3dMeters(weaponPosition, otherWeaponPosition);
+                double distanceMeters = TacviewCombatClassifier.CalculateDistance3dMeters(
+                    weaponPosition,
+                    otherWeaponPosition);
 
                 if (distanceMeters <= inferenceOptions.DefensivePairMaxDistanceMeters)
                 {
@@ -1104,43 +1115,23 @@ namespace DcsMissionReader.Services
             TacviewObjectTrack weapon,
             TacviewObjectTrack target)
         {
-            if (!weapon.IsWeapon || target.IsWeapon)
+            if (target.IsWeapon)
             {
                 return false;
             }
 
-            if (AreSameKnownCoalition(weapon.Coalition, target.Coalition))
+            if (IsSuppressedResultObject(target))
             {
                 return false;
             }
 
-            string weaponText = $"{weapon.Name} {weapon.Type} {weapon.Group}";
-            string targetText = $"{target.Name} {target.Type} {target.Group}";
+            TacviewTargetDomain targetDomain = TacviewCombatClassifier.GetTargetDomain(target);
 
-            if (IsCountermeasureOrDecoy(weaponText)
-                || IsJettisonedStore(weaponText)
-                || IsGunRoundOrShell(weaponText))
-            {
-                return false;
-            }
-
-            if (IsCountermeasureOrDecoy(targetText)
-                || IsJettisonedStore(targetText))
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        private static bool AreSameKnownCoalition(string? first, string? second)
-        {
-            if (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(second))
-            {
-                return false;
-            }
-
-            return first.Trim().Equals(second.Trim(), StringComparison.OrdinalIgnoreCase);
+            return targetDomain is
+                TacviewTargetDomain.Air
+                or TacviewTargetDomain.Sea
+                or TacviewTargetDomain.Ground
+                or TacviewTargetDomain.Static;
         }
 
         private static bool IsSuppressedResultObject(TacviewObjectTrack track)
