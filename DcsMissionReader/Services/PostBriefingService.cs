@@ -1,4 +1,4 @@
-using DcsMissionReader.Models;
+﻿using DcsMissionReader.Models;
 using DcsMissionReader.Services.Interfaces;
 using System.Globalization;
 using System.IO.Compression;
@@ -6,18 +6,10 @@ using System.Text;
 
 namespace DcsMissionReader.Services
 {
-    /// <summary>
-    /// Implements post-briefing processing of Tacview ACMI data, including parsing of zipped ACMI files, inference of weapon results from object removals and health changes, and generation of KML output for visualization.
-    /// </summary>
     public sealed class PostBriefingService : IPostBriefingService
     {
-        #region Fields
         private readonly IBriefingStylesService _briefingStylesService;
         private readonly WeaponResultInferenceOptions _weaponResultInferenceOptions;
-
-        #endregion Fields
-
-        #region Ctor
 
         public PostBriefingService(
             IBriefingStylesService? briefingStylesService = null,
@@ -26,11 +18,6 @@ namespace DcsMissionReader.Services
             _briefingStylesService = briefingStylesService ?? new BriefingStylesService();
             _weaponResultInferenceOptions = weaponResultInferenceOptions ?? new WeaponResultInferenceOptions();
         }
-
-        #endregion Ctor
-
-        #region IPostBriefing Service Implementation
-
         public PostBriefingKmlResult CreatePostBriefingKml(
         string acmiZipFilePath,
         string? outputKmlFilePath = null,
@@ -73,10 +60,6 @@ namespace DcsMissionReader.Services
             };
         }
 
-        #endregion IPostBriefing Service Implementation
-
-        #region Private Methods
-
         private AcmiParseResult BuildPostBriefingParseResult(
             TacviewAcmiParseData acmiData,
             WeaponResultInferenceOptions inferenceOptions)
@@ -92,12 +75,12 @@ namespace DcsMissionReader.Services
                 .Where(o => o.IsWeapon)
                 .Where(IsRelevantWeaponObject)
                 .Where(o => o.Start is not null)
-                .Select(o => CreateWeaponEmployment(o, acmiData.Objects))
+                .Select(o => PostBriefingWeaponEmploymentFactory.CreateWeaponEmployment(o, acmiData.Objects))
                 .ToList();
 
             List<TacviewWeaponResult> explicitWeaponResults = acmiData.Events
-                .Where(IsWeaponResultEventType)
-                .Select(e => CreateWeaponResult(e, acmiData.Objects))
+                .Where(PostBriefingWeaponEventResultFactory.IsWeaponResultEventType)
+                .Select(e => PostBriefingWeaponEventResultFactory.CreateWeaponResult(e, acmiData.Objects))
                 .ToList();
 
             List<TacviewObjectTrack> weaponTracks = acmiData.Objects.Values
@@ -255,15 +238,6 @@ namespace DcsMissionReader.Services
             ];
 
             return candidatePaths.FirstOrDefault(File.Exists);
-        }
-
-        private static bool IsWeaponResultEventType(TacviewEventRecord eventRecord)
-        {
-            return eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase);
         }
 
         private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromRemovals(
@@ -950,6 +924,12 @@ namespace DcsMissionReader.Services
                 || eventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase);
         }
 
+        private static bool IsFailedOrDiagnosticWeaponResultType(string eventType)
+        {
+            return eventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase)
+                || eventType.Equals("NearMiss", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static bool IsPotentialDamageTargetForWeapon(
             TacviewObjectTrack weapon,
             TacviewObjectTrack target)
@@ -1047,27 +1027,6 @@ namespace DcsMissionReader.Services
             return !IsCountermeasureOrDecoy(combined)
                 && !IsJettisonedStore(combined)
                 && !IsGunRoundOrShell(combined);
-        }
-
-        private static TacviewWeaponEmployment CreateWeaponEmployment(
-         TacviewObjectTrack weapon,
-         IReadOnlyDictionary<string, TacviewObjectTrack> objects)
-        {
-            TacviewObjectTrack? shooter = ResolveWeaponShooter(weapon, objects);
-
-            return new TacviewWeaponEmployment
-            {
-                WeaponObjectId = weapon.ObjectId,
-                WeaponName = weapon.Name,
-                WeaponType = weapon.Type,
-                ParentObjectId = weapon.ParentObjectId,
-
-                ParentName = shooter is null
-                    ? null
-                    : GetDisplayName(shooter),
-
-                Position = weapon.Start!
-            };
         }
 
         private static TacviewObjectTrack? ResolveWeaponShooter(
@@ -1201,83 +1160,7 @@ namespace DcsMissionReader.Services
 
             return bestSample;
         }
-
-        private static TacviewWeaponResult CreateWeaponResult(
-            TacviewEventRecord eventRecord,
-            IReadOnlyDictionary<string, TacviewObjectTrack> objects)
-        {
-            string? sourceObjectId = null;
-            string? targetObjectId = null;
-            string? outcome = null;
-
-            foreach (string part in eventRecord.Parts)
-            {
-                if (part.StartsWith("SourceId:", StringComparison.OrdinalIgnoreCase))
-                {
-                    sourceObjectId = part["SourceId:".Length..].Trim();
-                }
-                else if (part.StartsWith("TargetId:", StringComparison.OrdinalIgnoreCase))
-                {
-                    targetObjectId = part["TargetId:".Length..].Trim();
-                }
-                else if (part.StartsWith("ObjectId:", StringComparison.OrdinalIgnoreCase))
-                {
-                    targetObjectId ??= part["ObjectId:".Length..].Trim();
-                }
-                else if (part.StartsWith("VictimId:", StringComparison.OrdinalIgnoreCase))
-                {
-                    targetObjectId ??= part["VictimId:".Length..].Trim();
-                }
-                else if (part.StartsWith("Outcome:", StringComparison.OrdinalIgnoreCase))
-                {
-                    outcome = part["Outcome:".Length..].Trim();
-                }
-            }
-
-            // Tacview often emits compact forms like:
-            // Event=Destroyed|300|Target destroyed
-            // Event=Timeout|200|Object has timed out
-            string? firstKnownObjectId = FindFirstKnownObjectIdInEvent(eventRecord, objects);
-
-            (string? compactSourceObjectId, string? compactTargetObjectId) = FindCompactWeaponEventObjects(eventRecord, objects);
-
-            if (eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase))
-            {
-                sourceObjectId ??= compactSourceObjectId;
-                targetObjectId ??= compactTargetObjectId ?? firstKnownObjectId;
-            }
-            else if (eventRecord.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
-            {
-                sourceObjectId ??= firstKnownObjectId;
-                targetObjectId ??= firstKnownObjectId;
-            }
-
-            TacviewObjectTrack? sourceObject = TryGetObject(objects, sourceObjectId);
-            TacviewObjectTrack? targetObject = TryGetObject(objects, targetObjectId);
-
-            TacviewPositionSample? position = ResolveWeaponResultPosition(
-                eventRecord,
-                sourceObject,
-                targetObject);
-
-            return new TacviewWeaponResult
-            {
-                EventType = eventRecord.EventType,
-                TimeSeconds = eventRecord.TimeSeconds,
-                AbsoluteTimeUtc = eventRecord.AbsoluteTimeUtc,
-                SourceObjectId = sourceObjectId,
-                SourceName = sourceObject?.Name ?? sourceObject?.Group,
-                TargetObjectId = targetObjectId,
-                TargetName = targetObject?.Name ?? targetObject?.Group,
-                Outcome = outcome,
-                Description = eventRecord.Text,
-                Position = position
-            };
-        }
-
+         
         private string BuildKml(
             AcmiParseResult parseResult,
             PostBriefingKmlOptions options)
@@ -1383,114 +1266,6 @@ namespace DcsMissionReader.Services
             }
 
             return dispositions;
-        }
-
-        private static (string? SourceObjectId, string? TargetObjectId) FindCompactWeaponEventObjects(
-    TacviewEventRecord eventRecord,
-    IReadOnlyDictionary<string, TacviewObjectTrack> objects)
-        {
-            string? sourceObjectId = null;
-            string? targetObjectId = null;
-
-            foreach (string part in eventRecord.Parts.Skip(1))
-            {
-                string candidate = part.Trim();
-
-                if (!objects.TryGetValue(candidate, out TacviewObjectTrack? candidateObject))
-                {
-                    int colonIndex = candidate.IndexOf(':');
-
-                    if (colonIndex < 0)
-                    {
-                        continue;
-                    }
-
-                    string valueAfterColon = candidate[(colonIndex + 1)..].Trim();
-
-                    if (!objects.TryGetValue(valueAfterColon, out candidateObject))
-                    {
-                        continue;
-                    }
-
-                    candidate = valueAfterColon;
-                }
-
-                if (candidateObject.IsWeapon)
-                {
-                    sourceObjectId ??= candidate;
-                    continue;
-                }
-
-                targetObjectId ??= candidate;
-            }
-
-            return (sourceObjectId, targetObjectId);
-        }
-
-        private static string? FindFirstKnownObjectIdInEvent(
-    TacviewEventRecord eventRecord,
-    IReadOnlyDictionary<string, TacviewObjectTrack> objects)
-        {
-            foreach (string part in eventRecord.Parts.Skip(1))
-            {
-                string candidate = part.Trim();
-
-                if (objects.ContainsKey(candidate))
-                {
-                    return candidate;
-                }
-
-                int colonIndex = candidate.IndexOf(':');
-                if (colonIndex >= 0)
-                {
-                    string valueAfterColon = candidate[(colonIndex + 1)..].Trim();
-
-                    if (objects.ContainsKey(valueAfterColon))
-                    {
-                        return valueAfterColon;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        private static TacviewObjectTrack? TryGetObject(
-            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
-            string? objectId)
-        {
-            if (string.IsNullOrWhiteSpace(objectId))
-            {
-                return null;
-            }
-
-            return objects.TryGetValue(objectId, out TacviewObjectTrack? track)
-                ? track
-                : null;
-        }
-
-        private static TacviewPositionSample? ResolveWeaponResultPosition(
-     TacviewEventRecord eventRecord,
-     TacviewObjectTrack? sourceObject,
-     TacviewObjectTrack? targetObject)
-        {
-            if (eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase))
-            {
-                return targetObject?.End
-                    ?? sourceObject?.End;
-            }
-
-            if (eventRecord.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
-            {
-                return sourceObject?.End
-                    ?? targetObject?.End;
-            }
-
-            return targetObject?.End
-                ?? sourceObject?.End;
         }
 
         private static void AppendMissionFolder(StringBuilder builder, TacviewMissionInfo mission)
@@ -2296,6 +2071,8 @@ namespace DcsMissionReader.Services
             builder.AppendLine("</Folder>");
         }
 
+
+
         private static string BuildWeaponResultDisplayName(TacviewWeaponResult result)
         {
             string subject =
@@ -2575,6 +2352,7 @@ namespace DcsMissionReader.Services
                 }
             };
         }
+
 
         private static string GetCoalitionPrefix(
             TacviewObjectTrack track,
@@ -3139,30 +2917,46 @@ namespace DcsMissionReader.Services
             string Description);
 
         private sealed record WeaponInterceptMatch(
-            TacviewObjectTrack Interceptor,
-            TacviewObjectTrack InterceptedWeapon,
-            TacviewRemovalRecord FirstRemoval,
-            TacviewRemovalRecord SecondRemoval,
-            double DistanceMeters,
-            double TimeDifferenceSeconds);
-
-        #endregion Private Methods
+    TacviewObjectTrack Interceptor,
+    TacviewObjectTrack InterceptedWeapon,
+    TacviewRemovalRecord FirstRemoval,
+    TacviewRemovalRecord SecondRemoval,
+    double DistanceMeters,
+    double TimeDifferenceSeconds);
     }
 
-    internal static class StringBuilderExtensions
+    internal static class StringBuilderXmlExtensions
     {
         public static void AppendElement(
             this StringBuilder builder,
             string elementName,
-            string value)
+            string? value)
         {
             builder.Append('<');
             builder.Append(elementName);
             builder.Append('>');
-            builder.Append(System.Security.SecurityElement.Escape(value) ?? string.Empty);
+            builder.Append(XmlEscape(value ?? string.Empty));
             builder.Append("</");
             builder.Append(elementName);
             builder.AppendLine(">");
         }
+
+        private static string XmlEscape(string value)
+        {
+            return SecurityElementEscape(value);
+        }
+
+        private static string SecurityElementEscape(string value)
+        {
+            return value
+                .Replace("&", "&amp;", StringComparison.Ordinal)
+                .Replace("<", "&lt;", StringComparison.Ordinal)
+                .Replace(">", "&gt;", StringComparison.Ordinal)
+                .Replace("\"", "&quot;", StringComparison.Ordinal)
+                .Replace("'", "&apos;", StringComparison.Ordinal);
+        }
+
     }
 }
+
+
