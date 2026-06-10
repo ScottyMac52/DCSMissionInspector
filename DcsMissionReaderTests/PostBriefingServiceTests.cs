@@ -1157,6 +1157,143 @@ namespace DcsMissionReaderTests
             }
         }
 
+        [Fact]
+        public void CreatePostBriefingKml_WithTerminalProximityOnlyAndNearMissDisabled_DoesNotCreateNearMiss()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-disabled.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-disabled.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.DoesNotContain("NearMiss", kml);
+                Assert.DoesNotContain("Near Miss - Washington CSG", kml);
+                Assert.DoesNotContain("Terminal proximity only; not classified as damage", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithTerminalProximityNearMissEnabled_CreatesNearMissResult()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-enabled.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-enabled.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
+
+                var service = new PostBriefingService(
+                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
+                    {
+                        EnableTerminalProximityNearMissReporting = true
+                    });
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                Assert.Contains("Near Miss - Washington CSG", kml);
+                Assert.Contains("Terminal proximity only; not classified as damage", kml);
+                Assert.Contains("recorded as near miss because terminal proximity alone is not damage", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithTerminalProximityNearMissEnabled_DoesNotMarkTargetDamaged()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-no-damage.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-no-damage.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
+
+                var service = new PostBriefingService(
+                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
+                    {
+                        EnableTerminalProximityNearMissReporting = true
+                    });
+
+                service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Final Disposition:\nSurvived / No Weapon Result Recorded");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Weapons That Hit / Destroyed This Object:\n- None recorded");
+
+                Assert.DoesNotContain("Health Remaining: Unknown / Not exported by Tacview", kml);
+                Assert.DoesNotContain("Damaged / Weapon Effect Recorded", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithTerminalProximityNearMissEnabled_HidesNearMissWeaponParentFolder()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-parent-hidden.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-parent-hidden.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
+
+                var service = new PostBriefingService(
+                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
+                    {
+                        EnableTerminalProximityNearMissReporting = true
+                    });
+
+                service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertFolderVisibility(
+                    kml,
+                    "X_22 - Carrier Killer - 2016-06-21T04:30:10.0000000Z",
+                    expectedVisibility: "0");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
         private static string NormalizeLineEndings(string value)
         {
             return value

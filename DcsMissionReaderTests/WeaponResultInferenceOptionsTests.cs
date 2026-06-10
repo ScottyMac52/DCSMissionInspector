@@ -19,6 +19,7 @@ namespace DcsMissionReaderTests
             Assert.Equal(15.0, options.UnpairedRemovalMaxTargetSampleTimeDifferenceSeconds);
             Assert.Equal(0.75, options.DefensivePairMaxTimeDifferenceSeconds);
             Assert.Equal(750.0, options.DefensivePairMaxDistanceMeters);
+            Assert.False(options.EnableTerminalProximityNearMissReporting);
         }
 
         [Fact]
@@ -34,7 +35,8 @@ namespace DcsMissionReaderTests
                 ["PostBriefing:WeaponResultInference:UnpairedRemovalMaxTargetSampleTimeDifferenceSeconds"] = "9",
                 ["PostBriefing:WeaponResultInference:DefensivePairMaxTimeDifferenceSeconds"] = "1.25",
                 ["PostBriefing:WeaponResultInference:DefensivePairMaxDistanceMeters"] = "333",
-                ["PostBriefing:WeaponResultInference:EnableTerminalProximityDamageInference"] = "true"
+                ["PostBriefing:WeaponResultInference:EnableTerminalProximityDamageInference"] = "true",
+                ["PostBriefing:WeaponResultInference:EnableTerminalProximityNearMissReporting"] = "true"
             };
 
             IConfiguration configuration = new ConfigurationBuilder()
@@ -56,6 +58,7 @@ namespace DcsMissionReaderTests
             Assert.Equal(1.25, options.DefensivePairMaxTimeDifferenceSeconds);
             Assert.Equal(333.0, options.DefensivePairMaxDistanceMeters);
             Assert.True(options.EnableTerminalProximityDamageInference);
+            Assert.True(options.EnableTerminalProximityNearMissReporting);
         }
 
         [Fact]

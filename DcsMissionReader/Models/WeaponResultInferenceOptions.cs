@@ -14,10 +14,13 @@
         private const double DefensivePairMaxTimeDifferenceDefaultSeconds = 0.75;
         private const double DefensivePairMaxDistanceDefaultMeters = 750.0;
         private const bool EnableTerminalProximityDamageInferenceDefault = false;
+        private const bool EnableTerminalProximityNearMissReportingDefault = false;
 
         #endregion Fields
 
         #region Properties 
+
+        public bool EnableTerminalProximityNearMissReporting { get; init; } = EnableTerminalProximityNearMissReportingDefault;
 
         public bool EnableTerminalProximityDamageInference { get; init; } = EnableTerminalProximityDamageInferenceDefault;
 
