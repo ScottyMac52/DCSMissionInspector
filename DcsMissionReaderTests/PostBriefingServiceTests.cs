@@ -1002,7 +1002,7 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
-        public void CreatePostBriefingKml_WithTimedOutWeapon_HidesWeaponEngagementParentFolderByDefault()
+        public void CreatePostBriefingKml_WithTimedOutWeapon_ShowsWeaponEngagementParentFolderButHidesResultPlacemark()
         {
             string tempDirectory = CreateTempDirectory();
 
@@ -1026,9 +1026,12 @@ namespace DcsMissionReaderTests
                 AssertFolderVisibility(
                     kml,
                     "SeaSparrow - USS Washington - 2016-06-21T04:30:10.0000000Z",
-                    expectedVisibility: "0");
+                    expectedVisibility: "1");
 
-                AssertPlacemarkVisibility(kml, "Timeout - SeaSparrow", expectedVisibility: "0");
+                AssertPlacemarkVisibility(
+                    kml,
+                    "Timeout - SeaSparrow",
+                    expectedVisibility: "0");
             }
             finally
             {
@@ -1262,7 +1265,7 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
-        public void CreatePostBriefingKml_WithTerminalProximityNearMissEnabled_HidesNearMissWeaponParentFolder()
+        public void CreatePostBriefingKml_WithTerminalProximityNearMissEnabled_ShowsWeaponEngagementParentFolderButHidesNearMissPlacemark()
         {
             string tempDirectory = CreateTempDirectory();
 
@@ -1286,7 +1289,149 @@ namespace DcsMissionReaderTests
                 AssertFolderVisibility(
                     kml,
                     "X_22 - Carrier Killer - 2016-06-21T04:30:10.0000000Z",
+                    expectedVisibility: "1");
+
+                AssertPlacemarkVisibility(
+                    kml,
+                    "Near Miss - Washington CSG",
                     expectedVisibility: "0");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithRealCarrierAttack_GeneratesExpectedWeaponDiagnostics()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string sourceAcmiPath = Path.Combine(
+                    AppContext.BaseDirectory,
+                    "TestData",
+                    "Tacview-20260608-103022-DCS.zip.acmi");
+
+                Assert.True(
+                    File.Exists(sourceAcmiPath),
+                    $"Missing test ACMI file: {sourceAcmiPath}");
+
+                string zipPath = Path.Combine(tempDirectory, "carrier-attack.zip.acmi");
+                string outputPath = Path.Combine(tempDirectory, "carrier-attack.postbrief.kmz");
+
+                File.Copy(sourceAcmiPath, zipPath, overwrite: true);
+
+                var service = new PostBriefingService(
+                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
+                    {
+                        EnableTerminalProximityDamageInference = false,
+                        EnableTerminalProximityNearMissReporting = true
+                    });
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.True(result.GroupTrackCount > 0);
+                Assert.True(result.WeaponEmploymentCount > 0);
+
+                Assert.Contains("Washington CSG", kml);
+                Assert.Contains("X_22", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+         
+
+        [Fact]
+        public void CreatePostBriefingKml_WithRealCarrierAttack_AndTerminalProximityDamageEnabled_ShowsEightCarrierKh22Hits()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string sourceAcmiPath = Path.Combine(
+                    AppContext.BaseDirectory,
+                    "TestData",
+                    "Tacview-20260608-103022-DCS.zip.acmi");
+
+                Assert.True(
+                    File.Exists(sourceAcmiPath),
+                    $"Missing test ACMI file: {sourceAcmiPath}");
+
+                string zipPath = Path.Combine(tempDirectory, "carrier-attack.zip.acmi");
+                string outputPath = Path.Combine(tempDirectory, "carrier-attack.postbrief.kmz");
+
+                File.Copy(sourceAcmiPath, zipPath, overwrite: true);
+
+                var service = new PostBriefingService(
+                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
+                    {
+                        EnableTerminalProximityDamageInference = true,
+                        EnableTerminalProximityNearMissReporting = false
+                    });
+
+                service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertObjectWeaponHitCount(
+                    kml,
+                    objectPlacemarkName: "Washington CSG",
+                    expectedHitCount: 8,
+                    expectedWeaponName: "X_22");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithRealCarrierAttack_AndNearMissReportingEnabled_ShowsEightCarrierKh22NearMissesButNoCarrierHits()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string sourceAcmiPath = Path.Combine(
+                    AppContext.BaseDirectory,
+                    "TestData",
+                    "Tacview-20260608-103022-DCS.zip.acmi");
+
+                Assert.True(
+                    File.Exists(sourceAcmiPath),
+                    $"Missing test ACMI file: {sourceAcmiPath}");
+
+                string zipPath = Path.Combine(tempDirectory, "carrier-attack.zip.acmi");
+                string outputPath = Path.Combine(tempDirectory, "carrier-attack.postbrief.kmz");
+
+                File.Copy(sourceAcmiPath, zipPath, overwrite: true);
+
+                var service = new PostBriefingService(
+                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
+                    {
+                        EnableTerminalProximityDamageInference = false,
+                        EnableTerminalProximityNearMissReporting = true
+                    });
+
+                service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertObjectWeaponHitCount(
+                    kml,
+                    objectPlacemarkName: "Washington CSG",
+                    expectedHitCount: 0,
+                    expectedWeaponName: "X_22");
+
+                Assert.Equal(
+                    8,
+                    CountPlacemarkNameOccurrences(kml, "Near Miss - Washington CSG"));
             }
             finally
             {
@@ -1299,6 +1444,133 @@ namespace DcsMissionReaderTests
             return value
                 .Replace("\r\n", "\n", StringComparison.Ordinal)
                 .Replace("\r", "\n", StringComparison.Ordinal);
+        }
+
+        private static int CountPlacemarkNameOccurrences(
+    string kml,
+    string placemarkName)
+        {
+            string normalizedKml = NormalizeLineEndings(kml);
+            string escapedName = SecurityElement.Escape(placemarkName) ?? placemarkName;
+
+            string needle = $"<name>{escapedName}</name>";
+
+            int count = 0;
+            int index = 0;
+
+            while (true)
+            {
+                index = normalizedKml.IndexOf(needle, index, StringComparison.Ordinal);
+
+                if (index < 0)
+                {
+                    break;
+                }
+
+                count++;
+                index += needle.Length;
+            }
+
+            return count;
+        }
+
+        private static void AssertObjectWeaponHitCount(
+    string kml,
+    string objectPlacemarkName,
+    int expectedHitCount,
+    string? expectedWeaponName)
+        {
+            string description = FindObjectDispositionDescription(kml, objectPlacemarkName);
+
+            string sectionHeader = "Weapons That Hit / Destroyed This Object:";
+            int sectionStart = description.IndexOf(sectionHeader, StringComparison.Ordinal);
+
+            Assert.True(
+                sectionStart >= 0,
+                $"Could not find weapon-hit section for object placemark '{objectPlacemarkName}'. Description was:{Environment.NewLine}{description}");
+
+            string weaponHitSection = description[(sectionStart + sectionHeader.Length)..];
+
+            List<string> hitLines = weaponHitSection
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(line => line.StartsWith("- ", StringComparison.Ordinal))
+                .Where(line => !line.Equals("- None recorded", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (!string.IsNullOrWhiteSpace(expectedWeaponName))
+            {
+                hitLines = hitLines
+                    .Where(line => line.Contains(expectedWeaponName, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            Assert.True(
+                hitLines.Count == expectedHitCount,
+                $"Expected {expectedHitCount} weapon hit(s) for '{objectPlacemarkName}'"
+                + (string.IsNullOrWhiteSpace(expectedWeaponName) ? string.Empty : $" using weapon '{expectedWeaponName}'")
+                + $", but found {hitLines.Count}.{Environment.NewLine}"
+                + $"Description was:{Environment.NewLine}{description}");
+        }
+
+        private static string FindObjectDispositionDescription(
+    string kml,
+    string placemarkName)
+        {
+            string normalizedKml = NormalizeLineEndings(kml);
+            string escapedName = SecurityElement.Escape(placemarkName) ?? placemarkName;
+
+            string placemarkStart = "<Placemark>";
+            int searchIndex = 0;
+
+            while (true)
+            {
+                int placemarkStartIndex = normalizedKml.IndexOf(placemarkStart, searchIndex, StringComparison.Ordinal);
+
+                if (placemarkStartIndex < 0)
+                {
+                    break;
+                }
+
+                int placemarkEndIndex = normalizedKml.IndexOf("</Placemark>", placemarkStartIndex, StringComparison.Ordinal);
+
+                if (placemarkEndIndex < 0)
+                {
+                    break;
+                }
+
+                string placemark = normalizedKml[placemarkStartIndex..(placemarkEndIndex + "</Placemark>".Length)];
+
+                if (placemark.Contains($"<name>{escapedName}</name>", StringComparison.Ordinal)
+                    && placemark.Contains("Weapons That Hit / Destroyed This Object:", StringComparison.Ordinal))
+                {
+                    return ExtractPlacemarkDescription(placemark);
+                }
+
+                searchIndex = placemarkEndIndex + "</Placemark>".Length;
+            }
+
+            Assert.Fail($"Could not find object disposition placemark named '{placemarkName}'.");
+
+            return string.Empty;
+        }
+
+        private static string ExtractPlacemarkDescription(string placemark)
+        {
+            const string descriptionStartTag = "<description>";
+            const string descriptionEndTag = "</description>";
+
+            int descriptionStartIndex = placemark.IndexOf(descriptionStartTag, StringComparison.Ordinal);
+            int descriptionEndIndex = placemark.IndexOf(descriptionEndTag, StringComparison.Ordinal);
+
+            Assert.True(
+                descriptionStartIndex >= 0 && descriptionEndIndex > descriptionStartIndex,
+                $"Could not extract description from placemark:{Environment.NewLine}{placemark}");
+
+            string encodedDescription = placemark[
+                (descriptionStartIndex + descriptionStartTag.Length)..descriptionEndIndex];
+
+            return SecurityElement.FromString($"<root>{encodedDescription}</root>")?.Text
+                ?? encodedDescription;
         }
 
         private static string BuildAcmiWithInferredDamageButNoHealthExport()
