@@ -3,6 +3,8 @@ using DcsMissionReader.Services.Generators;
 using DcsMissionReader.Services.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using System.IO.Abstractions;
+using DcsMissionReader.Models;
+using Microsoft.Extensions.Configuration;
 
 namespace DcsMissionReader
 {
@@ -25,6 +27,21 @@ namespace DcsMissionReader
         {
             // Create the DI container and register services. The services are registered as singletons because they do not hold any state that would require multiple instances, and it allows for efficient reuse throughout the application's lifetime. This also simplifies dependency management and ensures consistent behavior across the application when processing missions, managing files, and handling registry entries.
             var services = new ServiceCollection();
+
+            // Configuration is registered as a singleton because it is typically read once at the start of the application and then used throughout the application's lifetime. By registering it as a singleton, we ensure that there is only one instance of the configuration throughout the application, which can be efficiently reused whenever needed. This also simplifies dependency management and ensures consistent behavior across the application when accessing configuration settings during mission processing and other operations.
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+                .Build();
+
+            services.AddSingleton(configuration);
+
+            // WeaponResultInferenceOptions is registered as a singleton because it is a configuration class that holds settings for weapon result inference, and it does not hold any state that would require multiple instances. By registering it as a singleton, we ensure that there is only one instance of the WeaponResultInferenceOptions throughout the application's lifetime, which can be efficiently reused whenever needed. This also simplifies dependency management and ensures consistent behavior across the application when accessing weapon result inference settings during mission processing and post-briefing analysis.
+            services.AddSingleton(_ =>
+                configuration
+                    .GetSection(WeaponResultInferenceOptions.SectionName)
+                    .Get<WeaponResultInferenceOptions>()
+                ?? new WeaponResultInferenceOptions());
 
             // Command line options service should be a singleton since we only need to parse the options once and it doesn't hold any state that would require multiple instances. The same applies to the MissionProcessor and other services that are designed to be stateless or hold shared resources.
             services.AddSingleton<ICommandLineOptionsService, CommandLineOptionsService>();
@@ -59,6 +76,9 @@ namespace DcsMissionReader
 
             // PostBriefingService is responsible for creating KML files from ACMI data for post-briefing analysis, and it does not hold any state that would require multiple instances. By registering it as a singleton, we ensure that there is only one instance of the PostBriefingService throughout the application's lifetime, which can be efficiently reused whenever needed. This also simplifies dependency management and ensures consistent behavior across the application when creating KML files for post-briefing analysis during mission processing.
             services.AddSingleton<IPostBriefingService, PostBriefingService>();
+
+            // BriefingStylesService is responsible for providing styling information for briefing generation, and it does not hold any state that would require multiple instances. By registering it as a singleton, we ensure that there is only one instance of the BriefingStylesService throughout the application's lifetime, which can be efficiently reused whenever needed. This also simplifies dependency management and ensures consistent behavior across the application when providing styling information for briefing generation during mission processing.
+            services.AddSingleton<IBriefingStylesService, BriefingStylesService>();
 
             // MissionRunner is the main service that orchestrates the execution of the application, and it does not hold any state that would require multiple instances. By registering it as a singleton, we ensure that there is only one instance of the MissionRunner throughout the application's lifetime, which can be efficiently reused whenever needed. This also simplifies dependency management and ensures consistent behavior across the application when running the main execution flow for processing missions based on the provided command line options.
             services.AddSingleton<MissionRunner>();
