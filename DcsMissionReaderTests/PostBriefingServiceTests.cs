@@ -1004,7 +1004,7 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
-        public void CreatePostBriefingKml_WithTimedOutWeapon_ShowsWeaponEngagementParentFolderButHidesResultPlacemark()
+        public void CreatePostBriefingKml_WithTimedOutWeapon_HidesWeaponEngagementParentFolderAndResultPlacemark()
         {
             string tempDirectory = CreateTempDirectory();
 
@@ -1028,7 +1028,7 @@ namespace DcsMissionReaderTests
                 AssertFolderVisibility(
                     kml,
                     "SeaSparrow - USS Washington - 2016-06-21T04:30:10.0000000Z",
-                    expectedVisibility: "1");
+                    expectedVisibility: "0");
 
                 AssertPlacemarkVisibility(
                     kml,
@@ -1267,7 +1267,7 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
-        public void CreatePostBriefingKml_WithTerminalProximityNearMissEnabled_ShowsWeaponEngagementParentFolderButHidesNearMissPlacemark()
+        public void CreatePostBriefingKml_WithTerminalProximityNearMissEnabled_HidesWeaponEngagementParentFolderAndNearMissPlacemark()
         {
             string tempDirectory = CreateTempDirectory();
 
@@ -1291,7 +1291,7 @@ namespace DcsMissionReaderTests
                 AssertFolderVisibility(
                     kml,
                     "X_22 - Carrier Killer - 2016-06-21T04:30:10.0000000Z",
-                    expectedVisibility: "1");
+                    expectedVisibility: "0");
 
                 AssertPlacemarkVisibility(
                     kml,

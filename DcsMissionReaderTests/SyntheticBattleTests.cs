@@ -396,6 +396,124 @@ namespace DcsMissionReaderTests
             }
         }
 
+        [Fact]
+        public void CreatePostBriefingKml_WithSyntheticCsgEscortBattle_HidesNonEffectWeaponFoldersByDefault()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildSyntheticCsgEscortBattleAcmi());
+
+                var service = new PostBriefingService(
+                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
+                    {
+                        EnableTerminalProximityDamageInference = true,
+                        EnableTerminalProximityNearMissReporting = true
+                    });
+
+                service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Equal(
+                    20,
+                    CountFolderNamesContainingAll(kml, "SM_2"));
+
+                // 7 SM_2s intercept X_22s and should be active.
+                Assert.Equal(
+                    7,
+                    CountFolderNamesContainingAllWithVisibility(kml, expectedVisibility: "1", "SM_2"));
+
+                // 13 SM_2s do not produce an effect and should be hidden.
+                Assert.Equal(
+                    13,
+                    CountFolderNamesContainingAllWithVisibility(kml, expectedVisibility: "0", "SM_2"));
+
+                // Result markers stay hidden on the map even when their parent folder is active.
+                AssertPlacemarkVisibility(kml, "Destroyed - X_22", expectedVisibility: "0");
+                AssertPlacemarkVisibility(kml, "Timeout - SM_2", expectedVisibility: "0");
+                AssertPlacemarkVisibility(kml, "Near Miss - Rotary-1", expectedVisibility: "0");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        private static int CountFolderNamesContainingAllWithVisibility(
+    string kml,
+    string expectedVisibility,
+    params string[] expectedParts)
+        {
+            string normalizedKml = NormalizeLineEndings(kml);
+
+            const string folderStartTag = "<Folder>";
+            const string nameStartTag = "<name>";
+            const string nameEndTag = "</name>";
+
+            int searchIndex = 0;
+            int count = 0;
+
+            while (true)
+            {
+                int folderStartIndex = normalizedKml.IndexOf(folderStartTag, searchIndex, StringComparison.Ordinal);
+
+                if (folderStartIndex < 0)
+                {
+                    break;
+                }
+
+                int nameStartIndex = normalizedKml.IndexOf(nameStartTag, folderStartIndex, StringComparison.Ordinal);
+
+                if (nameStartIndex < 0)
+                {
+                    break;
+                }
+
+                int nameEndIndex = normalizedKml.IndexOf(nameEndTag, nameStartIndex, StringComparison.Ordinal);
+
+                if (nameEndIndex < 0)
+                {
+                    break;
+                }
+
+                string folderName = normalizedKml[
+                    (nameStartIndex + nameStartTag.Length)..nameEndIndex];
+
+                bool nameMatches = expectedParts.All(part =>
+                    folderName.Contains(part, StringComparison.OrdinalIgnoreCase));
+
+                if (nameMatches)
+                {
+                    int headerEndIndex = normalizedKml.IndexOf("<Folder>", nameEndIndex, StringComparison.Ordinal);
+
+                    if (headerEndIndex < 0)
+                    {
+                        headerEndIndex = Math.Min(normalizedKml.Length, nameEndIndex + 500);
+                    }
+
+                    string folderHeader = normalizedKml[folderStartIndex..headerEndIndex];
+
+                    bool visibilityMatches = folderHeader.Contains(
+                        $"<visibility>{expectedVisibility}</visibility>",
+                        StringComparison.Ordinal);
+
+                    if (visibilityMatches)
+                    {
+                        count++;
+                    }
+                }
+
+                searchIndex = nameEndIndex + nameEndTag.Length;
+            }
+
+            return count;
+        }
+
 
         private static int CountFolderNamesContainingAll(
     string kml,

@@ -693,12 +693,6 @@ namespace DcsMissionReader.Services
             return false;
         }
 
-        private static bool HasObjectEffectWeaponResult(TacViewWeaponEngagement engagement)
-        {
-            return engagement.Results.Any(result =>
-                IsObjectEffectWeaponResultType(result.EventType));
-        }
-
         private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromHealthChanges(
             IReadOnlyList<TacviewHealthChangeRecord> healthChanges,
             IReadOnlyDictionary<string, TacviewObjectTrack> objects,
@@ -745,6 +739,23 @@ namespace DcsMissionReader.Services
             }
 
             return results;
+        }
+
+        private static bool ShouldShowWeaponEngagementByDefault(TacViewWeaponEngagement engagement)
+        {
+            return engagement.Results.Any(result => IsDefaultVisibleWeaponResult(result));
+        }
+
+        private static bool IsDefaultVisibleWeaponResult(TacviewWeaponResult result)
+        {
+            if (IsObjectEffectWeaponResultType(result.EventType))
+            {
+                return true;
+            }
+
+            return result.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(result.TargetObjectId)
+                && !string.IsNullOrWhiteSpace(result.TargetName);
         }
 
         private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromUnpairedWeaponRemovals(
@@ -2520,14 +2531,7 @@ namespace DcsMissionReader.Services
             AppendFolderStart(
                 builder,
                 folderName,
-                visible: true);
-
-            /*
-            AppendFolderStart(
-                builder,
-                folderName,
-                visible: HasObjectEffectWeaponResult(engagement));
-            */
+                visible: ShouldShowWeaponEngagementByDefault(engagement));
 
             AppendWeaponInformationFolder(builder, engagement, options);
             AppendWeaponShooterFolder(builder, engagement);
