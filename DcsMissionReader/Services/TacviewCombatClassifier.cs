@@ -36,26 +36,44 @@ namespace DcsMissionReader.Services
                 return TacviewTargetDomain.Weapon;
             }
 
-            string text = CombineClassificationText(track);
+            string typeText = track.Type ?? string.Empty;
 
-            if (ContainsAny(text, "Sea", "Watercraft", "AircraftCarrier", "Carrier", "Ship", "Destroyer", "Cruiser", "Frigate", "Submarine"))
+            // Tacview Type is the highest-confidence source.
+            // Do this before looking at Name or Group, because a group like
+            // "Carrier Killer Group" does not mean the object is a carrier.
+            if (ContainsAny(typeText, "Sea", "Watercraft", "AircraftCarrier", "Ship", "Destroyer", "Cruiser", "Frigate", "Submarine"))
             {
                 return TacviewTargetDomain.Sea;
             }
 
-            if (ContainsAny(text, "Air", "FixedWing", "Rotorcraft", "Aircraft", "Helicopter"))
+            if (ContainsAny(typeText, "Air", "FixedWing", "Rotorcraft", "Aircraft", "Helicopter"))
             {
                 return TacviewTargetDomain.Air;
             }
 
-            if (ContainsAny(text, "Ground", "Vehicle", "Armor", "Tank", "Infantry", "Artillery"))
+            if (ContainsAny(typeText, "Ground", "Vehicle", "Armor", "Tank", "Infantry", "Artillery"))
             {
                 return TacviewTargetDomain.Ground;
             }
 
-            if (ContainsAny(text, "Static", "Building", "Structure", "Fortification"))
+            if (ContainsAny(typeText, "Static", "Building", "Structure", "Fortification"))
             {
                 return TacviewTargetDomain.Static;
+            }
+
+            string nameText = track.Name ?? string.Empty;
+            string groupText = track.Group ?? string.Empty;
+            string fallbackText = string.Join(' ', nameText, groupText);
+
+            // Lower-confidence fallback for cases where Tacview Type is missing/poor.
+            if (ContainsAny(fallbackText, "CVN", "CG-", "DDG-", "FFG-", "AircraftCarrier", "Destroyer", "Cruiser", "Frigate", "Submarine", "Ship"))
+            {
+                return TacviewTargetDomain.Sea;
+            }
+
+            if (ContainsAny(fallbackText, "AWACS", "Overlord", "Rotary", "Helicopter"))
+            {
+                return TacviewTargetDomain.Air;
             }
 
             return TacviewTargetDomain.Unknown;
