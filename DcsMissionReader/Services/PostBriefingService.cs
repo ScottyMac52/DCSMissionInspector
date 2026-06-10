@@ -9,10 +9,14 @@ namespace DcsMissionReader.Services
     public sealed class PostBriefingService : IPostBriefingService
     {
         private readonly IBriefingStylesService _briefingStylesService;
+        private readonly WeaponResultInferenceOptions _weaponResultInferenceOptions;
 
-        public PostBriefingService(IBriefingStylesService? briefingStylesService = null)
+        public PostBriefingService(
+            IBriefingStylesService? briefingStylesService = null,
+            WeaponResultInferenceOptions? weaponResultInferenceOptions = null)
         {
             _briefingStylesService = briefingStylesService ?? new BriefingStylesService();
+            _weaponResultInferenceOptions = weaponResultInferenceOptions ?? new WeaponResultInferenceOptions();
         }
         public PostBriefingKmlResult CreatePostBriefingKml(
         string acmiZipFilePath,
@@ -34,7 +38,9 @@ namespace DcsMissionReader.Services
             outputKmlFilePath = EnsureKmzOutputPath(
                 outputKmlFilePath ?? CreateDefaultOutputPath(acmiZipFilePath));
 
-            var parseResult = ParseZippedAcmi(acmiZipFilePath);
+            var parseResult = ParseZippedAcmi(
+                acmiZipFilePath,
+                _weaponResultInferenceOptions);
 
             string kml = BuildKml(parseResult, options);
 
@@ -149,9 +155,9 @@ namespace DcsMissionReader.Services
             return candidatePaths.FirstOrDefault(File.Exists);
         }
 
-        private AcmiParseResult ParseZippedAcmi(string zipFilePath)
+        private AcmiParseResult ParseZippedAcmi(string acmiZipFilePath, WeaponResultInferenceOptions inferenceOptions)
         {
-            using ZipArchive archive = ZipFile.OpenRead(zipFilePath);
+            using ZipArchive archive = ZipFile.OpenRead(acmiZipFilePath);
 
             ZipArchiveEntry? directAcmiEntry = archive.Entries
                 .Where(e => !string.IsNullOrWhiteSpace(e.Name))
@@ -163,7 +169,7 @@ namespace DcsMissionReader.Services
             {
                 using Stream stream = directAcmiEntry.Open();
                 using StreamReader reader = new(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-                return ParseAcmi(reader);
+                return ParseAcmi(reader, inferenceOptions);
             }
 
             ZipArchiveEntry? nestedZipEntry = archive.Entries
@@ -199,7 +205,7 @@ namespace DcsMissionReader.Services
 
                 using Stream stream = nestedAcmiEntry.Open();
                 using StreamReader reader = new(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-                return ParseAcmi(reader);
+                return ParseAcmi(reader, inferenceOptions);
             }
 
             ZipArchiveEntry? fallbackEntry = archive.Entries
@@ -213,10 +219,10 @@ namespace DcsMissionReader.Services
             using Stream fallbackStream = fallbackEntry.Open();
             using StreamReader fallbackReader = new(fallbackStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
 
-            return ParseAcmi(fallbackReader);
+            return ParseAcmi(fallbackReader, inferenceOptions);
         }
 
-        private AcmiParseResult ParseAcmi(TextReader reader)
+        private AcmiParseResult ParseAcmi(TextReader reader, WeaponResultInferenceOptions inferenceOptions)
         {
             Dictionary<string, TacviewObjectTrack> objects = new(StringComparer.OrdinalIgnoreCase);
             List<TacviewEventRecord> events = new();
@@ -361,7 +367,8 @@ namespace DcsMissionReader.Services
                 CreateWeaponResultsFromHealthChanges(
                     healthChanges,
                     objects,
-                    weaponTracks));
+                    weaponTracks,
+                    inferenceOptions));
 
             HashSet<string> weaponIdsWithNonTimeoutResults =
                 BuildWeaponIdsWithNonTimeoutResults(
@@ -373,7 +380,8 @@ namespace DcsMissionReader.Services
                     removals,
                     objects,
                     weaponTracks,
-                    weaponIdsWithNonTimeoutResults));
+                    weaponIdsWithNonTimeoutResults,
+                    inferenceOptions));
 
             weaponIdsWithNonTimeoutResults =
                 BuildWeaponIdsWithNonTimeoutResults(
@@ -389,7 +397,8 @@ namespace DcsMissionReader.Services
                     removals,
                     objects,
                     weaponTracks,
-                    weaponIdsWithNonTimeoutResults));
+                    weaponIdsWithNonTimeoutResults,
+                    inferenceOptions));
 
             List<TacViewWeaponEngagement> weaponEngagements = CreateWeaponEngagements(
                 weaponTracks,
@@ -418,7 +427,8 @@ namespace DcsMissionReader.Services
             IReadOnlyList<TacviewRemovalRecord> removals,
             IReadOnlyDictionary<string, TacviewObjectTrack> objects,
             IReadOnlyList<TacviewObjectTrack> weaponTracks,
-            IReadOnlySet<string> weaponIdsWithNonTimeoutResults)
+            IReadOnlySet<string> weaponIdsWithNonTimeoutResults,
+            WeaponResultInferenceOptions inferenceOptions)
         {
             var results = new List<TacviewWeaponResult>();
 
@@ -441,7 +451,7 @@ namespace DcsMissionReader.Services
                 }
 
                 TacviewRemovalRecord? matchingTargetRemoval = targetRemovals
-                    .Where(r => Math.Abs(r.TimeSeconds - weaponRemoval.TimeSeconds) <= 0.25)
+                    .Where(r => Math.Abs(r.TimeSeconds - weaponRemoval.TimeSeconds) <= inferenceOptions.SameTimeRemovalWindowSeconds)
                     .Where(r => !r.ObjectId.Equals(weaponRemoval.ObjectId, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(r => Math.Abs(r.TimeSeconds - weaponRemoval.TimeSeconds))
                     .FirstOrDefault();
@@ -498,7 +508,8 @@ namespace DcsMissionReader.Services
         private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromHealthChanges(
             IReadOnlyList<TacviewHealthChangeRecord> healthChanges,
             IReadOnlyDictionary<string, TacviewObjectTrack> objects,
-            IReadOnlyList<TacviewObjectTrack> weaponTracks)
+            IReadOnlyList<TacviewObjectTrack> weaponTracks,
+            WeaponResultInferenceOptions inferenceOptions)
         {
             var results = new List<TacviewWeaponResult>();
 
@@ -512,7 +523,8 @@ namespace DcsMissionReader.Services
                 InferredDamageMatch? match = FindBestWeaponForHealthDrop(
                     healthChange,
                     target,
-                    weaponTracks);
+                    weaponTracks,
+                    inferenceOptions);
 
                 if (match is null)
                 {
@@ -545,7 +557,8 @@ namespace DcsMissionReader.Services
             IReadOnlyList<TacviewRemovalRecord> removals,
             IReadOnlyDictionary<string, TacviewObjectTrack> objects,
             IReadOnlyList<TacviewObjectTrack> weaponTracks,
-            IReadOnlySet<string> weaponIdsWithNonTimeoutResults)
+            IReadOnlySet<string> weaponIdsWithNonTimeoutResults,
+            WeaponResultInferenceOptions inferenceOptions)
         {
             var results = new List<TacviewWeaponResult>();
 
@@ -566,7 +579,11 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
-                if (HasSynchronizedTargetRemoval(weaponRemoval, removals, objects))
+                if (HasSynchronizedTargetRemoval(
+                        weaponRemoval,
+                        removals,
+                        objects,
+                        inferenceOptions))
                 {
                     continue;
                 }
@@ -576,7 +593,8 @@ namespace DcsMissionReader.Services
                     weaponRemoval,
                     removals,
                     objects.Values,
-                    weaponTracksById);
+                    weaponTracksById,
+                    inferenceOptions);
 
                 if (match is null)
                 {
@@ -639,7 +657,8 @@ namespace DcsMissionReader.Services
         private static InferredDamageMatch? FindBestWeaponForHealthDrop(
             TacviewHealthChangeRecord healthChange,
             TacviewObjectTrack target,
-            IReadOnlyList<TacviewObjectTrack> weaponTracks)
+            IReadOnlyList<TacviewObjectTrack> weaponTracks,
+            WeaponResultInferenceOptions inferenceOptions)
         {
             TacviewPositionSample? targetPosition =
                 healthChange.Position
@@ -651,10 +670,6 @@ namespace DcsMissionReader.Services
                 return null;
             }
 
-            const double maxDamageDistanceMeters = 5_000.0;
-            const double maxWeaponTimeBeforeDamageSeconds = 20.0;
-            const double maxWeaponTimeAfterDamageSeconds = 3.0;
-
             return weaponTracks
                 .Where(weapon => weapon.End is not null)
                 .Where(weapon => IsPotentialDamageTargetForWeapon(weapon, target))
@@ -664,9 +679,9 @@ namespace DcsMissionReader.Services
                     targetPosition,
                     CalculateDistanceMeters(weapon.End!, targetPosition),
                     healthChange.TimeSeconds - weapon.End!.TimeSeconds))
-                .Where(match => match.DistanceMeters <= maxDamageDistanceMeters)
-                .Where(match => match.DeltaTimeSeconds >= -maxWeaponTimeAfterDamageSeconds
-                    && match.DeltaTimeSeconds <= maxWeaponTimeBeforeDamageSeconds)
+                .Where(match => match.DistanceMeters <= inferenceOptions.HealthDropMaxDamageDistanceMeters)
+                .Where(match => match.DeltaTimeSeconds >= -inferenceOptions.HealthDropMaxWeaponTimeAfterDamageSeconds
+                    && match.DeltaTimeSeconds <= inferenceOptions.HealthDropMaxWeaponTimeBeforeDamageSeconds)
                 .OrderBy(match => match.DistanceMeters)
                 .ThenBy(match => Math.Abs(match.DeltaTimeSeconds))
                 .FirstOrDefault();
@@ -677,7 +692,8 @@ namespace DcsMissionReader.Services
             TacviewRemovalRecord weaponRemoval,
             IReadOnlyList<TacviewRemovalRecord> removals,
             IEnumerable<TacviewObjectTrack> objects,
-            IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById)
+            IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById,
+            WeaponResultInferenceOptions inferenceOptions)
         {
             TacviewPositionSample? weaponPosition =
                 weapon.End
@@ -687,9 +703,6 @@ namespace DcsMissionReader.Services
             {
                 return null;
             }
-
-            const double maxInferredDamageDistanceMeters = 3_000.0;
-            const double maxTargetSampleTimeDifferenceSeconds = 15.0;
 
             InferredDamageMatch? bestMatch = null;
 
@@ -730,14 +743,14 @@ namespace DcsMissionReader.Services
 
                 double targetTimeDifference = Math.Abs(targetPosition.TimeSeconds - weaponRemoval.TimeSeconds);
 
-                if (targetTimeDifference > maxTargetSampleTimeDifferenceSeconds)
+                if (targetTimeDifference > inferenceOptions.UnpairedRemovalMaxTargetSampleTimeDifferenceSeconds)
                 {
                     continue;
                 }
 
                 double distanceMeters = CalculateDistanceMeters(weaponPosition, targetPosition);
 
-                if (distanceMeters > maxInferredDamageDistanceMeters)
+                if (distanceMeters > inferenceOptions.UnpairedRemovalMaxInferredDamageDistanceMeters)
                 {
                     continue;
                 }
@@ -748,7 +761,8 @@ namespace DcsMissionReader.Services
                         weaponRemoval,
                         target,
                         removals,
-                        weaponTracksById))
+                        weaponTracksById,
+                        inferenceOptions))
                 {
                     continue;
                 }
@@ -775,10 +789,11 @@ namespace DcsMissionReader.Services
         private static bool HasSynchronizedTargetRemoval(
             TacviewRemovalRecord weaponRemoval,
             IReadOnlyList<TacviewRemovalRecord> removals,
-            IReadOnlyDictionary<string, TacviewObjectTrack> objects)
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
+            WeaponResultInferenceOptions inferenceOptions)
         {
             return removals
-                .Where(r => Math.Abs(r.TimeSeconds - weaponRemoval.TimeSeconds) <= 0.25)
+                .Where(r => Math.Abs(r.TimeSeconds - weaponRemoval.TimeSeconds) <= inferenceOptions.SameTimeRemovalWindowSeconds)
                 .Where(r => !r.ObjectId.Equals(weaponRemoval.ObjectId, StringComparison.OrdinalIgnoreCase))
                 .Any(r => objects.TryGetValue(r.ObjectId, out TacviewObjectTrack? removedObject)
                     && !removedObject.IsWeapon
@@ -791,11 +806,9 @@ namespace DcsMissionReader.Services
             TacviewRemovalRecord weaponRemoval,
             TacviewObjectTrack target,
             IReadOnlyList<TacviewRemovalRecord> removals,
-            IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById)
+            IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById,
+            WeaponResultInferenceOptions inferenceOptions)
         {
-            const double maxDefensivePairTimeDifferenceSeconds = 0.75;
-            const double maxDefensivePairDistanceMeters = 750.0;
-
             foreach (TacviewRemovalRecord otherRemoval in removals)
             {
                 if (otherRemoval.ObjectId.Equals(weaponRemoval.ObjectId, StringComparison.OrdinalIgnoreCase))
@@ -803,7 +816,7 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
-                if (Math.Abs(otherRemoval.TimeSeconds - weaponRemoval.TimeSeconds) > maxDefensivePairTimeDifferenceSeconds)
+                if (Math.Abs(otherRemoval.TimeSeconds - weaponRemoval.TimeSeconds) > inferenceOptions.DefensivePairMaxTimeDifferenceSeconds)
                 {
                     continue;
                 }
@@ -834,7 +847,7 @@ namespace DcsMissionReader.Services
 
                 double distanceMeters = CalculateDistanceMeters(weaponPosition, otherWeaponPosition);
 
-                if (distanceMeters <= maxDefensivePairDistanceMeters)
+                if (distanceMeters <= inferenceOptions.DefensivePairMaxDistanceMeters)
                 {
                     return true;
                 }
