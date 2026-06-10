@@ -698,7 +698,7 @@ namespace DcsMissionReader.Services
                     weapon,
                     target,
                     targetPosition,
-                    CalculateDistanceMeters(weapon.End!, targetPosition),
+                    TacviewCombatClassifier.CalculateDistance3dMeters(weapon.End!, targetPosition),
                     healthChange.TimeSeconds - weapon.End!.TimeSeconds))
                 .Where(match => match.DistanceMeters <= inferenceOptions.HealthDropMaxDamageDistanceMeters)
                 .Where(match => match.DeltaTimeSeconds >= -inferenceOptions.HealthDropMaxWeaponTimeAfterDamageSeconds
@@ -769,7 +769,7 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
-                double distanceMeters = CalculateDistanceMeters(weaponPosition, targetPosition);
+                double distanceMeters = TacviewCombatClassifier.CalculateDistance3dMeters(weaponPosition, targetPosition);
 
                 if (distanceMeters > inferenceOptions.UnpairedRemovalMaxInferredDamageDistanceMeters)
                 {
@@ -866,7 +866,7 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
-                double distanceMeters = CalculateDistanceMeters(weaponPosition, otherWeaponPosition);
+                double distanceMeters = TacviewCombatClassifier.CalculateDistance3dMeters(weaponPosition, otherWeaponPosition);
 
                 if (distanceMeters <= inferenceOptions.DefensivePairMaxDistanceMeters)
                 {
@@ -2120,7 +2120,7 @@ namespace DcsMissionReader.Services
                 .Select(track => new
                 {
                     Track = track,
-                    DistanceMeters = CalculateDistanceMeters(track.End!, result.Position),
+                    DistanceMeters = TacviewCombatClassifier.CalculateDistance3dMeters(track.End!, result.Position),
                     DeltaTimeSeconds = result.TimeSeconds - track.End!.TimeSeconds
                 })
                 .Where(candidate => candidate.DistanceMeters <= 15000)
