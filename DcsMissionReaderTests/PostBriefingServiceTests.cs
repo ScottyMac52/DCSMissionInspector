@@ -812,7 +812,11 @@ namespace DcsMissionReaderTests
 
                 CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
 
-                var service = new PostBriefingService();
+                var service = new PostBriefingService(
+                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
+                    {
+                        EnableTerminalProximityDamageInference = true
+                    });
 
                 var result = service.CreatePostBriefingKml(zipPath, outputPath);
 
@@ -1062,6 +1066,90 @@ namespace DcsMissionReaderTests
                 AssertPlacemarkDoesNotContain(kml, "Carrier Killer", "#redShipStartStyle");
                 AssertPlacemarkDoesNotContain(kml, "Rotary-1", "#blueSamStartStyle");
                 AssertPlacemarkDoesNotContain(kml, "Washington CSG", "#bluePlaneStartStyle");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithTerminalProximityOnlyAndDefaultOptions_DoesNotInferDamage()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-default.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-default.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
+
+                var service = new PostBriefingService();
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Final Disposition:\nSurvived / No Weapon Result Recorded");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Weapons That Hit / Destroyed This Object:\n- None recorded");
+
+                Assert.DoesNotContain("Inferred from unpaired opposing weapon removal near target", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithTerminalProximityEnabled_InferDamage()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-enabled.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-enabled.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
+
+                var inferenceOptions = new WeaponResultInferenceOptions
+                {
+                    EnableTerminalProximityDamageInference = true
+                };
+
+                var service = new PostBriefingService(
+                    weaponResultInferenceOptions: inferenceOptions);
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Health Remaining: Unknown / Not exported by Tacview");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    "Washington CSG",
+                    "Damaged / Weapon Effect Recorded");
+
+                Assert.Contains("Inferred from unpaired opposing weapon removal near target", kml);
             }
             finally
             {
