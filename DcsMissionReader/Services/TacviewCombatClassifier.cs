@@ -178,8 +178,7 @@ namespace DcsMissionReader.Services
                 return true;
             }
 
-            return launcherDomain == TacviewTargetDomain.Sea
-                && ContainsAny(weaponText, "Missile", "Weapon");
+            return false;
         }
 
         public static bool IsOffensiveStrikeWeapon(
