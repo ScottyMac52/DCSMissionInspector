@@ -5,7 +5,7 @@ namespace DcsMissionReader.Services
     internal static class PostBriefingWeaponEmploymentFactory
     {
         private const double MaxFallbackShooterDistanceMeters = 2_000.0;
-        private const double MaxTimeDifferenceSeconds = 5.0;
+        private const double MaxFreshAirSampleTimeDifferenceSeconds = 5.0;
 
         private const double MaxReplacementShooterDistanceMeters = 500.0;
         private const double MinClearlyBadParentDistanceMeters = 2_000.0;
@@ -201,18 +201,21 @@ namespace DcsMissionReader.Services
             }
 
             TacviewPositionSample? candidateSample =
-                FindSampleClosestToTime(candidate.Samples, weapon.Start.TimeSeconds);
+                FindObjectStateAtOrBeforeTime(candidate.Samples, weapon.Start.TimeSeconds);
 
             if (candidateSample is null)
             {
                 return null;
             }
 
-            double timeDifference = Math.Abs(candidateSample.TimeSeconds - weapon.Start.TimeSeconds);
-
-            if (timeDifference > MaxTimeDifferenceSeconds)
+            if (RequiresFreshSample(candidate))
             {
-                return null;
+                double timeDifference = Math.Abs(candidateSample.TimeSeconds - weapon.Start.TimeSeconds);
+
+                if (timeDifference > MaxFreshAirSampleTimeDifferenceSeconds)
+                {
+                    return null;
+                }
             }
 
             return TacviewCombatClassifier.CalculateDistance3dMeters(
@@ -220,7 +223,14 @@ namespace DcsMissionReader.Services
                 candidateSample);
         }
 
-        private static TacviewPositionSample? FindSampleClosestToTime(
+        private static bool RequiresFreshSample(TacviewObjectTrack track)
+        {
+            TacviewTargetDomain domain = TacviewCombatClassifier.GetTargetDomain(track);
+
+            return domain == TacviewTargetDomain.Air;
+        }
+
+        private static TacviewPositionSample? FindObjectStateAtOrBeforeTime(
             IReadOnlyList<TacviewPositionSample> samples,
             double timeSeconds)
         {
@@ -229,21 +239,19 @@ namespace DcsMissionReader.Services
                 return null;
             }
 
-            TacviewPositionSample bestSample = samples[0];
-            double bestDifference = Math.Abs(bestSample.TimeSeconds - timeSeconds);
+            TacviewPositionSample? bestSample = null;
 
-            for (int i = 1; i < samples.Count; i++)
+            for (int i = 0; i < samples.Count; i++)
             {
-                double difference = Math.Abs(samples[i].TimeSeconds - timeSeconds);
-
-                if (difference < bestDifference)
+                if (samples[i].TimeSeconds > timeSeconds)
                 {
-                    bestDifference = difference;
-                    bestSample = samples[i];
+                    break;
                 }
+
+                bestSample = samples[i];
             }
 
-            return bestSample;
+            return bestSample ?? samples[0];
         }
 
         private static string GetDisplayName(TacviewObjectTrack track)
