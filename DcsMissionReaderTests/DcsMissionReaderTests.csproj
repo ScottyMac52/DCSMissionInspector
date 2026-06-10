@@ -14,6 +14,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="TestData\Tacview-20260609-213932-DCS.zip.acmi" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="TestData\Tacview-20260609-213932-DCS.zip.acmi">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Moq" Version="4.20.72" />
@@ -30,5 +40,11 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
+
+<ItemGroup>
+	<None Include="TestData\Tacview-20260608-103022-DCS.zip.acmi">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+</ItemGroup>
 
 </Project>

@@ -2322,7 +2322,14 @@ namespace DcsMissionReader.Services
             AppendFolderStart(
                 builder,
                 folderName,
+                visible: true);
+
+            /*
+            AppendFolderStart(
+                builder,
+                folderName,
                 visible: HasObjectEffectWeaponResult(engagement));
+            */
 
             AppendWeaponInformationFolder(builder, engagement, options);
             AppendWeaponShooterFolder(builder, engagement);
