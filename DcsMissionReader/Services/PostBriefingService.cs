@@ -560,6 +560,11 @@ namespace DcsMissionReader.Services
             IReadOnlySet<string> weaponIdsWithNonTimeoutResults,
             WeaponResultInferenceOptions inferenceOptions)
         {
+            if (!inferenceOptions.EnableTerminalProximityDamageInference)
+            {
+                return Array.Empty<TacviewWeaponResult>();
+            }
+
             var results = new List<TacviewWeaponResult>();
 
             Dictionary<string, TacviewObjectTrack> weaponTracksById = weaponTracks

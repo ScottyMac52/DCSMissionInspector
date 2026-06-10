@@ -13,10 +13,13 @@
         private const double UnpairedRemovalMaxTargetSampleTimeDifferenceDefaultSeconds = 15.0;
         private const double DefensivePairMaxTimeDifferenceDefaultSeconds = 0.75;
         private const double DefensivePairMaxDistanceDefaultMeters = 750.0;
+        private const bool EnableTerminalProximityDamageInferenceDefault = false;
 
         #endregion Fields
 
         #region Properties 
+
+        public bool EnableTerminalProximityDamageInference { get; init; } = EnableTerminalProximityDamageInferenceDefault;
 
         public double SameTimeRemovalWindowSeconds { get; init; } = SameTimeRemovalWindowDefaultSeconds;
 
