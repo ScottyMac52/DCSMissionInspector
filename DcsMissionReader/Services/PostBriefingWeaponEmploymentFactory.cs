@@ -1,9 +1,15 @@
-﻿using DcsMissionReader.Models;
+using DcsMissionReader.Models;
 
 namespace DcsMissionReader.Services
 {
     internal static class PostBriefingWeaponEmploymentFactory
     {
+        private const double MaxFallbackShooterDistanceMeters = 2_000.0;
+        private const double MaxTimeDifferenceSeconds = 5.0;
+
+        private const double MaxReplacementShooterDistanceMeters = 500.0;
+        private const double MinClearlyBadParentDistanceMeters = 2_000.0;
+
         public static TacviewWeaponEmployment CreateWeaponEmployment(
             TacviewObjectTrack weapon,
             IReadOnlyDictionary<string, TacviewObjectTrack> objects)
@@ -29,30 +35,97 @@ namespace DcsMissionReader.Services
             TacviewObjectTrack weapon,
             IReadOnlyDictionary<string, TacviewObjectTrack> objects)
         {
-            if (!string.IsNullOrWhiteSpace(weapon.ParentObjectId))
+            TacviewObjectTrack? parentCandidate = ResolveParentCandidate(weapon, objects);
+
+            if (parentCandidate is not null)
             {
-                string parentId = weapon.ParentObjectId.Trim();
-
-                if (objects.TryGetValue(parentId, out TacviewObjectTrack? directParent))
-                {
-                    return directParent;
-                }
-
-                string normalizedParentId = NormalizeTacviewObjectId(parentId);
-
-                TacviewObjectTrack? normalizedParent = objects
-                    .FirstOrDefault(pair =>
-                        NormalizeTacviewObjectId(pair.Key)
-                            .Equals(normalizedParentId, StringComparison.OrdinalIgnoreCase))
-                    .Value;
-
-                if (normalizedParent is not null)
-                {
-                    return normalizedParent;
-                }
+                return ResolveParentOrBetterNearbyShooter(
+                    weapon,
+                    parentCandidate,
+                    objects.Values);
             }
 
-            return FindClosestLikelyShooterAtLaunch(weapon, objects.Values);
+            return FindClosestLikelyShooterAtLaunch(
+                weapon,
+                objects.Values,
+                MaxFallbackShooterDistanceMeters);
+        }
+
+        private static TacviewObjectTrack? ResolveParentCandidate(
+            TacviewObjectTrack weapon,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects)
+        {
+            if (string.IsNullOrWhiteSpace(weapon.ParentObjectId))
+            {
+                return null;
+            }
+
+            string parentId = weapon.ParentObjectId.Trim();
+
+            if (objects.TryGetValue(parentId, out TacviewObjectTrack? directParent))
+            {
+                return directParent;
+            }
+
+            string normalizedParentId = NormalizeTacviewObjectId(parentId);
+
+            return objects
+                .FirstOrDefault(pair =>
+                    NormalizeTacviewObjectId(pair.Key)
+                        .Equals(normalizedParentId, StringComparison.OrdinalIgnoreCase))
+                .Value;
+        }
+
+        private static TacviewObjectTrack ResolveParentOrBetterNearbyShooter(
+            TacviewObjectTrack weapon,
+            TacviewObjectTrack parentCandidate,
+            IEnumerable<TacviewObjectTrack> objects)
+        {
+            double? parentDistanceMeters = TryCalculateDistanceFromWeaponAtLaunch(
+                weapon,
+                parentCandidate);
+
+            if (parentDistanceMeters is not null
+                && parentDistanceMeters.Value <= MinClearlyBadParentDistanceMeters)
+            {
+                return parentCandidate;
+            }
+
+            TacviewObjectTrack? nearbyCandidate = FindClosestLikelyShooterAtLaunch(
+                weapon,
+                objects,
+                MaxReplacementShooterDistanceMeters);
+
+            if (nearbyCandidate is null)
+            {
+                return parentCandidate;
+            }
+
+            if (nearbyCandidate.ObjectId.Equals(parentCandidate.ObjectId, StringComparison.OrdinalIgnoreCase))
+            {
+                return parentCandidate;
+            }
+
+            double? nearbyDistanceMeters = TryCalculateDistanceFromWeaponAtLaunch(
+                weapon,
+                nearbyCandidate);
+
+            if (nearbyDistanceMeters is null)
+            {
+                return parentCandidate;
+            }
+
+            bool parentIsClearlyBad =
+                parentDistanceMeters is null
+                || parentDistanceMeters.Value > MinClearlyBadParentDistanceMeters;
+
+            if (parentIsClearlyBad
+                && nearbyDistanceMeters.Value <= MaxReplacementShooterDistanceMeters)
+            {
+                return nearbyCandidate;
+            }
+
+            return parentCandidate;
         }
 
         private static string NormalizeTacviewObjectId(string value)
@@ -66,68 +139,85 @@ namespace DcsMissionReader.Services
 
         private static TacviewObjectTrack? FindClosestLikelyShooterAtLaunch(
             TacviewObjectTrack weapon,
-            IEnumerable<TacviewObjectTrack> objects)
+            IEnumerable<TacviewObjectTrack> objects,
+            double maxShooterDistanceMeters)
         {
             if (weapon.Start is null)
             {
                 return null;
             }
 
-            const double maxShooterDistanceMeters = 2_000.0;
-            const double maxTimeDifferenceSeconds = 5.0;
-
             TacviewObjectTrack? bestObject = null;
             double bestDistanceMeters = double.MaxValue;
 
             foreach (TacviewObjectTrack candidate in objects)
             {
-                if (candidate.ObjectId.Equals(weapon.ObjectId, StringComparison.OrdinalIgnoreCase))
+                double? distanceMeters = TryCalculateDistanceFromWeaponAtLaunch(
+                    weapon,
+                    candidate);
+
+                if (distanceMeters is null)
                 {
                     continue;
                 }
 
-                if (candidate.IsWeapon)
+                if (distanceMeters.Value > maxShooterDistanceMeters)
                 {
                     continue;
                 }
 
-                if (candidate.Samples.Count == 0)
+                if (distanceMeters.Value < bestDistanceMeters)
                 {
-                    continue;
-                }
-
-                TacviewPositionSample? candidateSample =
-                    FindSampleClosestToTime(candidate.Samples, weapon.Start.TimeSeconds);
-
-                if (candidateSample is null)
-                {
-                    continue;
-                }
-
-                double timeDifference = Math.Abs(candidateSample.TimeSeconds - weapon.Start.TimeSeconds);
-
-                if (timeDifference > maxTimeDifferenceSeconds)
-                {
-                    continue;
-                }
-
-                double distanceMeters = TacviewCombatClassifier.CalculateHorizontalDistanceMeters(
-                    weapon.Start,
-                    candidateSample);
-
-                if (distanceMeters > maxShooterDistanceMeters)
-                {
-                    continue;
-                }
-
-                if (distanceMeters < bestDistanceMeters)
-                {
-                    bestDistanceMeters = distanceMeters;
+                    bestDistanceMeters = distanceMeters.Value;
                     bestObject = candidate;
                 }
             }
 
             return bestObject;
+        }
+
+        private static double? TryCalculateDistanceFromWeaponAtLaunch(
+            TacviewObjectTrack weapon,
+            TacviewObjectTrack candidate)
+        {
+            if (weapon.Start is null)
+            {
+                return null;
+            }
+
+            if (candidate.ObjectId.Equals(weapon.ObjectId, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            if (candidate.IsWeapon)
+            {
+                return null;
+            }
+
+            if (candidate.Samples.Count == 0)
+            {
+                return null;
+            }
+
+            TacviewPositionSample? candidateSample =
+                FindSampleClosestToTime(candidate.Samples, weapon.Start.TimeSeconds);
+
+            if (candidateSample is null)
+            {
+                return null;
+            }
+
+            double timeDifference = Math.Abs(candidateSample.TimeSeconds - weapon.Start.TimeSeconds);
+
+            if (timeDifference > MaxTimeDifferenceSeconds)
+            {
+                return null;
+            }
+
+            return TacviewCombatClassifier.CalculateDistance3dMeters(
+                weapon.Start,
+                candidateSample);
         }
 
         private static TacviewPositionSample? FindSampleClosestToTime(
@@ -172,4 +262,3 @@ namespace DcsMissionReader.Services
         }
     }
 }
-
