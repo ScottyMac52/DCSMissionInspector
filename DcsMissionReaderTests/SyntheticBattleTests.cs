@@ -131,7 +131,7 @@ namespace DcsMissionReaderTests
             }
         }
 
-        [Fact(Skip = "Pending weapon-vs-weapon intercept inference support.")]
+        [Fact]
         public void CreatePostBriefingKml_WithSyntheticCsgEscortBattle_ProducesExpectedSm2InterceptCounts()
         {
             string tempDirectory = CreateTempDirectory();
@@ -165,43 +165,6 @@ namespace DcsMissionReaderTests
                 Assert.Equal(
                     13,
                     CountPlacemarkNameOccurrences(kml, "Timeout - SM_2"));
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
-        public void CreatePostBriefingKml_WithSyntheticCsgEscortBattle_DoesNotYetInferSm2WeaponVsWeaponIntercepts()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string zipPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.postbrief.kmz");
-
-                CreateAcmiZip(zipPath, BuildSyntheticCsgEscortBattleAcmi());
-
-                var service = new PostBriefingService(
-                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
-                    {
-                        EnableTerminalProximityDamageInference = true,
-                        EnableTerminalProximityNearMissReporting = true
-                    });
-
-                service.CreatePostBriefingKml(zipPath, outputPath);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                Assert.Equal(
-                    20,
-                    CountFolderNamesContainingAll(kml, "SM_2"));
-
-                Assert.Equal(
-                    0,
-                    CountPlacemarkNameOccurrences(kml, "Destroyed - X_22"));
             }
             finally
             {

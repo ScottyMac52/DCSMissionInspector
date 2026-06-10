@@ -938,7 +938,7 @@ namespace DcsMissionReaderTests
                 Assert.True(File.Exists(outputPath));
                 Assert.Equal(3, result.GroupTrackCount);
                 Assert.Equal(2, result.WeaponEmploymentCount);
-                Assert.Equal(2, result.WeaponResultCount);
+                Assert.Equal(1, result.WeaponResultCount);
 
                 string kml = ReadKmlFromKmz(outputPath);
 
@@ -952,10 +952,12 @@ namespace DcsMissionReaderTests
                     "Washington CSG",
                     "Weapons That Hit / Destroyed This Object:\n- None recorded");
 
-                Assert.Contains("Timeout - X_22", kml);
-                Assert.Contains("Timeout - SeaSparrow", kml);
-                AssertPlacemarkVisibility(kml, "Timeout - X_22", expectedVisibility: "0");
-                AssertPlacemarkVisibility(kml, "Timeout - SeaSparrow", expectedVisibility: "0");
+                Assert.DoesNotContain("Weapons That Hit / Destroyed This Object:\n- X_22", kml);
+
+                Assert.Contains("Destroyed - X_22", kml);
+
+                Assert.DoesNotContain("Timeout - X_22", kml);
+                Assert.DoesNotContain("Timeout - SeaSparrow", kml);
             }
             finally
             {
