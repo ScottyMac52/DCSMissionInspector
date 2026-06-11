@@ -256,17 +256,7 @@ namespace DcsMissionReader.Services
 
         private static string GetDisplayName(TacviewObjectTrack track)
         {
-            if (!string.IsNullOrWhiteSpace(track.Group))
-            {
-                return track.Group;
-            }
-
-            if (!string.IsNullOrWhiteSpace(track.Name))
-            {
-                return track.Name;
-            }
-
-            return track.ObjectId;
+            return TacviewObjectDisplayName.GetDisplayName(track);
         }
     }
 }

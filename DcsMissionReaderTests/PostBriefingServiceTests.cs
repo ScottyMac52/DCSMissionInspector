@@ -9,6 +9,81 @@ namespace DcsMissionReaderTests
 {
     public sealed class PostBriefingServiceTests
     {
+        private sealed record TestObjectIdentity(string Name, string Group, string Pilot)
+        {
+            public string DisplayName => $"{Group}-{Pilot}";
+        }
+
+        private static readonly TestObjectIdentity BlueAircraft = new(
+            Name: "F/A-18C",
+            Group: "Springfield 1",
+            Pilot: "Hornet 1-1");
+
+        private static readonly TestObjectIdentity Tomcat = new(
+            Name: "F-14B",
+            Group: "Colt 1",
+            Pilot: "Colt 1-1");
+
+        private static readonly TestObjectIdentity TargetVehicle = new(
+            Name: "Target Truck",
+            Group: "Target Group",
+            Pilot: "Target One");
+
+        private static readonly TestObjectIdentity Carrier = new(
+            Name: "CVN_73",
+            Group: "Washington CSG",
+            Pilot: "CVN-73 USS Washington");
+
+        private static readonly TestObjectIdentity ShortCarrier = new(
+            Name: "CVN-73",
+            Group: "USS Washington",
+            Pilot: "CVN-73 USS Washington");
+
+        private static readonly TestObjectIdentity CarrierKiller = new(
+            Name: "Tu-22M3",
+            Group: "Carrier Killer",
+            Pilot: "Pyetr");
+
+        private static readonly TestObjectIdentity CarrierEscort = new(
+            Name: "CG_60",
+            Group: "Washington CSG Escort",
+            Pilot: "Escort 1-1");
+
+        private static readonly TestObjectIdentity RotaryAircraft = new(
+            Name: "SH-60B",
+            Group: "Rotary-1",
+            Pilot: "Max");
+
+        private static readonly TestObjectIdentity MigShooter = new(
+            Name: "MiG-31",
+            Group: "AWACS KILLER",
+            Pilot: "Foxhound 1");
+
+        private static readonly TestObjectIdentity Overlord = new(
+            Name: "E-2C",
+            Group: "Overlord",
+            Pilot: "Hollywood");
+
+        private static readonly TestObjectIdentity SamSite = new(
+            Name: "SA-10 Site",
+            Group: "SA-10 Battery",
+            Pilot: "SA-10 Crew");
+
+        private static readonly TestObjectIdentity Bullseye = new(
+            Name: "Blue Bullseye",
+            Group: "Blue Bullseye",
+            Pilot: "Blue Bullseye");
+
+        private const string Aim120CWeaponName = "AIM-120C";
+        private const string FuelTankName = "Fuel Tank";
+        private const string M61ShellName = "weapons.shells.M61_20_HE_gr";
+        private const string MysteryMissileName = "Mystery Missile";
+        private const string P33EWeaponName = "P_33E";
+        private const string SeaSparrowWeaponName = "SeaSparrow";
+        private const string Sa10MissileName = "SA-10 Missile";
+        private const string UnknownDecoyName = "Unknown";
+        private const string X22WeaponName = "X_22";
+
         [Fact]
         public void CreatePostBriefingKml_WithValidZippedAcmi_CreatesKmlWithTracksKnownWeaponsAndResults()
         {
@@ -48,15 +123,15 @@ namespace DcsMissionReaderTests
                 Assert.DoesNotContain("<name>Weapon Employment</name>", kml);
                 Assert.DoesNotContain("<name>Weapon Results and Events</name>", kml);
 
-                Assert.Contains("Springfield 1", kml);
-                Assert.DoesNotContain("Springfield 1 START", kml);
-                Assert.DoesNotContain("Springfield 1 END", kml);
+                Assert.Contains(BlueAircraft.DisplayName, kml);
+                Assert.DoesNotContain($"{BlueAircraft.Group} START", kml);
+                Assert.DoesNotContain($"{BlueAircraft.Group} END", kml);
 
-                Assert.Contains("AIM-120C", kml);
-                Assert.DoesNotContain("Weapon Fired - AIM-120C", kml);
-                Assert.Contains("<name>AIM-120C</name>", kml);
-                Assert.Contains("AIM-120C Track", kml);
-                Assert.Contains("Destroyed - Target Truck", kml);
+                Assert.Contains(Aim120CWeaponName, kml);
+                Assert.DoesNotContain($"Weapon Fired - {Aim120CWeaponName}", kml);
+                Assert.Contains($"<name>{Aim120CWeaponName}</name>", kml);
+                Assert.Contains($"{Aim120CWeaponName} Track", kml);
+                Assert.Contains($"Destroyed - {TargetVehicle.DisplayName}", kml);
                 Assert.Contains("48.66236111,29.96027500,1500.00", kml);
                 Assert.Contains("48.70000000,29.98000000,0.00", kml);
 
@@ -91,8 +166,8 @@ namespace DcsMissionReaderTests
 
                 string kml = ReadKmlFromKmz(outputPath);
 
-                Assert.Contains("AIM-120C", kml);
-                Assert.DoesNotContain("Fuel Tank", kml, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains(Aim120CWeaponName, kml);
+                Assert.DoesNotContain(FuelTankName, kml, StringComparison.OrdinalIgnoreCase);
                 Assert.DoesNotContain("Drop Tank", kml, StringComparison.OrdinalIgnoreCase);
             }
             finally
@@ -153,7 +228,7 @@ namespace DcsMissionReaderTests
                 CreateAcmiZip(zipPath, BuildSampleAcmi());
 
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
-                    knownWeapons: ["AIM-120C"]);
+                    knownWeapons: [Aim120CWeaponName]);
 
                 var service = new PostBriefingService();
 
@@ -241,7 +316,7 @@ namespace DcsMissionReaderTests
                 CreateAcmiZip(zipPath, BuildAcmiWithCountermeasures());
 
                 Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
-                    knownWeapons: ["AIM-120C"]);
+                    knownWeapons: [Aim120CWeaponName]);
 
                 var service = new PostBriefingService();
 
@@ -258,7 +333,7 @@ namespace DcsMissionReaderTests
 
                 string kml = ReadKmlFromKmz(outputPath);
 
-                Assert.Contains("Springfield 1", kml);
+                Assert.Contains(BlueAircraft.DisplayName, kml);
                 Assert.DoesNotContain("Chaff", kml, StringComparison.OrdinalIgnoreCase);
                 Assert.DoesNotContain("Flare", kml, StringComparison.OrdinalIgnoreCase);
                 Assert.DoesNotContain("Decoy", kml, StringComparison.OrdinalIgnoreCase);
@@ -294,7 +369,7 @@ namespace DcsMissionReaderTests
 
                 string kml = ReadKmlFromKmz(outputPath);
 
-                Assert.Contains("Rotary-1", kml);
+                Assert.Contains(BlueAircraft.DisplayName, kml);
                 Assert.DoesNotContain("weapons.shells.M61_20_HE_gr", kml);
                 Assert.DoesNotContain("Weapon Fired - weapons.shells.M61_20_HE_gr", kml);
                 Assert.DoesNotContain("Weapon Kind: bullet", kml);
@@ -329,8 +404,8 @@ namespace DcsMissionReaderTests
 
                 string kml = ReadKmlFromKmz(outputPath);
 
-                Assert.Contains("Rotary-1", kml);
-                Assert.Contains("SH-60B", kml);
+                Assert.Contains(RotaryAircraft.DisplayName, kml);
+                Assert.Contains(RotaryAircraft.Name, kml);
                 Assert.Contains("#blueHeloStartStyle", kml);
                 Assert.DoesNotContain("#blueSamStartStyle", kml);
             }
@@ -362,8 +437,8 @@ namespace DcsMissionReaderTests
 
                 string kml = ReadKmlFromKmz(outputPath);
 
-                Assert.Contains("Timeout - SeaSparrow", kml);
-                AssertPlacemarkVisibility(kml, "Timeout - SeaSparrow", expectedVisibility: "0");
+                Assert.Contains($"Timeout - {SeaSparrowWeaponName}", kml);
+                AssertPlacemarkVisibility(kml, $"Timeout - {SeaSparrowWeaponName}", expectedVisibility: "0");
             }
             finally
             {
@@ -473,8 +548,8 @@ namespace DcsMissionReaderTests
 
                 string kml = ReadKmlFromKmz(outputPath);
 
-                Assert.Contains("Tu-22M3", kml);
-                Assert.Contains("Carrier Killer", kml);
+                Assert.Contains(CarrierKiller.Name, kml);
+                Assert.Contains(CarrierKiller.DisplayName, kml);
                 Assert.Contains("#redPlaneStartStyle", kml);
                 Assert.DoesNotContain("#redShipStartStyle", kml);
             }
@@ -695,11 +770,11 @@ namespace DcsMissionReaderTests
 
                 string kml = ReadKmlFromKmz(outputPath);
 
-                Assert.Contains("Mystery Missile", kml);
-                Assert.DoesNotContain("Weapon Fired - Mystery Missile", kml);
-                Assert.Contains("<name>Mystery Missile</name>", kml);
+                Assert.Contains(MysteryMissileName, kml);
+                Assert.DoesNotContain($"Weapon Fired - {MysteryMissileName}", kml);
+                Assert.Contains($"<name>{MysteryMissileName}</name>", kml);
                 Assert.Contains("<name>Launching Unit</name>", kml);
-                Assert.Contains("<name>Shooter - Springfield 1</name>", kml);
+                Assert.Contains($"<name>Shooter - {BlueAircraft.DisplayName}</name>", kml);
             }
             finally
             {
@@ -732,32 +807,32 @@ namespace DcsMissionReaderTests
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Overlord",
+                    Overlord.DisplayName,
                     "Final Disposition:\nDestroyed");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Overlord",
+                    Overlord.DisplayName,
                     "Health Remaining: 0%");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Overlord",
+                    Overlord.DisplayName,
                     "Weapons That Hit / Destroyed This Object:");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Overlord",
-                    "- P_33E [200] from AWACS KILLER");
+                    Overlord.DisplayName,
+                    $"- {P33EWeaponName} [200] from {MigShooter.DisplayName}");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Destroyed - Overlord",
-                    "Destroyed Object: Overlord [300]");
+                    $"Destroyed - {Overlord.DisplayName}",
+                    $"Destroyed Object: {Overlord.DisplayName}");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Destroyed - Overlord",
+                    $"Destroyed - {Overlord.DisplayName}",
                     "Killed By Weapon: P_33E [200]");
             }
             finally
@@ -786,12 +861,12 @@ namespace DcsMissionReaderTests
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Springfield 1",
+                    BlueAircraft.DisplayName,
                     "Health Remaining: 100%");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Springfield 1",
+                    BlueAircraft.DisplayName,
                     "Final Disposition:\nSurvived / No Weapon Result Recorded");
             }
             finally
@@ -829,38 +904,38 @@ namespace DcsMissionReaderTests
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Health Remaining: Unknown / Not exported by Tacview");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Final Disposition:\nDamaged / Weapon Effect Recorded");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Damage Evidence:");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Inferred / recorded weapon hits: 1");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Last recorded hit: 2016-06-21T04:30:20.0000000Z");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Weapons That Hit / Destroyed This Object:");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
-                    "- X_22 [901] from Carrier Killer at 2016-06-21T04:30:20.0000000Z");
+                    Carrier.DisplayName,
+                    $"- {X22WeaponName} [901] from {CarrierKiller.DisplayName} at 2016-06-21T04:30:20.0000000Z");
             }
             finally
             {
@@ -893,25 +968,25 @@ namespace DcsMissionReaderTests
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Final Disposition:\nDamaged / Weapon Effect Recorded");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Health Remaining: 75%");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Weapons That Hit / Destroyed This Object:");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
-                    "- X_22 [901] from Carrier Killer");
+                    Carrier.DisplayName,
+                    $"- {X22WeaponName} [901] from {CarrierKiller.DisplayName}");
 
-                Assert.DoesNotContain("Timeout - X_22", kml);
+                Assert.DoesNotContain($"Timeout - {X22WeaponName}", kml);
             }
             finally
             {
@@ -944,20 +1019,20 @@ namespace DcsMissionReaderTests
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Final Disposition:\nSurvived / No Weapon Result Recorded");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Weapons That Hit / Destroyed This Object:\n- None recorded");
 
-                Assert.DoesNotContain("Weapons That Hit / Destroyed This Object:\n- X_22", kml);
+                Assert.DoesNotContain($"Weapons That Hit / Destroyed This Object:\n- {X22WeaponName}", kml);
 
-                Assert.Contains("Destroyed - X_22", kml);
+                Assert.Contains($"Destroyed - {X22WeaponName}", kml);
 
-                Assert.DoesNotContain("Timeout - X_22", kml);
-                Assert.DoesNotContain("Timeout - SeaSparrow", kml);
+                Assert.DoesNotContain($"Timeout - {X22WeaponName}", kml);
+                Assert.DoesNotContain($"Timeout - {SeaSparrowWeaponName}", kml);
             }
             finally
             {
@@ -983,19 +1058,19 @@ namespace DcsMissionReaderTests
 
                 string kml = ReadKmlFromKmz(outputPath);
 
-                AssertPlacemarkContains(kml, "Destroyed - Overlord", "#destroyedObjectStyle");
+                AssertPlacemarkContains(kml, $"Destroyed - {Overlord.DisplayName}", "#destroyedObjectStyle");
 
                 Assert.Contains("<Style id=\"destroyedObjectStyle\">", kml);
                 Assert.Contains("<href>icons/explode.png</href>", kml);
                 Assert.Contains("<LabelStyle>", kml);
                 Assert.Contains("<scale>0</scale>", kml);
-                Assert.DoesNotContain("🚫 Overlord", kml);
+                Assert.DoesNotContain($"🚫 {Overlord.Group}", kml);
                 Assert.DoesNotContain(
                     "https://maps.google.com/mapfiles/kml/shapes/caution.png",
                     kml);
 
-                AssertPlacemarkVisibility(kml, "Shooter - AWACS KILLER", expectedVisibility: "0");
-                AssertPlacemarkVisibility(kml, "P_33E", expectedVisibility: "0");
+                AssertPlacemarkVisibility(kml, $"Shooter - {MigShooter.DisplayName}", expectedVisibility: "0");
+                AssertPlacemarkVisibility(kml, P33EWeaponName, expectedVisibility: "0");
             }
             finally
             {
@@ -1027,12 +1102,12 @@ namespace DcsMissionReaderTests
 
                 AssertFolderVisibility(
                     kml,
-                    "SeaSparrow - USS Washington - 2016-06-21T04:30:10.0000000Z",
+                    $"{SeaSparrowWeaponName} - {ShortCarrier.DisplayName} - 2016-06-21T04:30:10.0000000Z",
                     expectedVisibility: "0");
 
                 AssertPlacemarkVisibility(
                     kml,
-                    "Timeout - SeaSparrow",
+                    $"Timeout - {SeaSparrowWeaponName}",
                     expectedVisibility: "0");
             }
             finally
@@ -1064,13 +1139,13 @@ namespace DcsMissionReaderTests
 
                 string kml = ReadKmlFromKmz(outputPath);
 
-                AssertPlacemarkContains(kml, "Carrier Killer", "#redPlaneStartStyle");
-                AssertPlacemarkContains(kml, "Rotary-1", "#blueHeloStartStyle");
-                AssertPlacemarkContains(kml, "Washington CSG", "#blueShipStartStyle");
+                AssertPlacemarkContains(kml, CarrierKiller.DisplayName, "#redPlaneStartStyle");
+                AssertPlacemarkContains(kml, RotaryAircraft.DisplayName, "#blueHeloStartStyle");
+                AssertPlacemarkContains(kml, Carrier.DisplayName, "#blueShipStartStyle");
 
-                AssertPlacemarkDoesNotContain(kml, "Carrier Killer", "#redShipStartStyle");
-                AssertPlacemarkDoesNotContain(kml, "Rotary-1", "#blueSamStartStyle");
-                AssertPlacemarkDoesNotContain(kml, "Washington CSG", "#bluePlaneStartStyle");
+                AssertPlacemarkDoesNotContain(kml, CarrierKiller.DisplayName, "#redShipStartStyle");
+                AssertPlacemarkDoesNotContain(kml, RotaryAircraft.DisplayName, "#blueSamStartStyle");
+                AssertPlacemarkDoesNotContain(kml, Carrier.DisplayName, "#bluePlaneStartStyle");
             }
             finally
             {
@@ -1101,12 +1176,12 @@ namespace DcsMissionReaderTests
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Final Disposition:\nSurvived / No Weapon Result Recorded");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Weapons That Hit / Destroyed This Object:\n- None recorded");
 
                 Assert.DoesNotContain("Inferred from unpaired opposing weapon removal near target", kml);
@@ -1146,12 +1221,12 @@ namespace DcsMissionReaderTests
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Health Remaining: Unknown / Not exported by Tacview");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Damaged / Weapon Effect Recorded");
 
                 Assert.Contains("Inferred from unpaired opposing weapon removal near target", kml);
@@ -1181,7 +1256,7 @@ namespace DcsMissionReaderTests
                 string kml = ReadKmlFromKmz(outputPath);
 
                 Assert.DoesNotContain("NearMiss", kml);
-                Assert.DoesNotContain("Near Miss - Washington CSG", kml);
+                Assert.DoesNotContain($"Near Miss - {Carrier.DisplayName}", kml);
                 Assert.DoesNotContain("Terminal proximity only; not classified as damage", kml);
             }
             finally
@@ -1215,7 +1290,7 @@ namespace DcsMissionReaderTests
                 Assert.Equal(1, result.WeaponEmploymentCount);
                 Assert.Equal(1, result.WeaponResultCount);
 
-                Assert.Contains("Near Miss - Washington CSG", kml);
+                Assert.Contains($"Near Miss - {Carrier.DisplayName}", kml);
                 Assert.Contains("Terminal proximity only; not classified as damage", kml);
                 Assert.Contains("recorded as near miss because terminal proximity alone is not damage", kml);
             }
@@ -1249,12 +1324,12 @@ namespace DcsMissionReaderTests
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Final Disposition:\nSurvived / No Weapon Result Recorded");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
-                    "Washington CSG",
+                    Carrier.DisplayName,
                     "Weapons That Hit / Destroyed This Object:\n- None recorded");
 
                 Assert.DoesNotContain("Health Remaining: Unknown / Not exported by Tacview", kml);
@@ -1290,12 +1365,12 @@ namespace DcsMissionReaderTests
 
                 AssertFolderVisibility(
                     kml,
-                    "X_22 - Carrier Killer - 2016-06-21T04:30:10.0000000Z",
+                    $"{X22WeaponName} - {CarrierKiller.DisplayName} - 2016-06-21T04:30:10.0000000Z",
                     expectedVisibility: "0");
 
                 AssertPlacemarkVisibility(
                     kml,
-                    "Near Miss - Washington CSG",
+                    $"Near Miss - {Carrier.DisplayName}",
                     expectedVisibility: "0");
             }
             finally
@@ -1339,15 +1414,14 @@ namespace DcsMissionReaderTests
                 Assert.True(result.GroupTrackCount > 0);
                 Assert.True(result.WeaponEmploymentCount > 0);
 
-                Assert.Contains("Washington CSG", kml);
-                Assert.Contains("X_22", kml);
+                Assert.Contains(Carrier.Group, kml);
+                Assert.Contains(X22WeaponName, kml);
             }
             finally
             {
                 Directory.Delete(tempDirectory, recursive: true);
             }
         }
-         
 
         [Fact]
         public void CreatePostBriefingKml_WithRealCarrierAttack_AndTerminalProximityDamageEnabled_ShowsEightCarrierKh22Hits()
@@ -1383,9 +1457,13 @@ namespace DcsMissionReaderTests
 
                 AssertObjectWeaponHitCount(
                     kml,
-                    objectPlacemarkName: "Washington CSG",
+                    objectPlacemarkName: "Washington CSG-Washington",
                     expectedHitCount: 8,
                     expectedWeaponName: "X_22");
+
+                Assert.Equal(
+                    0,
+                    CountPlacemarkNameOccurrences(kml, "Near Miss - Washington CSG-Washington"));
             }
             finally
             {
@@ -1427,19 +1505,20 @@ namespace DcsMissionReaderTests
 
                 AssertObjectWeaponHitCount(
                     kml,
-                    objectPlacemarkName: "Washington CSG",
+                    objectPlacemarkName: "Washington CSG-Washington",
                     expectedHitCount: 0,
                     expectedWeaponName: "X_22");
 
                 Assert.Equal(
                     8,
-                    CountPlacemarkNameOccurrences(kml, "Near Miss - Washington CSG"));
+                    CountPlacemarkNameOccurrences(kml, "Near Miss - Washington CSG-Washington"));
             }
             finally
             {
                 Directory.Delete(tempDirectory, recursive: true);
             }
         }
+
 
         private static string NormalizeLineEndings(string value)
         {
@@ -1577,15 +1656,15 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithInferredDamageButNoHealthExport()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2016-06-21T04:30:00Z
             #0.00
-            101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
-            201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
+            101,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
+            201,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
             #10.00
-            901,Name=X_22,Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
+            901,Name={{X22WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
             #20.00
             901,T=57.17663780|25.53163180|50|0|0|270
             -901
@@ -1596,15 +1675,15 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithShipHitByKitchen()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2016-06-21T04:30:00Z
             #0.00
-            101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90,Health=1
-            201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
+            101,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90,Health=1
+            201,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
             #10.00
-            901,Name=X_22,Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
+            901,Name={{X22WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
             #20.00
             901,T=57.17663780|25.53163180|50|0|0|270
             -901
@@ -1615,18 +1694,18 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithPairedKitchenAndSeaSparrowInterception()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2016-06-21T04:30:00Z
             #0.00
-            101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
-            201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
-            301,Name=CG_60,Type=Sea+Watercraft+Cruiser,Group=Washington CSG Escort,Color=Blue,Coalition=Enemies,T=57.17600000|25.53200000|0|0|0|90
+            101,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
+            201,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
+            301,Name={{CarrierEscort.Name}},Type=Sea+Watercraft+Cruiser,Group={{CarrierEscort.Group}},Pilot={{CarrierEscort.Pilot}},Color=Blue,Coalition=Enemies,T=57.17600000|25.53200000|0|0|0|90
             #10.00
-            901,Name=X_22,Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
+            901,Name={{X22WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
             #15.00
-            902,Name=SeaSparrow,Type=Weapon+Missile,Parent=301,Color=Blue,Coalition=Enemies,T=57.17600000|25.53200000|100|0|0|270
+            902,Name={{SeaSparrowWeaponName}},Type=Weapon+Missile,Parent=301,Color=Blue,Coalition=Enemies,T=57.17600000|25.53200000|100|0|0|270
             #20.00
             901,T=57.17663780|25.53163180|50|0|0|270
             902,T=57.17663800|25.53163200|55|0|0|270
@@ -1783,14 +1862,14 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithMixedObjectTypes()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2016-06-21T04:30:00Z
             #0.01
-            101,Name=CVN_73,Type=Sea+Watercraft+AircraftCarrier,Group=Washington CSG,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
-            201,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=57.27663780|25.63163180|9000|0|0|90
-            301,Name=SH-60B,Type=Air+Rotorcraft,Group=Rotary-1,Color=Blue,Coalition=Enemies,T=57.37663780|25.73163180|500|0|0|90
+            101,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
+            201,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.27663780|25.63163180|9000|0|0|90
+            301,Name={{RotaryAircraft.Name}},Type=Air+Rotorcraft,Group={{RotaryAircraft.Group}},Pilot={{RotaryAircraft.Pilot}},Color=Blue,Coalition=Enemies,T=57.37663780|25.73163180|500|0|0|90
             #1.00
             101,T=57.17670000|25.53170000|0|0|0|90
             201,T=57.27670000|25.63170000|9000|0|0|90
@@ -1800,15 +1879,15 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithWeaponKillAndHealth()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2016-06-21T04:30:00Z
             #0.00
-            100,Name=MiG-31,Type=Air+FixedWing,Group=AWACS KILLER,Color=Red,Coalition=Allies,T=48.00000000|29.00000000|10000|0|0|90,Health=1
-            300,Name=E-2C,Type=Air+FixedWing,Group=Overlord,Color=Blue,Coalition=Enemies,T=48.50000000|29.50000000|9000|0|0|270,Health=1
+            100,Name={{MigShooter.Name}},Type=Air+FixedWing,Group={{MigShooter.Group}},Pilot={{MigShooter.Pilot}},Color=Red,Coalition=Allies,T=48.00000000|29.00000000|10000|0|0|90,Health=1
+            300,Name={{Overlord.Name}},Type=Air+FixedWing,Group={{Overlord.Group}},Pilot={{Overlord.Pilot}},Color=Blue,Coalition=Enemies,T=48.50000000|29.50000000|9000|0|0|270,Health=1
             #10.00
-            200,Name=P_33E,Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Allies,T=48.01000000|29.01000000|10000|0|0|90
+            200,Name={{P33EWeaponName}},Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Allies,T=48.01000000|29.01000000|10000|0|0|90
             #20.00
             200,T=48.25000000|29.25000000|9500|0|0|90
             #30.00
@@ -1821,12 +1900,12 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithSurvivingObjectHealth()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2016-06-21T04:30:00Z
             #0.00
-            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|5000|0|0|90,Health=1
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|5000|0|0|90,Health=1
             #10.00
             100,T=48.01000000|29.01000000|5100|0|0|90
             """;
@@ -1834,12 +1913,12 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithSh60Rotorcraft()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2016-06-21T04:30:00Z
             #0.01
-            1301,Name=SH-60B,Type=Air+Rotorcraft,Group=Rotary-1,Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|498.45|0|0|90
+            1301,Name={{RotaryAircraft.Name}},Type=Air+Rotorcraft,Group={{RotaryAircraft.Group}},Pilot={{RotaryAircraft.Pilot}},Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|498.45|0|0|90
             #1.00
             1301,T=57.17670000|25.53170000|500.00|0|0|90
             """;
@@ -1847,14 +1926,14 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithWeaponTimeout()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2016-06-21T04:30:00Z
             #0.00
-            100,Name=CVN-73,Type=Sea+Watercraft,Group=USS Washington,Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|0|0|0|0
+            100,Name={{ShortCarrier.Name}},Type=Sea+Watercraft,Group={{ShortCarrier.Group}},Pilot={{ShortCarrier.Pilot}},Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|0|0|0|0
             #10.00
-            200,Name=SeaSparrow,Type=Weapon+Missile,Parent=100,Color=Blue,Coalition=Enemies,T=48.00100000|29.00100000|100|0|0|90
+            200,Name={{SeaSparrowWeaponName}},Type=Weapon+Missile,Parent=100,Color=Blue,Coalition=Enemies,T=48.00100000|29.00100000|100|0|0|90
             #15.00
             200,T=48.01000000|29.01000000|500|0|0|90
             #20.00
@@ -1864,12 +1943,12 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithFixedWingCarrierKillerGroup()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2016-06-21T04:30:00Z
             #0.01
-            e01,Name=Tu-22M3,Type=Air+FixedWing,Group=Carrier Killer,Color=Red,Coalition=Allies,T=48.00000000|29.00000000|5000|0|0|90
+            e01,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=48.00000000|29.00000000|5000|0|0|90
             #1.00
             e01,T=48.01000000|29.01000000|5000|0|0|90
             """;
@@ -1877,14 +1956,14 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithGunShellProjectiles()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2016-06-21T04:30:00Z
             #0.00
-            100,Name=F/A-18C,Type=Air+FixedWing,Group=Rotary-1,Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|5000|0|0|90
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|5000|0|0|90
             #455.55
-            3019101,Name=weapons.shells.M61_20_HE_gr,Type=Projectile+Shell,Parent=100,Color=Blue,Coalition=Enemies,T=48.00100000|29.00100000|4990|0|0|90
+            3019101,Name={{M61ShellName}},Type=Projectile+Shell,Parent=100,Color=Blue,Coalition=Enemies,T=48.00100000|29.00100000|4990|0|0|90
             #455.60
             3019101,T=48.00110000|29.00110000|4980|0|0|90
             #455.65
@@ -1896,14 +1975,14 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithUnknownTacviewWeapon()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2026-06-07T20:00:00Z
             #0.00
-            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
             #5.00
-            200,Name=Mystery Missile,Type=Weapon+Missile,Parent=100,T=48.00100000|29.00100000|4900|0|0|90
+            200,Name={{MysteryMissileName}},Type=Weapon+Missile,Parent=100,T=48.00100000|29.00100000|4900|0|0|90
             #6.00
             200,T=48.01000000|29.01000000|4000|0|0|90
             """;
@@ -1940,15 +2019,15 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithSamSiteAndLaunchedSam()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2026-06-07T20:00:00Z
             #0.00
-            100,Name=SA-10 Site,Type=Ground+Vehicle+SAM,Group=SA-10 Battery,Color=Red,Coalition=Red,T=48.00000000|29.00000000|0|0|0|0
-            200,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Color=Blue,Coalition=Blue,T=48.10000000|29.10000000|5000|0|0|90
+            100,Name={{SamSite.Name}},Type=Ground+Vehicle+SAM,Group={{SamSite.Group}},Pilot={{SamSite.Pilot}},Color=Red,Coalition=Red,T=48.00000000|29.00000000|0|0|0|0
+            200,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Color=Blue,Coalition=Blue,T=48.10000000|29.10000000|5000|0|0|90
             #5.00
-            300,Name=SA-10 Missile,Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Red,T=48.00010000|29.00010000|100|0|0|90
+            300,Name={{Sa10MissileName}},Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Red,T=48.00010000|29.00010000|100|0|0|90
             #10.00
             300,T=48.05000000|29.05000000|3000|0|0|90
             """;
@@ -1982,7 +2061,7 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithEscapedCommas()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.1
             0,ReferenceLongitude=141
@@ -1991,13 +2070,13 @@ namespace DcsMissionReaderTests
             0,Title=Mission With Escaped Commas
             0,Comments=Rain\, wind\, and fog are present.
             #0.00
-            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
             """;
         }
 
         private static string BuildAcmiWithMultilineBriefing()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.1
             0,ReferenceLongitude=141
@@ -2008,18 +2087,18 @@ namespace DcsMissionReaderTests
             0,Briefing=Line one of briefing.\
             Line two of briefing.\
             Line three of briefing.
-            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
             """;
         }
 
         private static string BuildAcmiWithBullseye()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2026-06-07T20:00:00Z
             #0.00
-            900,Name=Blue Bullseye,Type=ReferencePoint,Group=Blue Bullseye,Coalition=Allies,T=48.00000000|29.00000000|0|0|0|0
+            900,Name={{Bullseye.Name}},Type=ReferencePoint,Group={{Bullseye.Group}},Pilot={{Bullseye.Pilot}},Coalition=Allies,T=48.00000000|29.00000000|0|0|0|0
             #1.00
             900,T=48.00000000|29.00000000|0|0|0|0
             """;
@@ -2044,18 +2123,18 @@ namespace DcsMissionReaderTests
 
         private static string BuildSampleAcmi()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2026-06-07T20:00:00Z
             #0.00
-            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.66236111|29.96027500|1500|0|0|90
-            300,Name=Target Truck,Type=Ground+Vehicle,Group=Target Group,Coalition=Red,T=48.70000000|29.98000000|0|0|0|0
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Coalition=Blue,T=48.66236111|29.96027500|1500|0|0|90
+            300,Name={{TargetVehicle.Name}},Type=Ground+Vehicle,Group={{TargetVehicle.Group}},Pilot={{TargetVehicle.Pilot}},Coalition=Red,T=48.70000000|29.98000000|0|0|0|0
             #10.00
             100,T=48.67236111|29.97027500|1600|0|0|90
             300,T=48.70000000|29.98000000|0|0|0|0
             #12.50
-            200,Name=AIM-120C,Type=Weapon+Missile,Parent=100,T=48.66300000|29.96100000|1550|0|0|90
+            200,Name={{Aim120CWeaponName}},Type=Weapon+Missile,Parent=100,T=48.66300000|29.96100000|1550|0|0|90
             #15.00
             200,T=48.69000000|29.97500000|500|0|0|90
             #20.00
@@ -2065,18 +2144,18 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithFuelTankAndKnownWeapon()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2026-06-07T20:00:00Z
             #0.00
-            100,Name=F-14B,Type=Air+FixedWing,Group=Colt 1,Coalition=Blue,T=48.00000000|29.00000000|7000|0|0|90
+            100,Name={{Tomcat.Name}},Type=Air+FixedWing,Group={{Tomcat.Group}},Pilot={{Tomcat.Pilot}},Coalition=Blue,T=48.00000000|29.00000000|7000|0|0|90
             #5.00
-            200,Name=Fuel Tank,Type=Weapon+Container,Parent=100,T=48.00100000|29.00100000|6900|0|0|90
+            200,Name={{FuelTankName}},Type=Weapon+Container,Parent=100,T=48.00100000|29.00100000|6900|0|0|90
             #6.00
             200,T=48.00200000|29.00200000|6700|0|0|90
             #10.00
-            300,Name=AIM-120C,Type=Weapon+Missile,Parent=100,T=48.00300000|29.00300000|6800|0|0|90
+            300,Name={{Aim120CWeaponName}},Type=Weapon+Missile,Parent=100,T=48.00300000|29.00300000|6800|0|0|90
             #20.00
             0,Event=Destroyed|400|Target destroyed
             """;
@@ -2084,16 +2163,16 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithCountermeasures()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2026-06-07T20:00:00Z
             #0.00
-            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
             #1.00
-            5e01,Name=Unknown,Type=Misc+Decoy+Chaff,Parent=100,T=48.00100000|29.00100000|4990|0|0|90
+            5e01,Name={{UnknownDecoyName}},Type=Misc+Decoy+Chaff,Parent=100,T=48.00100000|29.00100000|4990|0|0|90
             #2.00
-            5e02,Name=Unknown,Type=Misc+Decoy+Flare,Parent=100,T=48.00200000|29.00200000|4980|0|0|90
+            5e02,Name={{UnknownDecoyName}},Type=Misc+Decoy+Flare,Parent=100,T=48.00200000|29.00200000|4980|0|0|90
             #3.00
             100,T=48.00300000|29.00300000|5000|0|0|90
             """;
@@ -2101,12 +2180,12 @@ namespace DcsMissionReaderTests
 
         private static string BuildAcmiWithTacviewRelativeAllies()
         {
-            return """
+            return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2026-06-07T20:00:00Z
             #0.00
-            100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Allies,T=48.00000000|29.00000000|5000|0|0|90
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Coalition=Allies,T=48.00000000|29.00000000|5000|0|0|90
             #1.00
             100,T=48.00100000|29.00100000|5000|0|0|90
             """;
@@ -2128,7 +2207,7 @@ namespace DcsMissionReaderTests
                 {
                     builder.AppendLine(
                         FormattableString.Invariant(
-                            $"100,Name=F/A-18C,Type=Air+FixedWing,Group=Springfield 1,Coalition=Blue,T={48.0 + i * 0.001:F8}|{29.0 + i * 0.001:F8}|{1000 + i}|0|0|90"));
+                            $"100,Name={BlueAircraft.Name},Type=Air+FixedWing,Group={BlueAircraft.Group},Pilot={BlueAircraft.Pilot},Coalition=Blue,T={48.0 + i * 0.001:F8}|{29.0 + i * 0.001:F8}|{1000 + i}|0|0|90"));
                 }
                 else
                 {
@@ -2237,6 +2316,81 @@ namespace DcsMissionReaderTests
             Directory.CreateDirectory(path);
 
             return path;
+        }
+
+        private static string FindObjectDispositionPlacemarkNameByDescriptionText(
+    string kml,
+    string requiredDescriptionText)
+        {
+            string normalizedKml = NormalizeLineEndings(kml);
+            string normalizedRequiredText = NormalizeLineEndings(requiredDescriptionText);
+
+            const string placemarkStart = "<Placemark>";
+            const string placemarkEnd = "</Placemark>";
+
+            int searchIndex = 0;
+
+            while (true)
+            {
+                int placemarkStartIndex = normalizedKml.IndexOf(
+                    placemarkStart,
+                    searchIndex,
+                    StringComparison.Ordinal);
+
+                if (placemarkStartIndex < 0)
+                {
+                    break;
+                }
+
+                int placemarkEndIndex = normalizedKml.IndexOf(
+                    placemarkEnd,
+                    placemarkStartIndex,
+                    StringComparison.Ordinal);
+
+                if (placemarkEndIndex < 0)
+                {
+                    break;
+                }
+
+                string placemark = normalizedKml[
+                    placemarkStartIndex..(placemarkEndIndex + placemarkEnd.Length)];
+
+                if (placemark.Contains(
+                        "Weapons That Hit / Destroyed This Object:",
+                        StringComparison.Ordinal)
+                    && placemark.Contains(
+                        normalizedRequiredText,
+                        StringComparison.Ordinal))
+                {
+                    return ExtractPlacemarkName(placemark);
+                }
+
+                searchIndex = placemarkEndIndex + placemarkEnd.Length;
+            }
+
+            Assert.Fail(
+                $"Could not find object disposition placemark containing description text: {requiredDescriptionText}");
+
+            return string.Empty;
+        }
+
+        private static string ExtractPlacemarkName(string placemark)
+        {
+            const string nameStartTag = "<name>";
+            const string nameEndTag = "</name>";
+
+            int nameStartIndex = placemark.IndexOf(nameStartTag, StringComparison.Ordinal);
+            int nameEndIndex = placemark.IndexOf(nameEndTag, StringComparison.Ordinal);
+
+            Assert.True(
+                nameStartIndex >= 0 && nameEndIndex > nameStartIndex,
+                $"Could not extract name from placemark:{Environment.NewLine}{placemark}");
+
+            string encodedName = placemark[
+                (nameStartIndex + nameStartTag.Length)..nameEndIndex];
+
+            return SecurityElement.FromString($"<root>{encodedName}</root>")?.Text
+                ?? encodedName;
         }
     }
 }

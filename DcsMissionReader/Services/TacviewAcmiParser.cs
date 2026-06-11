@@ -373,6 +373,10 @@ namespace DcsMissionReader.Services
                     track.Name = value;
                     break;
 
+                case "Pilot":
+                    track.Pilot = value;
+                    break;
+
                 case "Type":
                     track.Type = value;
                     break;
