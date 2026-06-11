@@ -17,7 +17,8 @@ namespace DcsMissionReader.Services
                 || eventRecord.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase)
                 || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
                 || eventRecord.EventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase);
+                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase)
+                || TryGetObjectEffectEventTypeFromText(eventRecord.Text, out _);
         }
 
         public static TacviewWeaponResult CreateWeaponResult(
@@ -52,15 +53,14 @@ namespace DcsMissionReader.Services
                 }
             }
 
+            string eventType = ResolveWeaponResultEventType(eventRecord);
+
             string? firstKnownObjectId = FindFirstKnownObjectIdInEvent(eventRecord, objects);
 
             (string? compactSourceObjectId, string? compactTargetObjectId) =
                 FindCompactWeaponEventObjects(eventRecord, objects);
 
-            if (eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase))
+            if (IsObjectEffectEventType(eventType))
             {
                 sourceObjectId ??= compactSourceObjectId;
                 targetObjectId ??= compactTargetObjectId ?? firstKnownObjectId;
@@ -74,7 +74,7 @@ namespace DcsMissionReader.Services
                     targetObjectId ??= textTargetObjectId;
                 }
             }
-            else if (eventRecord.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
+            else if (eventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
             {
                 sourceObjectId ??= firstKnownObjectId;
                 targetObjectId ??= firstKnownObjectId;
@@ -84,13 +84,13 @@ namespace DcsMissionReader.Services
             TacviewObjectTrack? targetObject = TryGetObject(objects, targetObjectId);
 
             TacviewPositionSample? position = ResolveWeaponResultPosition(
-                eventRecord,
+                eventType,
                 sourceObject,
                 targetObject);
 
             return new TacviewWeaponResult
             {
-                EventType = eventRecord.EventType,
+                EventType = eventType,
                 TimeSeconds = eventRecord.TimeSeconds,
                 AbsoluteTimeUtc = eventRecord.AbsoluteTimeUtc,
                 SourceObjectId = sourceObjectId,
@@ -101,6 +101,62 @@ namespace DcsMissionReader.Services
                 Description = eventRecord.Text,
                 Position = position
             };
+        }
+
+        private static string ResolveWeaponResultEventType(TacviewEventRecord eventRecord)
+        {
+            if (eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
+                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase))
+            {
+                return eventRecord.EventType;
+            }
+
+            return TryGetObjectEffectEventTypeFromText(eventRecord.Text, out string? eventType)
+                ? eventType
+                : eventRecord.EventType;
+        }
+
+        private static bool IsObjectEffectEventType(string eventType)
+        {
+            return eventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
+                || eventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
+                || eventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
+                || eventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool TryGetObjectEffectEventTypeFromText(
+            string? eventText,
+            out string eventType)
+        {
+            eventType = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(eventText))
+            {
+                return false;
+            }
+
+            if (eventText.Contains(" has destroyed ", StringComparison.OrdinalIgnoreCase))
+            {
+                eventType = "Destroyed";
+                return true;
+            }
+
+            if (eventText.Contains(" has hit ", StringComparison.OrdinalIgnoreCase))
+            {
+                eventType = "Hit";
+                return true;
+            }
+
+            if (eventText.Contains(" has damaged ", StringComparison.OrdinalIgnoreCase))
+            {
+                eventType = "Damaged";
+                return true;
+            }
+
+            return false;
         }
 
         private static (string? SourceObjectId, string? TargetObjectId) FindCompactWeaponEventObjects(
@@ -312,20 +368,17 @@ namespace DcsMissionReader.Services
         }
 
         private static TacviewPositionSample? ResolveWeaponResultPosition(
-            TacviewEventRecord eventRecord,
+            string eventType,
             TacviewObjectTrack? sourceObject,
             TacviewObjectTrack? targetObject)
         {
-            if (eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Hit", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damage", StringComparison.OrdinalIgnoreCase)
-                || eventRecord.EventType.Equals("Damaged", StringComparison.OrdinalIgnoreCase))
+            if (IsObjectEffectEventType(eventType))
             {
                 return targetObject?.End
                     ?? sourceObject?.End;
             }
 
-            if (eventRecord.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
+            if (eventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
             {
                 return sourceObject?.End
                     ?? targetObject?.End;
@@ -334,6 +387,5 @@ namespace DcsMissionReader.Services
             return targetObject?.End
                 ?? sourceObject?.End;
         }
-
     }
 }
