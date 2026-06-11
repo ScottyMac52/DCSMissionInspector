@@ -164,6 +164,152 @@ namespace DcsMissionReaderTests
             Assert.Equal("CVN_73", result.TargetName);
         }
 
+        [Fact]
+        public void IsWeaponResultEventType_WithNaturalLanguageHitText_ReturnsTrue()
+        {
+            TacviewEventRecord eventRecord = new()
+            {
+                EventType = "Message",
+                Text = "P_700 has hit Washington",
+                Parts = ["Message", "P_700 has hit Washington"],
+                TimeSeconds = 120,
+                AbsoluteTimeUtc = new DateTime(2016, 6, 21, 4, 32, 0, DateTimeKind.Utc)
+            };
+
+            Assert.True(PostBriefingWeaponEventResultFactory.IsWeaponResultEventType(eventRecord));
+        }
+
+        [Fact]
+        public void IsWeaponResultEventType_WithNaturalLanguageDestroyedText_ReturnsTrue()
+        {
+            TacviewEventRecord eventRecord = new()
+            {
+                EventType = "Message",
+                Text = "P_700 has destroyed Washington",
+                Parts = ["Message", "P_700 has destroyed Washington"],
+                TimeSeconds = 180,
+                AbsoluteTimeUtc = new DateTime(2016, 6, 21, 4, 33, 0, DateTimeKind.Utc)
+            };
+
+            Assert.True(PostBriefingWeaponEventResultFactory.IsWeaponResultEventType(eventRecord));
+        }
+
+        [Fact]
+        public void CreateWeaponResult_WithNaturalLanguageHitText_NormalizesEventTypeToHit()
+        {
+            TacviewEventRecord eventRecord = new()
+            {
+                EventType = "Message",
+                Text = "P_700 has hit Washington",
+                Parts = ["Message", "P_700 has hit Washington"],
+                TimeSeconds = 120,
+                AbsoluteTimeUtc = new DateTime(2016, 6, 21, 4, 32, 0, DateTimeKind.Utc)
+            };
+
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects =
+                new Dictionary<string, TacviewObjectTrack>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["1f301"] = CreateTrack(
+                        objectId: "1f301",
+                        name: "P_700",
+                        group: "Kuznetsov Strike Group Escort",
+                        pilot: "Pyotr Velikiy",
+                        type: "Weapon+Missile",
+                        isWeapon: true,
+                        timeSeconds: 120),
+
+                    ["301"] = CreateTrack(
+                        objectId: "301",
+                        name: "CVN_73",
+                        group: "Washington CSG",
+                        pilot: "Washington",
+                        type: "Sea+Watercraft+AircraftCarrier",
+                        isWeapon: false,
+                        timeSeconds: 120)
+                };
+
+            TacviewWeaponResult result =
+                PostBriefingWeaponEventResultFactory.CreateWeaponResult(eventRecord, objects);
+
+            Assert.Equal("Hit", result.EventType);
+            Assert.Equal("1f301", result.SourceObjectId);
+            Assert.Equal("301", result.TargetObjectId);
+        }
+
+        [Fact]
+        public void CreateWeaponResult_WithNaturalLanguageDestroyedText_NormalizesEventTypeToDestroyed()
+        {
+            TacviewEventRecord eventRecord = new()
+            {
+                EventType = "Message",
+                Text = "P_700 has destroyed Washington",
+                Parts = ["Message", "P_700 has destroyed Washington"],
+                TimeSeconds = 180,
+                AbsoluteTimeUtc = new DateTime(2016, 6, 21, 4, 33, 0, DateTimeKind.Utc)
+            };
+
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects =
+                new Dictionary<string, TacviewObjectTrack>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["1f401"] = CreateTrack(
+                        objectId: "1f401",
+                        name: "P_700",
+                        group: "Kuznetsov Strike Group Escort",
+                        pilot: "Pyotr Velikiy",
+                        type: "Weapon+Missile",
+                        isWeapon: true,
+                        timeSeconds: 180),
+
+                    ["301"] = CreateTrack(
+                        objectId: "301",
+                        name: "CVN_73",
+                        group: "Washington CSG",
+                        pilot: "Washington",
+                        type: "Sea+Watercraft+AircraftCarrier",
+                        isWeapon: false,
+                        timeSeconds: 180)
+                };
+
+            TacviewWeaponResult result =
+                PostBriefingWeaponEventResultFactory.CreateWeaponResult(eventRecord, objects);
+
+            Assert.Equal("Destroyed", result.EventType);
+            Assert.Equal("1f401", result.SourceObjectId);
+            Assert.Equal("301", result.TargetObjectId);
+        }
+
+        private static TacviewObjectTrack CreateTrack(
+            string objectId,
+            string name,
+            string group,
+            string pilot,
+            string type,
+            bool isWeapon,
+            double timeSeconds)
+        {
+            return new TacviewObjectTrack
+            {
+                ObjectId = objectId,
+                Name = name,
+                Group = group,
+                Pilot = pilot,
+                Type = type,
+                IsWeapon = isWeapon,
+                Samples =
+                [
+                    new TacviewPositionSample
+            {
+                TimeSeconds = timeSeconds,
+                AbsoluteTimeUtc = new DateTime(2016, 6, 21, 4, 30, 0, DateTimeKind.Utc)
+                    .AddSeconds(timeSeconds),
+                Longitude = 57.0,
+                Latitude = 25.0,
+                AltitudeMeters = 0
+            }
+                ]
+            };
+        }
+
         private static TacviewEventRecord CreateEventRecord(
             string eventType,
             string text,

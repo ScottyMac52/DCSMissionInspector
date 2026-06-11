@@ -52,7 +52,7 @@
 
         public double? Health { get; set; }
 
-        public List<TacviewPositionSample> Samples { get; } = new();
+        public List<TacviewPositionSample> Samples { get; internal set; } = new();
 
         public bool IsWeapon
         {
@@ -69,6 +69,8 @@
                     || Type.Contains("Rocket", StringComparison.OrdinalIgnoreCase)
                     || Type.Contains("Projectile", StringComparison.OrdinalIgnoreCase);
             }
+
+            internal set;
         }
 
         public TacviewPositionSample? Start => Samples.Count == 0 ? null : Samples[0];
