@@ -83,6 +83,7 @@ namespace DcsMissionReaderTests
         private const string Sa10MissileName = "SA-10 Missile";
         private const string UnknownDecoyName = "Unknown";
         private const string X22WeaponName = "X_22";
+        private const string P700WeaponName = "P_700";
 
         [Fact]
         public void CreatePostBriefingKml_WithValidZippedAcmi_CreatesKmlWithTracksKnownWeaponsAndResults()
@@ -1519,6 +1520,262 @@ namespace DcsMissionReaderTests
             }
         }
 
+        [Fact]
+        public void CreatePostBriefingKml_WithMultipleHitsAndNoKill_ListsAllHitsOnTargetObjectCard()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "multiple-hits-no-kill.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "multiple-hits-no-kill.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithMultipleCarrierHitsAndNoKill());
+
+                var service = new PostBriefingService();
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(2, result.GroupTrackCount);
+                Assert.Equal(2, result.WeaponEmploymentCount);
+                Assert.Equal(2, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                string carrierDisplayName = Carrier.DisplayName;
+
+                AssertObjectWeaponHitCount(
+                    kml,
+                    objectPlacemarkName: carrierDisplayName,
+                    expectedHitCount: 2,
+                    expectedWeaponName: P700WeaponName);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    "Final Disposition:\nDamaged / Weapon Effect Recorded");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    $"- {P700WeaponName} [901]");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    $"- {P700WeaponName} [902]");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithMultipleHitsAndFinalKill_ListsAllHitsAndKillOnTargetObjectCard()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "multiple-hits-with-kill.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "multiple-hits-with-kill.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithMultipleCarrierHitsAndFinalKill());
+
+                var service = new PostBriefingService();
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(2, result.GroupTrackCount);
+                Assert.Equal(3, result.WeaponEmploymentCount);
+                Assert.Equal(4, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                string carrierDisplayName = Carrier.DisplayName;
+
+                AssertObjectWeaponHitCount(
+                    kml,
+                    objectPlacemarkName: carrierDisplayName,
+                    expectedHitCount: 3,
+                    expectedWeaponName: P700WeaponName);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    "Final Disposition:\nDestroyed");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    $"- {P700WeaponName} [901]");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    $"- {P700WeaponName} [902]");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    $"- {P700WeaponName} [903]");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithSingleHitAndNoKill_ListsHitOnTargetObjectCard()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "single-hit-no-kill.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "single-hit-no-kill.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithSingleCarrierHitAndNoKill());
+
+                var service = new PostBriefingService();
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(2, result.GroupTrackCount);
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                string carrierDisplayName = Carrier.DisplayName;
+
+                AssertObjectWeaponHitCount(
+                    kml,
+                    objectPlacemarkName: carrierDisplayName,
+                    expectedHitCount: 1,
+                    expectedWeaponName: P700WeaponName);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    "Final Disposition:\nDamaged / Weapon Effect Recorded");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    $"- {P700WeaponName} [901] from {CarrierKiller.DisplayName} at 2016-06-21T04:30:20.0000000Z - Hit");
+
+                Assert.DoesNotContain("Final Disposition:\nDestroyed", FindObjectDispositionDescription(kml, carrierDisplayName));
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        private static string BuildAcmiWithSingleCarrierHitAndNoKill()
+        {
+            return $$"""
+                FileType=text/acmi/tacview
+                FileVersion=2.2
+                0,ReferenceTime=2016-06-21T04:30:00Z
+
+                #0.00
+                301,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17649980|25.53076810|0|0|0|90
+                201,Name={{CarrierKiller.Name}},Type=Sea+Watercraft+Cruiser,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.50000000|25.90000000|0|0|0|270
+
+                #10.00
+                901,Name={{P700WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.49000000|25.89000000|50|0|0|270
+
+                #20.00
+                901,T=57.17649980|25.53076810|50|0|0|270
+                0,Event=Hit|SourceId:901|TargetId:301|{{P700WeaponName}} has hit {{Carrier.Name}} {{Carrier.Pilot}}
+                -901
+
+                #30.00
+                301,T=57.17649980|25.53076810|0|0|0|90
+                201,T=57.50000000|25.90000000|0|0|0|270
+                """;
+        }
+
+        private static string BuildAcmiWithMultipleCarrierHitsAndNoKill()
+        {
+            return $$"""
+                FileType=text/acmi/tacview
+                FileVersion=2.2
+                0,ReferenceTime=2016-06-21T04:30:00Z
+
+                #0.00
+                301,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17649980|25.53076810|0|0|0|90
+                201,Name={{CarrierKiller.Name}},Type=Sea+Watercraft+Cruiser,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.50000000|25.90000000|0|0|0|270
+
+                #10.00
+                901,Name={{P700WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.49000000|25.89000000|50|0|0|270
+
+                #20.00
+                901,T=57.17649980|25.53076810|50|0|0|270
+                0,Event=Hit|SourceId:901|TargetId:301|{{P700WeaponName}} has hit {{Carrier.Name}} {{Carrier.Pilot}}
+                -901
+
+                #30.00
+                902,Name={{P700WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.48000000|25.88000000|50|0|0|270
+
+                #40.00
+                902,T=57.17649980|25.53076810|50|0|0|270
+                0,Event=Hit|SourceId:902|TargetId:301|{{P700WeaponName}} has hit {{Carrier.Name}} {{Carrier.Pilot}}
+                -902
+
+                #50.00
+                301,T=57.17649980|25.53076810|0|0|0|90
+                201,T=57.50000000|25.90000000|0|0|0|270
+                """;
+        }
+
+        private static string BuildAcmiWithMultipleCarrierHitsAndFinalKill()
+        {
+            return $$"""
+                FileType=text/acmi/tacview
+                FileVersion=2.2
+                0,ReferenceTime=2016-06-21T04:30:00Z
+
+                #0.00
+                301,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17649980|25.53076810|0|0|0|90
+                201,Name={{CarrierKiller.Name}},Type=Sea+Watercraft+Cruiser,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.50000000|25.90000000|0|0|0|270
+
+                #10.00
+                901,Name={{P700WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.49000000|25.89000000|50|0|0|270
+
+                #20.00
+                901,T=57.17649980|25.53076810|50|0|0|270
+                0,Event=Hit|SourceId:901|TargetId:301|{{P700WeaponName}} has hit {{Carrier.Name}} {{Carrier.Pilot}}
+                -901
+
+                #30.00
+                902,Name={{P700WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.48000000|25.88000000|50|0|0|270
+
+                #40.00
+                902,T=57.17649980|25.53076810|50|0|0|270
+                0,Event=Hit|SourceId:902|TargetId:301|{{P700WeaponName}} has hit {{Carrier.Name}} {{Carrier.Pilot}}
+                -902
+
+                #50.00
+                903,Name={{P700WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.47000000|25.87000000|50|0|0|270
+
+                #60.00
+                903,T=57.17649980|25.53076810|50|0|0|270
+                0,Event=Destroyed|SourceId:903|TargetId:301|{{P700WeaponName}} has destroyed {{Carrier.Name}} {{Carrier.Pilot}}
+                -903
+                -301
+
+                #70.00
+                201,T=57.50000000|25.90000000|0|0|0|270
+                """;
+        }
 
         private static string NormalizeLineEndings(string value)
         {
@@ -2316,81 +2573,6 @@ namespace DcsMissionReaderTests
             Directory.CreateDirectory(path);
 
             return path;
-        }
-
-        private static string FindObjectDispositionPlacemarkNameByDescriptionText(
-    string kml,
-    string requiredDescriptionText)
-        {
-            string normalizedKml = NormalizeLineEndings(kml);
-            string normalizedRequiredText = NormalizeLineEndings(requiredDescriptionText);
-
-            const string placemarkStart = "<Placemark>";
-            const string placemarkEnd = "</Placemark>";
-
-            int searchIndex = 0;
-
-            while (true)
-            {
-                int placemarkStartIndex = normalizedKml.IndexOf(
-                    placemarkStart,
-                    searchIndex,
-                    StringComparison.Ordinal);
-
-                if (placemarkStartIndex < 0)
-                {
-                    break;
-                }
-
-                int placemarkEndIndex = normalizedKml.IndexOf(
-                    placemarkEnd,
-                    placemarkStartIndex,
-                    StringComparison.Ordinal);
-
-                if (placemarkEndIndex < 0)
-                {
-                    break;
-                }
-
-                string placemark = normalizedKml[
-                    placemarkStartIndex..(placemarkEndIndex + placemarkEnd.Length)];
-
-                if (placemark.Contains(
-                        "Weapons That Hit / Destroyed This Object:",
-                        StringComparison.Ordinal)
-                    && placemark.Contains(
-                        normalizedRequiredText,
-                        StringComparison.Ordinal))
-                {
-                    return ExtractPlacemarkName(placemark);
-                }
-
-                searchIndex = placemarkEndIndex + placemarkEnd.Length;
-            }
-
-            Assert.Fail(
-                $"Could not find object disposition placemark containing description text: {requiredDescriptionText}");
-
-            return string.Empty;
-        }
-
-        private static string ExtractPlacemarkName(string placemark)
-        {
-            const string nameStartTag = "<name>";
-            const string nameEndTag = "</name>";
-
-            int nameStartIndex = placemark.IndexOf(nameStartTag, StringComparison.Ordinal);
-            int nameEndIndex = placemark.IndexOf(nameEndTag, StringComparison.Ordinal);
-
-            Assert.True(
-                nameStartIndex >= 0 && nameEndIndex > nameStartIndex,
-                $"Could not extract name from placemark:{Environment.NewLine}{placemark}");
-
-            string encodedName = placemark[
-                (nameStartIndex + nameStartTag.Length)..nameEndIndex];
-
-            return SecurityElement.FromString($"<root>{encodedName}</root>")?.Text
-                ?? encodedName;
         }
     }
 }
