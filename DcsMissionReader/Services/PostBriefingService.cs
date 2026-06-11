@@ -1175,7 +1175,9 @@ namespace DcsMissionReader.Services
             _briefingStylesService.AppendStyles(builder);
 
             Dictionary<string, ObjectDisposition> dispositionsByObjectId =
-                BuildObjectDispositionIndex(parseResult.WeaponEngagements);
+                BuildObjectDispositionIndex(
+                    parseResult.WeaponEngagements,
+                    parseResult.UnmatchedWeaponResults);
 
             AppendMissionFolder(builder, parseResult.Mission);
             AppendGroupTracksFolder(builder, parseResult.GroupTracks, options, dispositionsByObjectId);
@@ -1194,7 +1196,8 @@ namespace DcsMissionReader.Services
         }
 
         private static Dictionary<string, ObjectDisposition> BuildObjectDispositionIndex(
-    IReadOnlyList<TacViewWeaponEngagement> weaponEngagements)
+            IReadOnlyList<TacViewWeaponEngagement> weaponEngagements,
+            IReadOnlyList<TacviewWeaponResult> unmatchedWeaponResults)
         {
             Dictionary<string, List<ObjectWeaponHit>> hitsByObjectId = new(StringComparer.OrdinalIgnoreCase);
             Dictionary<string, TacviewWeaponResult> destroyedResultsByObjectId = new(StringComparer.OrdinalIgnoreCase);
@@ -1212,38 +1215,37 @@ namespace DcsMissionReader.Services
 
                 foreach (TacviewWeaponResult result in engagement.Results)
                 {
-                    if (!IsObjectEffectWeaponResultType(result.EventType))
-                    {
-                        continue;
-                    }
-
-                    string? targetObjectId = result.TargetObjectId;
-
-                    if (string.IsNullOrWhiteSpace(targetObjectId))
-                    {
-                        continue;
-                    }
-
-                    if (!hitsByObjectId.TryGetValue(targetObjectId, out List<ObjectWeaponHit>? hits))
-                    {
-                        hits = new List<ObjectWeaponHit>();
-                        hitsByObjectId[targetObjectId] = hits;
-                    }
-
-                    hits.Add(new ObjectWeaponHit(
+                    AddObjectEffectResult(
+                        result,
+                        hitsByObjectId,
+                        destroyedResultsByObjectId,
                         weaponName,
                         engagement.Employment.WeaponObjectId,
-                        shooterName,
-                        result.AbsoluteTimeUtc,
-                        result.TimeSeconds,
-                        result.Outcome ?? "Unknown",
-                        result.Description ?? string.Empty));
-
-                    if (result.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase))
-                    {
-                        destroyedResultsByObjectId[targetObjectId] = result;
-                    }
+                        shooterName);
                 }
+            }
+
+            foreach (TacviewWeaponResult result in unmatchedWeaponResults)
+            {
+                string weaponObjectId = !string.IsNullOrWhiteSpace(result.SourceObjectId)
+                    ? result.SourceObjectId
+                    : "Unknown Weapon";
+
+                string weaponName = !string.IsNullOrWhiteSpace(result.SourceName)
+                    ? result.SourceName
+                    : weaponObjectId;
+
+                string shooterName = !string.IsNullOrWhiteSpace(result.SourceName)
+                    ? result.SourceName
+                    : weaponObjectId;
+
+                AddObjectEffectResult(
+                    result,
+                    hitsByObjectId,
+                    destroyedResultsByObjectId,
+                    weaponName,
+                    weaponObjectId,
+                    shooterName);
             }
 
             Dictionary<string, ObjectDisposition> dispositions = new(StringComparer.OrdinalIgnoreCase);
@@ -1262,10 +1264,67 @@ namespace DcsMissionReader.Services
                     hits
                         .OrderBy(hit => hit.HitTimeUtc)
                         .ThenBy(hit => hit.HitTimeSeconds)
+                        .ThenBy(hit => hit.WeaponObjectId, StringComparer.OrdinalIgnoreCase)
                         .ToList());
             }
 
             return dispositions;
+        }
+
+        private static void AddObjectEffectResult(
+            TacviewWeaponResult result,
+            IDictionary<string, List<ObjectWeaponHit>> hitsByObjectId,
+            IDictionary<string, TacviewWeaponResult> destroyedResultsByObjectId,
+            string weaponName,
+            string weaponObjectId,
+            string shooterName)
+        {
+            if (!IsObjectEffectWeaponResultType(result.EventType))
+            {
+                return;
+            }
+
+            string? targetObjectId = result.TargetObjectId;
+
+            if (string.IsNullOrWhiteSpace(targetObjectId))
+            {
+                return;
+            }
+
+            if (!hitsByObjectId.TryGetValue(targetObjectId, out List<ObjectWeaponHit>? hits))
+            {
+                hits = new List<ObjectWeaponHit>();
+                hitsByObjectId[targetObjectId] = hits;
+            }
+
+            string outcome = string.IsNullOrWhiteSpace(result.EventType)
+                ? result.Outcome ?? "Unknown"
+                : result.EventType;
+
+            bool alreadyRecorded = hits.Any(existingHit =>
+                string.Equals(existingHit.WeaponObjectId, weaponObjectId, StringComparison.OrdinalIgnoreCase)
+                && Nullable.Equals(existingHit.HitTimeSeconds, result.TimeSeconds)
+                && Nullable.Equals(existingHit.HitTimeUtc, result.AbsoluteTimeUtc)
+                && string.Equals(existingHit.Outcome, outcome, StringComparison.OrdinalIgnoreCase));
+
+            if (alreadyRecorded)
+            {
+                return;
+            }
+
+            hits.Add(new ObjectWeaponHit(
+                weaponName,
+                weaponObjectId,
+                shooterName,
+                result.AbsoluteTimeUtc,
+                result.TimeSeconds,
+                outcome,
+                result.Description ?? string.Empty));
+
+            if (result.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase))
+            {
+                destroyedResultsByObjectId[targetObjectId] = result;
+            }
         }
 
         private static void AppendMissionFolder(StringBuilder builder, TacviewMissionInfo mission)
@@ -2221,7 +2280,7 @@ namespace DcsMissionReader.Services
                 foreach (ObjectWeaponHit hit in disposition.WeaponHits)
                 {
                     builder.AppendLine(
-                        $"- {hit.WeaponName} [{hit.WeaponObjectId}] from {hit.ShooterName} at {FormatTime(hit.HitTimeUtc, hit.HitTimeSeconds ?? 0)}");
+                        $"- {hit.WeaponName} [{hit.WeaponObjectId}] from {hit.ShooterName} at {FormatTime(hit.HitTimeUtc, hit.HitTimeSeconds ?? 0)} - {hit.Outcome}");
                 }
             }
 
