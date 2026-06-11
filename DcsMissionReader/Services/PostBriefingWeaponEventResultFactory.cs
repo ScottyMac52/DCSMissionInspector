@@ -4,6 +4,13 @@ namespace DcsMissionReader.Services
 {
     internal static class PostBriefingWeaponEventResultFactory
     {
+        private static readonly string[] ObjectEffectPhrases =
+        [
+            " has destroyed ",
+            " has hit ",
+            " has damaged "
+        ];
+
         public static bool IsWeaponResultEventType(TacviewEventRecord eventRecord)
         {
             return eventRecord.EventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
@@ -57,6 +64,15 @@ namespace DcsMissionReader.Services
             {
                 sourceObjectId ??= compactSourceObjectId;
                 targetObjectId ??= compactTargetObjectId ?? firstKnownObjectId;
+
+                if (sourceObjectId is null || targetObjectId is null)
+                {
+                    (string? textSourceObjectId, string? textTargetObjectId) =
+                        FindNaturalLanguageWeaponEventObjects(eventRecord, objects);
+
+                    sourceObjectId ??= textSourceObjectId;
+                    targetObjectId ??= textTargetObjectId;
+                }
             }
             else if (eventRecord.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
             {
@@ -129,6 +145,129 @@ namespace DcsMissionReader.Services
             return (sourceObjectId, targetObjectId);
         }
 
+        private static (string? SourceObjectId, string? TargetObjectId) FindNaturalLanguageWeaponEventObjects(
+            TacviewEventRecord eventRecord,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects)
+        {
+            if (string.IsNullOrWhiteSpace(eventRecord.Text))
+            {
+                return (null, null);
+            }
+
+            string eventText = eventRecord.Text;
+
+            foreach (string phrase in ObjectEffectPhrases)
+            {
+                int phraseIndex = eventText.IndexOf(phrase, StringComparison.OrdinalIgnoreCase);
+
+                if (phraseIndex < 0)
+                {
+                    continue;
+                }
+
+                string sourceText = eventText[..phraseIndex].Trim();
+                string targetText = eventText[(phraseIndex + phrase.Length)..].Trim();
+
+                string? sourceObjectId = FindBestMatchingObjectId(
+                    sourceText,
+                    objects,
+                    requireWeapon: true,
+                    eventRecord.TimeSeconds);
+
+                string? targetObjectId = FindBestMatchingObjectId(
+                    targetText,
+                    objects,
+                    requireWeapon: false,
+                    eventRecord.TimeSeconds);
+
+                return (sourceObjectId, targetObjectId);
+            }
+
+            return (null, null);
+        }
+
+        private static string? FindBestMatchingObjectId(
+            string text,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
+            bool requireWeapon,
+            double eventTimeSeconds)
+        {
+            return objects
+                .Where(pair => pair.Value.IsWeapon == requireWeapon)
+                .Select(pair => new
+                {
+                    ObjectId = pair.Key,
+                    Track = pair.Value,
+                    Score = GetTextMatchScore(text, pair.Key, pair.Value),
+                    TimeDistance = GetEndTimeDistance(pair.Value, eventTimeSeconds)
+                })
+                .Where(candidate => candidate.Score > 0)
+                .OrderByDescending(candidate => candidate.Score)
+                .ThenBy(candidate => candidate.TimeDistance)
+                .ThenBy(candidate => candidate.ObjectId, StringComparer.OrdinalIgnoreCase)
+                .Select(candidate => candidate.ObjectId)
+                .FirstOrDefault();
+        }
+
+        private static int GetTextMatchScore(
+            string text,
+            string objectId,
+            TacviewObjectTrack track)
+        {
+            int score = 0;
+
+            score = Math.Max(score, GetTokenMatchScore(text, objectId, 100));
+            score = Math.Max(score, GetTokenMatchScore(text, track.Name, 80));
+            score = Math.Max(score, GetTokenMatchScore(text, track.Pilot, 70));
+            score = Math.Max(score, GetTokenMatchScore(text, track.Group, 60));
+
+            string displayName = TacviewObjectDisplayName.GetDisplayName(track);
+
+            score = Math.Max(score, GetTokenMatchScore(text, displayName, 90));
+
+            if (!string.IsNullOrWhiteSpace(track.Name)
+                && !string.IsNullOrWhiteSpace(track.Pilot))
+            {
+                score = Math.Max(
+                    score,
+                    GetTokenMatchScore(text, $"{track.Name} {track.Pilot}", 75));
+            }
+
+            if (!string.IsNullOrWhiteSpace(track.Group)
+                && !string.IsNullOrWhiteSpace(track.Pilot))
+            {
+                score = Math.Max(
+                    score,
+                    GetTokenMatchScore(text, $"{track.Group} {track.Pilot}", 75));
+            }
+
+            return score;
+        }
+
+        private static int GetTokenMatchScore(
+            string text,
+            string? token,
+            int score)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return 0;
+            }
+
+            return text.Contains(token, StringComparison.OrdinalIgnoreCase)
+                ? score
+                : 0;
+        }
+
+        private static double GetEndTimeDistance(
+            TacviewObjectTrack track,
+            double eventTimeSeconds)
+        {
+            return track.End is null
+                ? double.MaxValue
+                : Math.Abs(track.End.TimeSeconds - eventTimeSeconds);
+        }
+
         private static string? FindFirstKnownObjectIdInEvent(
             TacviewEventRecord eventRecord,
             IReadOnlyDictionary<string, TacviewObjectTrack> objects)
@@ -198,5 +337,3 @@ namespace DcsMissionReader.Services
 
     }
 }
-
-
