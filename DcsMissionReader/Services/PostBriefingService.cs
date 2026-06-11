@@ -2158,6 +2158,7 @@ namespace DcsMissionReader.Services
 
             builder.AppendLine($"Object Id: {track.ObjectId}");
             builder.AppendLine($"Name: {track.Name ?? "Unknown"}");
+            builder.AppendLine($"Pilot: {track.Pilot ?? "Unknown"}");
             builder.AppendLine($"Type: {track.Type ?? "Unknown"}");
             builder.AppendLine($"Group: {track.Group ?? "Unknown"}");
             builder.AppendLine($"Tactical Side: {GetCoalitionDisplayName(track, options)}");
@@ -2229,17 +2230,7 @@ namespace DcsMissionReader.Services
 
         private static string GetDisplayName(TacviewObjectTrack track)
         {
-            if (!string.IsNullOrWhiteSpace(track.Group))
-            {
-                return track.Group;
-            }
-
-            if (!string.IsNullOrWhiteSpace(track.Name))
-            {
-                return track.Name;
-            }
-
-            return track.ObjectId;
+            return TacviewObjectDisplayName.GetDisplayName(track);
         }
 
         private static string FormatCoordinate(TacviewPositionSample sample)
