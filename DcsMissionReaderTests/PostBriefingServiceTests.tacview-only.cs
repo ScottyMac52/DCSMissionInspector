@@ -1,0 +1,1972 @@
+﻿using DcsMissionReader.Models;
+using DcsMissionReader.Services;
+using DcsMissionReader.Services.Interfaces;
+using Moq;
+using System.IO.Compression;
+using System.Security;
+
+namespace DcsMissionReaderTests
+{
+    public sealed class PostBriefingServiceTests
+    {
+        private sealed record TestObjectIdentity(string Name, string Group, string Pilot)
+        {
+            public string DisplayName => $"{Group}-{Pilot}";
+        }
+
+        private static readonly TestObjectIdentity BlueAircraft = new(
+            Name: "F/A-18C",
+            Group: "Springfield 1",
+            Pilot: "Hornet 1-1");
+
+        private static readonly TestObjectIdentity Tomcat = new(
+            Name: "F-14B",
+            Group: "Colt 1",
+            Pilot: "Colt 1-1");
+
+        private static readonly TestObjectIdentity TargetVehicle = new(
+            Name: "Target Truck",
+            Group: "Target Group",
+            Pilot: "Target One");
+
+        private static readonly TestObjectIdentity Carrier = new(
+            Name: "CVN_73",
+            Group: "Washington CSG",
+            Pilot: "CVN-73 USS Washington");
+
+        private static readonly TestObjectIdentity ShortCarrier = new(
+            Name: "CVN-73",
+            Group: "USS Washington",
+            Pilot: "CVN-73 USS Washington");
+
+        private static readonly TestObjectIdentity CarrierKiller = new(
+            Name: "Tu-22M3",
+            Group: "Carrier Killer",
+            Pilot: "Pyetr");
+
+        private static readonly TestObjectIdentity CarrierEscort = new(
+            Name: "CG_60",
+            Group: "Washington CSG Escort",
+            Pilot: "Escort 1-1");
+
+        private static readonly TestObjectIdentity RotaryAircraft = new(
+            Name: "SH-60B",
+            Group: "Rotary-1",
+            Pilot: "Max");
+
+        private static readonly TestObjectIdentity MigShooter = new(
+            Name: "MiG-31",
+            Group: "AWACS KILLER",
+            Pilot: "Foxhound 1");
+
+        private static readonly TestObjectIdentity Overlord = new(
+            Name: "E-2C",
+            Group: "Overlord",
+            Pilot: "Hollywood");
+
+        private static readonly TestObjectIdentity SamSite = new(
+            Name: "SA-10 Site",
+            Group: "SA-10 Battery",
+            Pilot: "SA-10 Crew");
+
+        private static readonly TestObjectIdentity Bullseye = new(
+            Name: "Blue Bullseye",
+            Group: "Blue Bullseye",
+            Pilot: "Blue Bullseye");
+
+        private const string Aim120CWeaponName = "AIM-120C";
+        private const string FuelTankName = "Fuel Tank";
+        private const string M61ShellName = "weapons.shells.M61_20_HE_gr";
+        private const string MysteryMissileName = "Mystery Missile";
+        private const string P33EWeaponName = "P_33E";
+        private const string SeaSparrowWeaponName = "SeaSparrow";
+        private const string Sa10MissileName = "SA-10 Missile";
+        private const string UnknownDecoyName = "Unknown";
+        private const string X22WeaponName = "X_22";
+        private const string P700WeaponName = "P_700";
+
+        [Fact]
+        public void CreatePostBriefingKml_WithValidZippedAcmi_CreatesKmlWithTracksKnownWeaponsAndResults()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "sample.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "sample.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildSampleAcmi());
+
+                EnsureKmlIconsAvailableForTest();
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(zipPath, result.SourceAcmiZipFilePath);
+                Assert.Equal(outputPath, result.OutputKmlFilePath);
+                Assert.Equal(2, result.GroupTrackCount);
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains("<kml", kml);
+                Assert.Contains("Object Tracks", kml);
+                Assert.Contains("<name>Weapons</name>", kml);
+                Assert.Contains("<name>Weapon Information</name>", kml);
+                Assert.Contains("<name>Launch Point</name>", kml);
+                Assert.Contains("<name>Weapon Track</name>", kml);
+                Assert.Contains("<name>Weapon Results</name>", kml);
+
+                Assert.DoesNotContain("<name>Weapon Employment</name>", kml);
+                Assert.DoesNotContain("<name>Weapon Results and Events</name>", kml);
+
+                Assert.Contains(BlueAircraft.DisplayName, kml);
+                Assert.DoesNotContain($"{BlueAircraft.Group} START", kml);
+                Assert.DoesNotContain($"{BlueAircraft.Group} END", kml);
+
+                Assert.Contains(Aim120CWeaponName, kml);
+                Assert.DoesNotContain($"Weapon Fired - {Aim120CWeaponName}", kml);
+                Assert.Contains($"<name>{Aim120CWeaponName}</name>", kml);
+                Assert.Contains($"{Aim120CWeaponName} Track", kml);
+                Assert.Contains($"Destroyed - {TargetVehicle.DisplayName}", kml);
+                Assert.Contains("48.66236111,29.96027500,1500.00", kml);
+                Assert.Contains("48.70000000,29.98000000,0.00", kml);
+
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithValidZippedAcmi_CreatesKmlWithTracksWeaponsAndResults()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "fuel-tank-test.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "fuel-tank-test.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithFuelTankAndKnownWeapon());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+
+                // Only AIM-120C should be treated as weapon employment.
+                // Fuel tanks should not become weapon employments.
+                Assert.Equal(1, result.WeaponEmploymentCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains(Aim120CWeaponName, kml);
+                Assert.DoesNotContain(FuelTankName, kml, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("Drop Tank", kml, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithMaxTrackPoints_LimitsPlottedTrackPointsAcrossFullTrack()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "many-points.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "many-points.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithManyTrackPoints(pointCount: 20));
+
+                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                    knownWeapons: []);
+
+                var service = new PostBriefingService();
+
+                var options = new DcsMissionReader.Models.PostBriefingKmlOptions
+                {
+                    MaxTrackPointsPerObject = 5
+                };
+
+                service.CreatePostBriefingKml(zipPath, outputPath, options);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains("Point 1", kml);
+                Assert.Contains("Point 5", kml);
+                Assert.DoesNotContain("Point 6", kml);
+
+                // Proves sampling spans the whole track, not just the first 5 samples.
+                Assert.Contains("48.00000000,29.00000000,1000.00", kml);
+                Assert.Contains("48.01900000,29.01900000,1019.00", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithoutExplicitOutputPath_CreatesDefaultPostBriefKml()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "mission.acmi.zip");
+
+                CreateAcmiZip(zipPath, BuildSampleAcmi());
+
+                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                    knownWeapons: [Aim120CWeaponName]);
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath);
+
+                Assert.True(File.Exists(result.OutputKmlFilePath));
+                Assert.EndsWith("mission.postbrief.kmz", result.OutputKmlFilePath);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithMissingFile_ThrowsFileNotFoundException()
+        {
+            Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                knownWeapons: []);
+
+            var service = new PostBriefingService();
+
+            Assert.Throws<FileNotFoundException>(() =>
+                service.CreatePostBriefingKml(@"C:\does-not-exist\missing.acmi.zip"));
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithEmptyPath_ThrowsArgumentException()
+        {
+            Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                knownWeapons: []);
+
+            var service = new PostBriefingService();
+
+            Assert.Throws<ArgumentException>(() =>
+                service.CreatePostBriefingKml(""));
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithEmptyZip_ThrowsInvalidDataException()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "empty.zip");
+
+                using (ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+                {
+                }
+
+                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                    knownWeapons: []);
+
+                var service = new PostBriefingService();
+
+                Assert.Throws<InvalidDataException>(() =>
+                    service.CreatePostBriefingKml(zipPath));
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Theory]
+        [InlineData("--post-brief")]
+        [InlineData("--post_brief")]
+        [InlineData("--postbrief")]
+        public void SampleAcmiZip_WithSupportedPostBriefSwitchNames_IsDocumentedScenario(string switchName)
+        {
+            Assert.StartsWith("--post", switchName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithChaffAndFlare_DoesNotCreateTracksOrWeaponEmployments()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "countermeasures.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "countermeasures.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithCountermeasures());
+
+                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                    knownWeapons: [Aim120CWeaponName]);
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+
+                // Only the aircraft should remain as a group track.
+                // Chaff and flares should not become tracks.
+                Assert.Equal(1, result.GroupTrackCount);
+
+                // No known weapons were fired in this ACMI sample.
+                Assert.Equal(0, result.WeaponEmploymentCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains(BlueAircraft.DisplayName, kml);
+                Assert.DoesNotContain("Chaff", kml, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("Flare", kml, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("Decoy", kml, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("Misc+Decoy+Chaff", kml, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithGunShellProjectiles_DoesNotCreateWeaponEmployments()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "gun-shells.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "gun-shells.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithGunShellProjectiles());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+
+                // Aircraft remains as an object track, but individual gun rounds should not become weapon employments.
+                Assert.Equal(1, result.GroupTrackCount);
+                Assert.Equal(0, result.WeaponEmploymentCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains(BlueAircraft.DisplayName, kml);
+                Assert.DoesNotContain("weapons.shells.M61_20_HE_gr", kml);
+                Assert.DoesNotContain("Weapon Fired - weapons.shells.M61_20_HE_gr", kml);
+                Assert.DoesNotContain("Weapon Kind: bullet", kml);
+                Assert.DoesNotContain("<name>Weapons</name>\r\n<Folder>\r\n<name>weapons.shells", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithRotorcraftNameContainingSh_DoesNotRenderAsSam()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "rotorcraft-sh60.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "rotorcraft-sh60.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithSh60Rotorcraft());
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath, new PostBriefingKmlOptions
+                {
+                    TreatTacviewAlliesAsBlue = false,
+                    TreatTacviewEnemiesAsRed = false,
+                    InferBlueForKnownUsNavalAssets = false
+                });
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains(RotaryAircraft.DisplayName, kml);
+                Assert.Contains(RotaryAircraft.Name, kml);
+                Assert.Contains("#blueHeloStartStyle", kml);
+                Assert.DoesNotContain("#blueSamStartStyle", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithWeaponTimeout_HidesTimeoutResultPlacemark()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "weapon-timeout.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "weapon-timeout.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithWeaponTimeout());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains($"Timeout - {SeaSparrowWeaponName}", kml);
+                AssertPlacemarkVisibility(kml, $"Timeout - {SeaSparrowWeaponName}", expectedVisibility: "0");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithTacviewAllies_DoesNotAutomaticallyColorEverythingBlue()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "allies-relative.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "allies-relative.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithTacviewRelativeAllies());
+
+                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                    knownWeapons: []);
+
+                var service = new PostBriefingService();
+
+                var options = new PostBriefingKmlOptions
+                {
+                    TreatTacviewAlliesAsBlue = false,
+                    TreatTacviewEnemiesAsRed = false,
+                    InferBlueForKnownUsNavalAssets = false
+                };
+
+                service.CreatePostBriefingKml(zipPath, outputPath, options);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains("Tacview Coalition: Allies", kml);
+                Assert.Contains("Tactical Side: Neutral/Unknown", kml);
+                Assert.Contains("#neutralTrackStyle", kml);
+                Assert.DoesNotContain("#blueTrackStyle", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithBullseyeObject_RendersBullseyeInsteadOfTrack()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "bullseye.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "bullseye.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithBullseye());
+
+                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                    knownWeapons: []);
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath, new PostBriefingKmlOptions
+                {
+                    TreatTacviewAlliesAsBlue = false,
+                    TreatTacviewEnemiesAsRed = false,
+                    InferBlueForKnownUsNavalAssets = true
+                });
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains("Blue Bullseye", kml);
+                Assert.Contains("#blueBullseyeStyle", kml);
+                Assert.Contains("Blue Bullseye 10 NM Ring", kml);
+                Assert.Contains("Blue Bullseye 25 NM Ring", kml);
+                Assert.Contains("Blue Bullseye 50 NM Ring", kml);
+
+                Assert.DoesNotContain("Blue Bullseye TRACK", kml, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithFixedWingGroupNameContainingCarrier_RendersAsPlaneNotShip()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "carrier-killer-fixed-wing.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "carrier-killer-fixed-wing.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithFixedWingCarrierKillerGroup());
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath, new PostBriefingKmlOptions
+                {
+                    TreatTacviewAlliesAsBlue = false,
+                    TreatTacviewEnemiesAsRed = false,
+                    InferBlueForKnownUsNavalAssets = false
+                });
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains(CarrierKiller.Name, kml);
+                Assert.Contains(CarrierKiller.DisplayName, kml);
+                Assert.Contains("#redPlaneStartStyle", kml);
+                Assert.DoesNotContain("#redShipStartStyle", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithMissionMetadata_CreatesMissionFolder()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "mission-info.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "mission-info.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithMissionMetadata());
+
+                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                    knownWeapons: []);
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(outputPath, result.OutputKmlFilePath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains("<name>Mission</name>", kml);
+                Assert.Contains("UH-1_MAR_IA_Weapons Range", kml);
+                Assert.Contains("Category: CAS", kml);
+                Assert.Contains("Author: Spaz", kml);
+                Assert.Contains("Data Source: DCS 2.9.5.55918", kml);
+                Assert.Contains("Data Recorder: DCS2ACMI 1.9.3.200", kml);
+                Assert.Contains("File Type: text/acmi/tacview", kml);
+                Assert.Contains("File Version: 2.1", kml);
+                Assert.Contains("Reference Time: 2016-03-21T04:30:00.0000000Z", kml);
+                Assert.Contains("Recording Time: 2024-07-06T17:56:08.1450000Z", kml);
+                Assert.Contains("Reference Latitude: 10", kml);
+                Assert.Contains("Reference Longitude: 141", kml);
+
+                // Proves escaped comma was preserved instead of splitting Comments into bad tokens.
+                Assert.Contains(
+                    "The weather is overcast with rain, but the range is open.",
+                    kml);
+
+                // Proves multi-line briefing was stitched back together.
+                Assert.Contains("You are FORD 2 1, a single USMC UH-1", kml);
+                Assert.Contains("Communications:", kml);
+                Assert.Contains("Range Control and LHA-1 Tower: 251.00 MHz", kml);
+
+                // Mission reference point should be plotted from ReferenceLongitude/ReferenceLatitude.
+                Assert.Contains("141.00000000,10.00000000,0", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithEscapedCommasInMissionMetadata_DoesNotSplitMetadataValue()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "escaped-commas.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "escaped-commas.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithEscapedCommas());
+
+                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                    knownWeapons: []);
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains("Mission With Escaped Commas", kml);
+                Assert.Contains("Rain, wind, and fog are present.", kml);
+
+                // These fragments prove the comma-containing text stayed in one value.
+                Assert.DoesNotContain("Comments: Rain", kml);
+                Assert.Contains("Comments:\nRain, wind, and fog are present.", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithMultilineBriefing_PreservesBriefingLines()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "multiline-briefing.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "multiline-briefing.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithMultilineBriefing());
+
+                Mock<IWeaponDatabaseService> weaponDatabaseMock = CreateWeaponDatabaseMock(
+                    knownWeapons: []);
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains("<name>Mission</name>", kml);
+                Assert.Contains("Mission With Multiline Briefing", kml);
+                Assert.Contains("Line one of briefing.", kml);
+                Assert.Contains("Line two of briefing.", kml);
+                Assert.Contains("Line three of briefing.", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithKmzOutput_EmbedsDocKmlAndWeaponIcons()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "icons-test.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "icons-test.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildSampleAcmi());
+
+                EnsureKmlIconsAvailableForTest();
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(result.OutputKmlFilePath));
+                Assert.Equal(outputPath, result.OutputKmlFilePath);
+
+                using ZipArchive archive = ZipFile.OpenRead(result.OutputKmlFilePath);
+
+                Assert.NotNull(archive.GetEntry("doc.kml"));
+                Assert.NotNull(archive.GetEntry("icons/missile.png"));
+                Assert.NotNull(archive.GetEntry("icons/bomb.png"));
+                Assert.NotNull(archive.GetEntry("icons/sam.png"));
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithSamSiteAndLaunchedSam_UsesSamIconStyles()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "sam-test.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "sam-test.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithSamSiteAndLaunchedSam());
+                CreateTestKmlIcons(tempDirectory);
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(result.OutputKmlFilePath));
+
+                string kml = ReadKmlFromKmz(result.OutputKmlFilePath);
+
+                Assert.Contains("#redSamStartStyle", kml);
+                Assert.Contains("#weaponEmploymentSamStyle", kml);
+                Assert.Contains("icons/sam.png", kml);
+                Assert.Contains("Weapon Kind: sam", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithUnknownTacviewWeapon_IncludesWeaponEmployment()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "unknown-weapon.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "unknown-weapon.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithUnknownTacviewWeapon());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(1, result.WeaponEmploymentCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                Assert.Contains(MysteryMissileName, kml);
+                Assert.DoesNotContain($"Weapon Fired - {MysteryMissileName}", kml);
+                Assert.Contains($"<name>{MysteryMissileName}</name>", kml);
+                Assert.Contains("<name>Launching Unit</name>", kml);
+                Assert.Contains($"<name>Shooter - {BlueAircraft.DisplayName}</name>", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithDestroyedTarget_AddsDispositionToTargetObjectDescription()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "target-disposition.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "target-disposition.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithExplicitWeaponKill());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(2, result.GroupTrackCount);
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    Overlord.DisplayName,
+                    "Final Disposition:\nDestroyed");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    Overlord.DisplayName,
+                    "Weapons That Hit / Destroyed This Object:");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    Overlord.DisplayName,
+                    $"- {P33EWeaponName} [200] from {MigShooter.DisplayName}");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    $"Destroyed - {Overlord.DisplayName}",
+                    $"Destroyed Object: {Overlord.DisplayName}");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    $"Destroyed - {Overlord.DisplayName}",
+                    "Killed By Weapon: P_33E [200]");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithSurvivingObject_AddsSurvivedDispositionToObjectDescription()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "survivor-disposition.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "survivor-disposition.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithSurvivingObjectHealth());
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    BlueAircraft.DisplayName,
+                    "Health Remaining: 100%");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    BlueAircraft.DisplayName,
+                    "Final Disposition:\nSurvived / No Weapon Result Recorded");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+[Fact]
+        public void CreatePostBriefingKml_WithWeaponLaunches_HidesLaunchClutterByDefaultAndShowsDestroyedMarker()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "map-clutter.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "map-clutter.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithExplicitWeaponKill());
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkContains(kml, $"Destroyed - {Overlord.DisplayName}", "#destroyedObjectStyle");
+
+                Assert.Contains("<Style id=\"destroyedObjectStyle\">", kml);
+                Assert.Contains("<href>icons/explode.png</href>", kml);
+                Assert.Contains("<LabelStyle>", kml);
+                Assert.Contains("<scale>0</scale>", kml);
+                Assert.DoesNotContain($"🚫 {Overlord.Group}", kml);
+                Assert.DoesNotContain(
+                    "https://maps.google.com/mapfiles/kml/shapes/caution.png",
+                    kml);
+
+                AssertPlacemarkVisibility(kml, $"Shooter - {MigShooter.DisplayName}", expectedVisibility: "0");
+                AssertPlacemarkVisibility(kml, P33EWeaponName, expectedVisibility: "0");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithTimedOutWeapon_HidesWeaponEngagementParentFolderAndResultPlacemark()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "timed-out-parent-folder.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "timed-out-parent-folder.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithWeaponTimeout());
+
+                var service = new PostBriefingService();
+
+                var result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertFolderVisibility(
+                    kml,
+                    $"{SeaSparrowWeaponName} - {ShortCarrier.DisplayName} - 2016-06-21T04:30:10.0000000Z",
+                    expectedVisibility: "0");
+
+                AssertPlacemarkVisibility(
+                    kml,
+                    $"Timeout - {SeaSparrowWeaponName}",
+                    expectedVisibility: "0");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithMixedObjectTypes_UsesTacviewTypeTokensForIcons()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "mixed-object-types.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "mixed-object-types.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithMixedObjectTypes());
+
+                var service = new PostBriefingService();
+
+                service.CreatePostBriefingKml(zipPath, outputPath, new PostBriefingKmlOptions
+                {
+                    TreatTacviewAlliesAsBlue = false,
+                    TreatTacviewEnemiesAsRed = false,
+                    InferBlueForKnownUsNavalAssets = true
+                });
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkContains(kml, CarrierKiller.DisplayName, "#redPlaneStartStyle");
+                AssertPlacemarkContains(kml, RotaryAircraft.DisplayName, "#blueHeloStartStyle");
+                AssertPlacemarkContains(kml, Carrier.DisplayName, "#blueShipStartStyle");
+
+                AssertPlacemarkDoesNotContain(kml, CarrierKiller.DisplayName, "#redShipStartStyle");
+                AssertPlacemarkDoesNotContain(kml, RotaryAircraft.DisplayName, "#blueSamStartStyle");
+                AssertPlacemarkDoesNotContain(kml, Carrier.DisplayName, "#bluePlaneStartStyle");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+[Fact]
+        public void CreatePostBriefingKml_WithMultipleHitsAndNoKill_ListsAllHitsOnTargetObjectCard()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "multiple-hits-no-kill.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "multiple-hits-no-kill.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithMultipleCarrierHitsAndNoKill());
+
+                var service = new PostBriefingService();
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(2, result.GroupTrackCount);
+                Assert.Equal(2, result.WeaponEmploymentCount);
+                Assert.Equal(2, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                string carrierDisplayName = Carrier.DisplayName;
+
+                AssertObjectWeaponHitCount(
+                    kml,
+                    objectPlacemarkName: carrierDisplayName,
+                    expectedHitCount: 2,
+                    expectedWeaponName: P700WeaponName);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    "Final Disposition:\nDamaged / Weapon Effect Recorded");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    $"- {P700WeaponName} [901]");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    $"- {P700WeaponName} [902]");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithMultipleHitsAndFinalKill_ListsAllHitsAndKillOnTargetObjectCard()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "multiple-hits-with-kill.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "multiple-hits-with-kill.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithMultipleCarrierHitsAndFinalKill());
+
+                var service = new PostBriefingService();
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(2, result.GroupTrackCount);
+                Assert.Equal(3, result.WeaponEmploymentCount);
+                Assert.Equal(3, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                string carrierDisplayName = Carrier.DisplayName;
+
+                AssertObjectWeaponHitCount(
+                    kml,
+                    objectPlacemarkName: carrierDisplayName,
+                    expectedHitCount: 3,
+                    expectedWeaponName: P700WeaponName);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    "Final Disposition:\nDestroyed");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    $"- {P700WeaponName} [901]");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    $"- {P700WeaponName} [902]");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    $"- {P700WeaponName} [903]");
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithSingleHitAndNoKill_ListsHitOnTargetObjectCard()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "single-hit-no-kill.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "single-hit-no-kill.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithSingleCarrierHitAndNoKill());
+
+                var service = new PostBriefingService();
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(2, result.GroupTrackCount);
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                string carrierDisplayName = Carrier.DisplayName;
+
+                AssertObjectWeaponHitCount(
+                    kml,
+                    objectPlacemarkName: carrierDisplayName,
+                    expectedHitCount: 1,
+                    expectedWeaponName: P700WeaponName);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    "Final Disposition:\nDamaged / Weapon Effect Recorded");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    carrierDisplayName,
+                    $"- {P700WeaponName} [901] from {CarrierKiller.DisplayName} at 2016-06-21T04:30:20.0000000Z - Hit");
+
+                Assert.DoesNotContain("Final Disposition:\nDestroyed", FindObjectDispositionDescription(kml, carrierDisplayName));
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        private static string BuildAcmiWithSingleCarrierHitAndNoKill()
+        {
+            return $$"""
+                FileType=text/acmi/tacview
+                FileVersion=2.2
+                0,ReferenceTime=2016-06-21T04:30:00Z
+
+                #0.00
+                301,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17649980|25.53076810|0|0|0|90
+                201,Name={{CarrierKiller.Name}},Type=Sea+Watercraft+Cruiser,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.50000000|25.90000000|0|0|0|270
+
+                #10.00
+                901,Name={{P700WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.49000000|25.89000000|50|0|0|270
+
+                #20.00
+                901,T=57.17649980|25.53076810|50|0|0|270
+                0,Event=Hit|SourceId:901|TargetId:301|{{P700WeaponName}} has hit {{Carrier.Name}} {{Carrier.Pilot}}
+                -901
+
+                #30.00
+                301,T=57.17649980|25.53076810|0|0|0|90
+                201,T=57.50000000|25.90000000|0|0|0|270
+                """;
+        }
+
+        private static string BuildAcmiWithMultipleCarrierHitsAndNoKill()
+        {
+            return $$"""
+                FileType=text/acmi/tacview
+                FileVersion=2.2
+                0,ReferenceTime=2016-06-21T04:30:00Z
+
+                #0.00
+                301,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17649980|25.53076810|0|0|0|90
+                201,Name={{CarrierKiller.Name}},Type=Sea+Watercraft+Cruiser,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.50000000|25.90000000|0|0|0|270
+
+                #10.00
+                901,Name={{P700WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.49000000|25.89000000|50|0|0|270
+
+                #20.00
+                901,T=57.17649980|25.53076810|50|0|0|270
+                0,Event=Hit|SourceId:901|TargetId:301|{{P700WeaponName}} has hit {{Carrier.Name}} {{Carrier.Pilot}}
+                -901
+
+                #30.00
+                902,Name={{P700WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.48000000|25.88000000|50|0|0|270
+
+                #40.00
+                902,T=57.17649980|25.53076810|50|0|0|270
+                0,Event=Hit|SourceId:902|TargetId:301|{{P700WeaponName}} has hit {{Carrier.Name}} {{Carrier.Pilot}}
+                -902
+
+                #50.00
+                301,T=57.17649980|25.53076810|0|0|0|90
+                201,T=57.50000000|25.90000000|0|0|0|270
+                """;
+        }
+
+        private static string BuildAcmiWithMultipleCarrierHitsAndFinalKill()
+        {
+            return $$"""
+                FileType=text/acmi/tacview
+                FileVersion=2.2
+                0,ReferenceTime=2016-06-21T04:30:00Z
+
+                #0.00
+                301,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17649980|25.53076810|0|0|0|90
+                201,Name={{CarrierKiller.Name}},Type=Sea+Watercraft+Cruiser,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.50000000|25.90000000|0|0|0|270
+
+                #10.00
+                901,Name={{P700WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.49000000|25.89000000|50|0|0|270
+
+                #20.00
+                901,T=57.17649980|25.53076810|50|0|0|270
+                0,Event=Hit|SourceId:901|TargetId:301|{{P700WeaponName}} has hit {{Carrier.Name}} {{Carrier.Pilot}}
+                -901
+
+                #30.00
+                902,Name={{P700WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.48000000|25.88000000|50|0|0|270
+
+                #40.00
+                902,T=57.17649980|25.53076810|50|0|0|270
+                0,Event=Hit|SourceId:902|TargetId:301|{{P700WeaponName}} has hit {{Carrier.Name}} {{Carrier.Pilot}}
+                -902
+
+                #50.00
+                903,Name={{P700WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.47000000|25.87000000|50|0|0|270
+
+                #60.00
+                903,T=57.17649980|25.53076810|50|0|0|270
+                0,Event=Destroyed|SourceId:903|TargetId:301|{{P700WeaponName}} has destroyed {{Carrier.Name}} {{Carrier.Pilot}}
+                -903
+
+                #70.00
+                201,T=57.50000000|25.90000000|0|0|0|270
+                """;
+        }
+
+        private static string NormalizeLineEndings(string value)
+        {
+            return value
+                .Replace("\r\n", "\n", StringComparison.Ordinal)
+                .Replace("\r", "\n", StringComparison.Ordinal);
+        }
+
+        private static int CountPlacemarkNameOccurrences(
+    string kml,
+    string placemarkName)
+        {
+            string normalizedKml = NormalizeLineEndings(kml);
+            string escapedName = SecurityElement.Escape(placemarkName) ?? placemarkName;
+
+            string needle = $"<name>{escapedName}</name>";
+
+            int count = 0;
+            int index = 0;
+
+            while (true)
+            {
+                index = normalizedKml.IndexOf(needle, index, StringComparison.Ordinal);
+
+                if (index < 0)
+                {
+                    break;
+                }
+
+                count++;
+                index += needle.Length;
+            }
+
+            return count;
+        }
+
+        private static void AssertObjectWeaponHitCount(
+    string kml,
+    string objectPlacemarkName,
+    int expectedHitCount,
+    string? expectedWeaponName)
+        {
+            string description = FindObjectDispositionDescription(kml, objectPlacemarkName);
+
+            string sectionHeader = "Weapons That Hit / Destroyed This Object:";
+            int sectionStart = description.IndexOf(sectionHeader, StringComparison.Ordinal);
+
+            Assert.True(
+                sectionStart >= 0,
+                $"Could not find weapon-hit section for object placemark '{objectPlacemarkName}'. Description was:{Environment.NewLine}{description}");
+
+            string weaponHitSection = description[(sectionStart + sectionHeader.Length)..];
+
+            List<string> hitLines = weaponHitSection
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(line => line.StartsWith("- ", StringComparison.Ordinal))
+                .Where(line => !line.Equals("- None recorded", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (!string.IsNullOrWhiteSpace(expectedWeaponName))
+            {
+                hitLines = hitLines
+                    .Where(line => line.Contains(expectedWeaponName, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            Assert.True(
+                hitLines.Count == expectedHitCount,
+                $"Expected {expectedHitCount} weapon hit(s) for '{objectPlacemarkName}'"
+                + (string.IsNullOrWhiteSpace(expectedWeaponName) ? string.Empty : $" using weapon '{expectedWeaponName}'")
+                + $", but found {hitLines.Count}.{Environment.NewLine}"
+                + $"Description was:{Environment.NewLine}{description}");
+        }
+
+        private static string FindObjectDispositionDescription(
+    string kml,
+    string placemarkName)
+        {
+            string normalizedKml = NormalizeLineEndings(kml);
+            string escapedName = SecurityElement.Escape(placemarkName) ?? placemarkName;
+
+            string placemarkStart = "<Placemark>";
+            int searchIndex = 0;
+
+            while (true)
+            {
+                int placemarkStartIndex = normalizedKml.IndexOf(placemarkStart, searchIndex, StringComparison.Ordinal);
+
+                if (placemarkStartIndex < 0)
+                {
+                    break;
+                }
+
+                int placemarkEndIndex = normalizedKml.IndexOf("</Placemark>", placemarkStartIndex, StringComparison.Ordinal);
+
+                if (placemarkEndIndex < 0)
+                {
+                    break;
+                }
+
+                string placemark = normalizedKml[placemarkStartIndex..(placemarkEndIndex + "</Placemark>".Length)];
+
+                if (placemark.Contains($"<name>{escapedName}</name>", StringComparison.Ordinal)
+                    && placemark.Contains("Weapons That Hit / Destroyed This Object:", StringComparison.Ordinal))
+                {
+                    return ExtractPlacemarkDescription(placemark);
+                }
+
+                searchIndex = placemarkEndIndex + "</Placemark>".Length;
+            }
+
+            Assert.Fail($"Could not find object disposition placemark named '{placemarkName}'.");
+
+            return string.Empty;
+        }
+
+        private static string ExtractPlacemarkDescription(string placemark)
+        {
+            const string descriptionStartTag = "<description>";
+            const string descriptionEndTag = "</description>";
+
+            int descriptionStartIndex = placemark.IndexOf(descriptionStartTag, StringComparison.Ordinal);
+            int descriptionEndIndex = placemark.IndexOf(descriptionEndTag, StringComparison.Ordinal);
+
+            Assert.True(
+                descriptionStartIndex >= 0 && descriptionEndIndex > descriptionStartIndex,
+                $"Could not extract description from placemark:{Environment.NewLine}{placemark}");
+
+            string encodedDescription = placemark[
+                (descriptionStartIndex + descriptionStartTag.Length)..descriptionEndIndex];
+
+            return SecurityElement.FromString($"<root>{encodedDescription}</root>")?.Text
+                ?? encodedDescription;
+        }
+
+private static void AssertFolderVisibility(
+    string kml,
+    string folderName,
+    string expectedVisibility)
+        {
+            string normalizedKml = NormalizeLineEndings(kml);
+            string normalizedFolderName = SecurityElement.Escape(folderName) ?? folderName;
+
+            string folderStart = $"<Folder>\n<name>{normalizedFolderName}</name>";
+            int folderStartIndex = normalizedKml.IndexOf(folderStart, StringComparison.Ordinal);
+
+            Assert.True(
+                folderStartIndex >= 0,
+                $"Could not find Folder with name: {folderName}");
+
+            int folderEndIndex = normalizedKml.IndexOf("</Folder>", folderStartIndex, StringComparison.Ordinal);
+
+            Assert.True(
+                folderEndIndex >= 0,
+                $"Could not find end of Folder with name: {folderName}");
+
+            string folder = normalizedKml[folderStartIndex..(folderEndIndex + "</Folder>".Length)];
+
+            Assert.Contains(
+                $"<visibility>{expectedVisibility}</visibility>",
+                folder);
+        }
+
+        private static void AssertPlacemarkDescriptionContains(
+            string kml,
+            string placemarkName,
+            string expectedDescriptionText)
+        {
+            string nameElement = $"<name>{placemarkName}</name>";
+            string normalizedExpected = NormalizeLineEndings(expectedDescriptionText);
+
+            int searchIndex = 0;
+            int matchingPlacemarkCount = 0;
+            string? firstMatchingPlacemark = null;
+
+            while (true)
+            {
+                int placemarkStart = kml.IndexOf("<Placemark>", searchIndex, StringComparison.Ordinal);
+
+                if (placemarkStart < 0)
+                {
+                    break;
+                }
+
+                int placemarkEnd = kml.IndexOf("</Placemark>", placemarkStart, StringComparison.Ordinal);
+
+                Assert.True(
+                    placemarkEnd > placemarkStart,
+                    $"Found opening Placemark but no closing Placemark while searching for: {placemarkName}");
+
+                string placemark = kml.Substring(
+                    placemarkStart,
+                    placemarkEnd + "</Placemark>".Length - placemarkStart);
+
+                if (placemark.Contains(nameElement, StringComparison.Ordinal))
+                {
+                    matchingPlacemarkCount++;
+
+                    string normalizedPlacemark = NormalizeLineEndings(placemark);
+                    firstMatchingPlacemark ??= normalizedPlacemark;
+
+                    if (normalizedPlacemark.Contains(normalizedExpected, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+                }
+
+                searchIndex = placemarkEnd + "</Placemark>".Length;
+            }
+
+            if (matchingPlacemarkCount == 0)
+            {
+                Assert.Fail($"Could not find Placemark with name: {placemarkName}");
+            }
+
+            Assert.Fail(
+                $"Found {matchingPlacemarkCount} Placemark(s) with name '{placemarkName}', " +
+                $"but none contained expected text:{Environment.NewLine}{normalizedExpected}{Environment.NewLine}{Environment.NewLine}" +
+                $"First matching placemark was:{Environment.NewLine}{firstMatchingPlacemark}");
+        }
+
+        private static void AssertPlacemarkContains(
+    string kml,
+    string placemarkName,
+    string expectedText)
+        {
+            string placemark = FindPlacemark(kml, placemarkName);
+            Assert.Contains(expectedText, placemark);
+        }
+
+        private static void AssertPlacemarkDoesNotContain(
+            string kml,
+            string placemarkName,
+            string unexpectedText)
+        {
+            string placemark = FindPlacemark(kml, placemarkName);
+            Assert.DoesNotContain(unexpectedText, placemark);
+        }
+
+        private static string FindPlacemark(
+            string kml,
+            string placemarkName)
+        {
+            string nameElement = $"<name>{placemarkName}</name>";
+
+            int searchIndex = 0;
+
+            while (true)
+            {
+                int placemarkStart = kml.IndexOf("<Placemark>", searchIndex, StringComparison.Ordinal);
+
+                if (placemarkStart < 0)
+                {
+                    break;
+                }
+
+                int placemarkEnd = kml.IndexOf("</Placemark>", placemarkStart, StringComparison.Ordinal);
+
+                Assert.True(
+                    placemarkEnd > placemarkStart,
+                    $"Found opening Placemark but no closing Placemark while searching for: {placemarkName}");
+
+                string placemark = kml.Substring(
+                    placemarkStart,
+                    placemarkEnd + "</Placemark>".Length - placemarkStart);
+
+                if (placemark.Contains(nameElement, StringComparison.Ordinal))
+                {
+                    return placemark;
+                }
+
+                searchIndex = placemarkEnd + "</Placemark>".Length;
+            }
+
+            Assert.Fail($"Could not find Placemark with name: {placemarkName}");
+            return string.Empty;
+        }
+
+        private static string BuildAcmiWithMixedObjectTypes()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.01
+            101,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
+            201,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.27663780|25.63163180|9000|0|0|90
+            301,Name={{RotaryAircraft.Name}},Type=Air+Rotorcraft,Group={{RotaryAircraft.Group}},Pilot={{RotaryAircraft.Pilot}},Color=Blue,Coalition=Enemies,T=57.37663780|25.73163180|500|0|0|90
+            #1.00
+            101,T=57.17670000|25.53170000|0|0|0|90
+            201,T=57.27670000|25.63170000|9000|0|0|90
+            301,T=57.37670000|25.73170000|500|0|0|90
+            """;
+        }
+
+        private static string BuildAcmiWithExplicitWeaponKill()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.00
+            100,Name={{MigShooter.Name}},Type=Air+FixedWing,Group={{MigShooter.Group}},Pilot={{MigShooter.Pilot}},Color=Red,Coalition=Allies,T=48.00000000|29.00000000|10000|0|0|90
+            300,Name={{Overlord.Name}},Type=Air+FixedWing,Group={{Overlord.Group}},Pilot={{Overlord.Pilot}},Color=Blue,Coalition=Enemies,T=48.50000000|29.50000000|9000|0|0|270
+            #10.00
+            200,Name={{P33EWeaponName}},Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Allies,T=48.01000000|29.01000000|10000|0|0|90
+            #20.00
+            200,T=48.25000000|29.25000000|9500|0|0|90
+            #30.00
+            200,T=48.50000000|29.50000000|9000|0|0|90
+            0,Event=Destroyed|SourceId:200|TargetId:300|{{P33EWeaponName}} has destroyed {{Overlord.DisplayName}}
+            """;
+        }
+
+        private static string BuildAcmiWithSurvivingObjectHealth()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.00
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|5000|0|0|90,Health=1
+            #10.00
+            100,T=48.01000000|29.01000000|5100|0|0|90
+            """;
+        }
+
+        private static string BuildAcmiWithSh60Rotorcraft()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.01
+            1301,Name={{RotaryAircraft.Name}},Type=Air+Rotorcraft,Group={{RotaryAircraft.Group}},Pilot={{RotaryAircraft.Pilot}},Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|498.45|0|0|90
+            #1.00
+            1301,T=57.17670000|25.53170000|500.00|0|0|90
+            """;
+        }
+
+        private static string BuildAcmiWithWeaponTimeout()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.00
+            100,Name={{ShortCarrier.Name}},Type=Sea+Watercraft,Group={{ShortCarrier.Group}},Pilot={{ShortCarrier.Pilot}},Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|0|0|0|0
+            #10.00
+            200,Name={{SeaSparrowWeaponName}},Type=Weapon+Missile,Parent=100,Color=Blue,Coalition=Enemies,T=48.00100000|29.00100000|100|0|0|90
+            #15.00
+            200,T=48.01000000|29.01000000|500|0|0|90
+            #20.00
+            0,Event=Timeout|SourceId:200|{{SeaSparrowWeaponName}} timed out
+            """;
+        }
+
+        private static string BuildAcmiWithFixedWingCarrierKillerGroup()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.01
+            e01,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=48.00000000|29.00000000|5000|0|0|90
+            #1.00
+            e01,T=48.01000000|29.01000000|5000|0|0|90
+            """;
+        }
+
+        private static string BuildAcmiWithGunShellProjectiles()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2016-06-21T04:30:00Z
+            #0.00
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Color=Blue,Coalition=Enemies,T=48.00000000|29.00000000|5000|0|0|90
+            #455.55
+            3019101,Name={{M61ShellName}},Type=Projectile+Shell,Parent=100,Color=Blue,Coalition=Enemies,T=48.00100000|29.00100000|4990|0|0|90
+            #455.60
+            3019101,T=48.00110000|29.00110000|4980|0|0|90
+            #455.65
+            3019101,T=48.00120000|29.00120000|4970|0|0|90
+            #455.70
+            -3019101
+            """;
+        }
+
+        private static string BuildAcmiWithUnknownTacviewWeapon()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+            #5.00
+            200,Name={{MysteryMissileName}},Type=Weapon+Missile,Parent=100,T=48.00100000|29.00100000|4900|0|0|90
+            #6.00
+            200,T=48.01000000|29.01000000|4000|0|0|90
+            """;
+        }
+
+        private static void CreateTestKmlIcons(string tempDirectory)
+        {
+            string iconDirectory = Path.Combine(
+                Environment.CurrentDirectory,
+                "Data",
+                "KmlIcons");
+
+            Directory.CreateDirectory(iconDirectory);
+
+            File.WriteAllBytes(
+                Path.Combine(iconDirectory, "missile.png"),
+                CreateMinimalPngBytes());
+
+            File.WriteAllBytes(
+                Path.Combine(iconDirectory, "bomb.png"),
+                CreateMinimalPngBytes());
+
+            File.WriteAllBytes(
+                Path.Combine(iconDirectory, "sam.png"),
+                CreateMinimalPngBytes());
+        }
+
+        private static byte[] CreateMinimalPngBytes()
+        {
+            // 1x1 transparent PNG.
+            return Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=");
+        }
+
+        private static string BuildAcmiWithSamSiteAndLaunchedSam()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            100,Name={{SamSite.Name}},Type=Ground+Vehicle+SAM,Group={{SamSite.Group}},Pilot={{SamSite.Pilot}},Color=Red,Coalition=Red,T=48.00000000|29.00000000|0|0|0|0
+            200,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Color=Blue,Coalition=Blue,T=48.10000000|29.10000000|5000|0|0|90
+            #5.00
+            300,Name={{Sa10MissileName}},Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Red,T=48.00010000|29.00010000|100|0|0|90
+            #10.00
+            300,T=48.05000000|29.05000000|3000|0|0|90
+            """;
+        }
+
+        private static string BuildAcmiWithMissionMetadata()
+        {
+            return """
+            FileType=text/acmi/tacview
+            FileVersion=2.1
+            0,ReferenceLongitude=141
+            0,ReferenceLatitude=10
+            0,ReferenceTime=2016-03-21T04:30:00Z
+            0,RecordingTime=2024-07-06T17:56:08.145Z
+            0,Title=UH-1_MAR_IA_Weapons Range
+            0,DataRecorder=DCS2ACMI 1.9.3.200
+            0,DataSource=DCS 2.9.5.55918
+            0,Author=Spaz
+            0,Comments=Welcome to the Mariana Islands weapons range on the island Farallon de Medinilla. The weather is overcast with rain\, but the range is open.
+            40000001,T=3.7975415|3.4849998|2000,Type=Navaid+Static+Bullseye,Color=Blue,Coalition=Enemies
+            40000002,T=3.7975415|3.4849998|2000,Type=Navaid+Static+Bullseye,Color=Grey,Coalition=Neutrals
+            40000003,T=3.7975415|3.4849998|2000,Type=Navaid+Static+Bullseye,Color=Red,Coalition=Allies
+            #0.07
+            0,Category=CAS
+            0,Briefing=You are FORD 2 1\, a single USMC UH-1 embarked onboard USS TARAWA (LHA-1). You have two M60 door gunners\, 2 x M-143 mini-guns and 14 x 2.75 Hydra rockets.\
+            \
+            Communications:\
+            Range Control and LHA-1 Tower: 251.00 MHz (UHF).
+            """;
+        }
+
+        private static string BuildAcmiWithEscapedCommas()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.1
+            0,ReferenceLongitude=141
+            0,ReferenceLatitude=10
+            0,ReferenceTime=2016-03-21T04:30:00Z
+            0,Title=Mission With Escaped Commas
+            0,Comments=Rain\, wind\, and fog are present.
+            #0.00
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+            """;
+        }
+
+        private static string BuildAcmiWithMultilineBriefing()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.1
+            0,ReferenceLongitude=141
+            0,ReferenceLatitude=10
+            0,ReferenceTime=2016-03-21T04:30:00Z
+            0,Title=Mission With Multiline Briefing
+            #0.00
+            0,Briefing=Line one of briefing.\
+            Line two of briefing.\
+            Line three of briefing.
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+            """;
+        }
+
+        private static string BuildAcmiWithBullseye()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            900,Name={{Bullseye.Name}},Type=ReferencePoint,Group={{Bullseye.Group}},Pilot={{Bullseye.Pilot}},Coalition=Allies,T=48.00000000|29.00000000|0|0|0|0
+            #1.00
+            900,T=48.00000000|29.00000000|0|0|0|0
+            """;
+        }
+
+        private static Mock<IWeaponDatabaseService> CreateWeaponDatabaseMock(
+            IReadOnlyCollection<string> knownWeapons)
+        {
+            var mock = new Mock<IWeaponDatabaseService>(MockBehavior.Strict);
+
+            mock.Setup(x => x.IsKnownWeapon(It.IsAny<string>()))
+                .Returns<string>(value =>
+                    !string.IsNullOrWhiteSpace(value)
+                    && knownWeapons.Any(known =>
+                        value.Contains(known, StringComparison.OrdinalIgnoreCase)));
+
+            mock.Setup(x => x.GetWeaponName(It.IsAny<string>()))
+                .Returns<string>(value => value);
+
+            return mock;
+        }
+
+        private static string BuildSampleAcmi()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Coalition=Blue,T=48.66236111|29.96027500|1500|0|0|90
+            300,Name={{TargetVehicle.Name}},Type=Ground+Vehicle,Group={{TargetVehicle.Group}},Pilot={{TargetVehicle.Pilot}},Coalition=Red,T=48.70000000|29.98000000|0|0|0|0
+            #10.00
+            100,T=48.67236111|29.97027500|1600|0|0|90
+            300,T=48.70000000|29.98000000|0|0|0|0
+            #12.50
+            200,Name={{Aim120CWeaponName}},Type=Weapon+Missile,Parent=100,T=48.66300000|29.96100000|1550|0|0|90
+            #15.00
+            200,T=48.69000000|29.97500000|500|0|0|90
+            #20.00
+            0,Event=Destroyed|300|Target destroyed
+            """;
+        }
+
+        private static string BuildAcmiWithFuelTankAndKnownWeapon()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            100,Name={{Tomcat.Name}},Type=Air+FixedWing,Group={{Tomcat.Group}},Pilot={{Tomcat.Pilot}},Coalition=Blue,T=48.00000000|29.00000000|7000|0|0|90
+            #5.00
+            200,Name={{FuelTankName}},Type=Weapon+Container,Parent=100,T=48.00100000|29.00100000|6900|0|0|90
+            #6.00
+            200,T=48.00200000|29.00200000|6700|0|0|90
+            #10.00
+            300,Name={{Aim120CWeaponName}},Type=Weapon+Missile,Parent=100,T=48.00300000|29.00300000|6800|0|0|90
+            #20.00
+            0,Event=Destroyed|400|Target destroyed
+            """;
+        }
+
+        private static string BuildAcmiWithCountermeasures()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Coalition=Blue,T=48.00000000|29.00000000|5000|0|0|90
+            #1.00
+            5e01,Name={{UnknownDecoyName}},Type=Misc+Decoy+Chaff,Parent=100,T=48.00100000|29.00100000|4990|0|0|90
+            #2.00
+            5e02,Name={{UnknownDecoyName}},Type=Misc+Decoy+Flare,Parent=100,T=48.00200000|29.00200000|4980|0|0|90
+            #3.00
+            100,T=48.00300000|29.00300000|5000|0|0|90
+            """;
+        }
+
+        private static string BuildAcmiWithTacviewRelativeAllies()
+        {
+            return $$"""
+            FileType=text/acmi/tacview
+            FileVersion=2.2
+            0,ReferenceTime=2026-06-07T20:00:00Z
+            #0.00
+            100,Name={{BlueAircraft.Name}},Type=Air+FixedWing,Group={{BlueAircraft.Group}},Pilot={{BlueAircraft.Pilot}},Coalition=Allies,T=48.00000000|29.00000000|5000|0|0|90
+            #1.00
+            100,T=48.00100000|29.00100000|5000|0|0|90
+            """;
+        }
+
+        private static string BuildAcmiWithManyTrackPoints(int pointCount)
+        {
+            var builder = new System.Text.StringBuilder();
+
+            builder.AppendLine("FileType=text/acmi/tacview");
+            builder.AppendLine("FileVersion=2.2");
+            builder.AppendLine("0,ReferenceTime=2026-06-07T20:00:00Z");
+
+            for (int i = 0; i < pointCount; i++)
+            {
+                builder.AppendLine(FormattableString.Invariant($"#{i:0.00}"));
+
+                if (i == 0)
+                {
+                    builder.AppendLine(
+                        FormattableString.Invariant(
+                            $"100,Name={BlueAircraft.Name},Type=Air+FixedWing,Group={BlueAircraft.Group},Pilot={BlueAircraft.Pilot},Coalition=Blue,T={48.0 + i * 0.001:F8}|{29.0 + i * 0.001:F8}|{1000 + i}|0|0|90"));
+                }
+                else
+                {
+                    builder.AppendLine(
+                        FormattableString.Invariant(
+                            $"100,T={48.0 + i * 0.001:F8}|{29.0 + i * 0.001:F8}|{1000 + i}|0|0|90"));
+                }
+            }
+
+            return builder.ToString();
+        }
+
+        private static void EnsureKmlIconsAvailableForTest()
+        {
+            string iconDirectory = Path.Combine(Environment.CurrentDirectory, "Data", "KmlIcons");
+
+            Directory.CreateDirectory(iconDirectory);
+
+            WritePlaceholderIconIfMissing(Path.Combine(iconDirectory, "missile.png"));
+            WritePlaceholderIconIfMissing(Path.Combine(iconDirectory, "bomb.png"));
+            WritePlaceholderIconIfMissing(Path.Combine(iconDirectory, "sam.png"));
+        }
+
+        private static void WritePlaceholderIconIfMissing(string path)
+        {
+            if (File.Exists(path))
+            {
+                return;
+            }
+
+            // 1x1 transparent PNG.
+            byte[] png = new byte[]
+            {
+                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+                0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+                0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+                0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+                0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
+                0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+                0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+                0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+                0x42, 0x60, 0x82
+            };
+
+            File.WriteAllBytes(path, png);
+        }
+
+        private static string ReadKmlFromKmz(string kmzPath)
+        {
+            using ZipArchive archive = ZipFile.OpenRead(kmzPath);
+
+            ZipArchiveEntry? kmlEntry = archive.GetEntry("doc.kml");
+
+            Assert.NotNull(kmlEntry);
+
+            using Stream stream = kmlEntry.Open();
+            using StreamReader reader = new(stream);
+
+            return reader.ReadToEnd();
+        }
+
+        private static void AssertPlacemarkVisibility(
+            string kml,
+            string placemarkName,
+            string expectedVisibility)
+        {
+            string nameElement = $"<name>{placemarkName}</name>";
+            int nameIndex = kml.IndexOf(nameElement, StringComparison.Ordinal);
+
+            Assert.True(nameIndex >= 0, $"Could not find placemark name: {placemarkName}");
+
+            int placemarkStart = kml.LastIndexOf("<Placemark>", nameIndex, StringComparison.Ordinal);
+            int placemarkEnd = kml.IndexOf("</Placemark>", nameIndex, StringComparison.Ordinal);
+
+            Assert.True(placemarkStart >= 0, $"Could not find opening Placemark for: {placemarkName}");
+            Assert.True(placemarkEnd > placemarkStart, $"Could not find closing Placemark for: {placemarkName}");
+
+            string placemark = kml.Substring(
+                placemarkStart,
+                placemarkEnd + "</Placemark>".Length - placemarkStart);
+
+            Assert.Contains($"<visibility>{expectedVisibility}</visibility>", placemark);
+        }
+
+        private static void CreateAcmiZip(string zipPath, string acmiContent)
+        {
+            using ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Create);
+
+            ZipArchiveEntry entry = archive.CreateEntry("sample.acmi");
+
+            using Stream stream = entry.Open();
+            using StreamWriter writer = new(stream);
+
+            writer.Write(acmiContent);
+        }
+
+        private static string CreateTempDirectory()
+        {
+            string path = Path.Combine(
+                Path.GetTempPath(),
+                "DcsMissionReaderTests",
+                Guid.NewGuid().ToString("N"));
+
+            Directory.CreateDirectory(path);
+
+            return path;
+        }
+    }
+}

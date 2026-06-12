@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <Compile Remove="CoordinateConverterTests.cs" />
+    <Compile Remove="PostBriefingServiceTests.cs" />
   </ItemGroup>
 
   <ItemGroup>

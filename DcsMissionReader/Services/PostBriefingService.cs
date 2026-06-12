@@ -582,8 +582,7 @@ namespace DcsMissionReader.Services
             IReadOnlySet<string> weaponIdsWithNonTimeoutResults,
             WeaponResultInferenceOptions inferenceOptions)
         {
-            if (!inferenceOptions.EnableTerminalProximityDamageInference
-                && !inferenceOptions.EnableTerminalProximityNearMissReporting)
+            if (!inferenceOptions.EnableTerminalProximityNearMissReporting)
             {
                 return Array.Empty<TacviewWeaponResult>();
             }
@@ -629,35 +628,21 @@ namespace DcsMissionReader.Services
                     continue;
                 }
 
-                bool classifyAsDamage = inferenceOptions.EnableTerminalProximityDamageInference && ShouldPromoteTerminalProximityToDamage(match.Target);
                 results.Add(new TacviewWeaponResult
                 {
-                    EventType = classifyAsDamage
-                        ? "Damage"
-                        : "NearMiss",
-
+                    EventType = "NearMiss",
                     TimeSeconds = weaponRemoval.TimeSeconds,
                     AbsoluteTimeUtc = weaponRemoval.AbsoluteTimeUtc,
                     SourceObjectId = weapon.ObjectId,
                     SourceName = weapon.Name,
                     TargetObjectId = match.Target.ObjectId,
                     TargetName = GetDisplayName(match.Target),
-
-                    Outcome = classifyAsDamage
-                        ? "Inferred from unpaired opposing weapon removal near target"
-                        : "Terminal proximity only; not classified as damage",
-
-                    Description = classifyAsDamage
-                        ? string.Create(
-                            CultureInfo.InvariantCulture,
-                            $"Weapon {weapon.ObjectId} removed near opposing target {match.Target.ObjectId}; distance {match.DistanceMeters:F0} m; no paired defensive weapon removal found")
-                        : string.Create(
-                            CultureInfo.InvariantCulture,
-                            $"Weapon {weapon.ObjectId} ended near opposing target {match.Target.ObjectId}; distance {match.DistanceMeters:F0} m; recorded as near miss because terminal proximity alone is not damage"),
-
+                    Outcome = "Terminal proximity only; not classified as damage",
+                    Description = string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Weapon {weapon.ObjectId} ended near target {match.Target.ObjectId}; distance {match.DistanceMeters:F0} m; terminal proximity alone is not damage"),
                     Position = match.TargetPosition
                 });
-
             }
 
             return results;
@@ -751,6 +736,14 @@ namespace DcsMissionReader.Services
                 return null;
             }
 
+            Dictionary<string, TacviewObjectTrack> objectsById = objects.ToDictionary(o => o.ObjectId, StringComparer.OrdinalIgnoreCase);
+            TacviewObjectTrack? launcher = ResolveWeaponShooter(weapon, objectsById);
+
+            if (!IsTerminalProximityDamageCandidate(weapon, launcher))
+            {
+                return null;
+            }
+
             InferredDamageMatch? bestMatch = null;
 
             foreach (TacviewObjectTrack target in objects)
@@ -784,6 +777,11 @@ namespace DcsMissionReader.Services
                     FindSampleClosestToTime(target.Samples, weaponRemoval.TimeSeconds);
 
                 if (targetPosition is null)
+                {
+                    continue;
+                }
+
+                if (launcher is not null && IsSameTacviewSide(launcher, target))
                 {
                     continue;
                 }
@@ -863,7 +861,7 @@ namespace DcsMissionReader.Services
 
             TacviewObjectTrack? inboundLauncher = ResolveWeaponShooter(weapon, objectsById);
 
-            if (!TacviewCombatClassifier.IsOffensiveStrikeWeapon(weapon, inboundLauncher))
+            if (!IsTerminalProximityDamageCandidate(weapon, inboundLauncher))
             {
                 return false;
             }
@@ -2461,6 +2459,38 @@ namespace DcsMissionReader.Services
             }
 
             return "neutral";
+        }
+
+        private static bool IsTerminalProximityDamageCandidate(
+            TacviewObjectTrack weapon,
+            TacviewObjectTrack? launcher)
+        {
+            TacviewWeaponRole role = TacviewCombatClassifier.GetWeaponRole(weapon, launcher);
+
+            return role is TacviewWeaponRole.OffensiveStrikeWeapon
+                or TacviewWeaponRole.AirToSurface
+                or TacviewWeaponRole.SurfaceToSurface;
+        }
+
+        private static bool IsSameTacviewSide(
+            TacviewObjectTrack first,
+            TacviewObjectTrack second)
+        {
+            if (!string.IsNullOrWhiteSpace(first.Coalition)
+                && !string.IsNullOrWhiteSpace(second.Coalition)
+                && first.Coalition.Equals(second.Coalition, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(first.Color)
+                && !string.IsNullOrWhiteSpace(second.Color)
+                && first.Color.Equals(second.Color, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private static bool IsExplicitBlueCoalition(string coalition)

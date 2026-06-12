@@ -89,7 +89,7 @@ namespace DcsMissionReaderTests
 				var service = new PostBriefingService(
 					weaponResultInferenceOptions: new WeaponResultInferenceOptions
 					{
-						EnableTerminalProximityDamageInference = true,
+						EnableTerminalProximityDamageInference = false,
 						EnableTerminalProximityNearMissReporting = true
 					});
 
@@ -156,7 +156,7 @@ namespace DcsMissionReaderTests
 				var service = new PostBriefingService(
 					weaponResultInferenceOptions: new WeaponResultInferenceOptions
 					{
-						EnableTerminalProximityDamageInference = true,
+						EnableTerminalProximityDamageInference = false,
 						EnableTerminalProximityNearMissReporting = true
 					});
 
@@ -205,7 +205,7 @@ namespace DcsMissionReaderTests
 				var service = new PostBriefingService(
 					weaponResultInferenceOptions: new WeaponResultInferenceOptions
 					{
-						EnableTerminalProximityDamageInference = true,
+						EnableTerminalProximityDamageInference = false,
 						EnableTerminalProximityNearMissReporting = true
 					});
 
@@ -247,7 +247,7 @@ namespace DcsMissionReaderTests
 				var service = new PostBriefingService(
 					weaponResultInferenceOptions: new WeaponResultInferenceOptions
 					{
-						EnableTerminalProximityDamageInference = true,
+						EnableTerminalProximityDamageInference = false,
 						EnableTerminalProximityNearMissReporting = true
 					});
 
@@ -428,7 +428,7 @@ namespace DcsMissionReaderTests
 		}
 
 		[Fact]
-		public void CreatePostBriefingKml_WithSyntheticCsgEscortBattle_PromotesTerminalProximityOnlyForSeaTargets()
+		public void CreatePostBriefingKml_WithSyntheticCsgEscortBattle_TerminalProximityOnlyDoesNotCreateObjectDamage()
 		{
 			string tempDirectory = CreateTempDirectory();
 
@@ -442,7 +442,7 @@ namespace DcsMissionReaderTests
 				var service = new PostBriefingService(
 					weaponResultInferenceOptions: new WeaponResultInferenceOptions
 					{
-						EnableTerminalProximityDamageInference = true,
+						EnableTerminalProximityDamageInference = false,
 						EnableTerminalProximityNearMissReporting = true
 					});
 
@@ -450,11 +450,11 @@ namespace DcsMissionReaderTests
 
 				string kml = ReadKmlFromKmz(outputPath);
 
-				// X_22 901 ends near Washington CSG. Sea target terminal proximity may become Damage.
+				// X_22 901 ends near Washington CSG, but terminal proximity alone is diagnostic only.
 				AssertObjectWeaponHitCount(
 					kml,
 					objectPlacemarkName: Carrier.DisplayName,
-					expectedHitCount: 1,
+					expectedHitCount: 0,
 					expectedWeaponName: KitchenWeaponName);
 
 				// X_22 909 ends near Rotary-1, but terminal proximity alone should not damage air targets.
@@ -471,6 +471,10 @@ namespace DcsMissionReaderTests
 					objectPlacemarkName: Overlord.DisplayName,
 					expectedHitCount: 0,
 					expectedWeaponName: KitchenWeaponName);
+
+				Assert.Equal(
+					1,
+					CountPlacemarkNameOccurrences(kml, $"Near Miss - {Carrier.DisplayName}"));
 
 				Assert.Equal(
 					1,
@@ -501,7 +505,7 @@ namespace DcsMissionReaderTests
 				var service = new PostBriefingService(
 					weaponResultInferenceOptions: new WeaponResultInferenceOptions
 					{
-						EnableTerminalProximityDamageInference = true,
+						EnableTerminalProximityDamageInference = false,
 						EnableTerminalProximityNearMissReporting = true
 					});
 
@@ -526,6 +530,7 @@ namespace DcsMissionReaderTests
 				// Result markers stay hidden on the map even when their parent folder is active.
 				AssertPlacemarkVisibility(kml, $"Destroyed - {KitchenWeaponName}", expectedVisibility: "0");
 				AssertPlacemarkVisibility(kml, $"Timeout - {Sm2WeaponName}", expectedVisibility: "0");
+				AssertPlacemarkVisibility(kml, $"Near Miss - {Carrier.DisplayName}", expectedVisibility: "0");
 				AssertPlacemarkVisibility(kml, $"Near Miss - {Rotary.DisplayName}", expectedVisibility: "0");
 			}
 			finally

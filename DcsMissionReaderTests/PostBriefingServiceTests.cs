@@ -877,21 +877,22 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
-        public void CreatePostBriefingKml_WithInferredDamageButNoHealthExport_ShowsUnknownHealthWithDamageEvidence()
+        public void CreatePostBriefingKml_WithTerminalProximityOnlyAndDamageInferenceEnabled_DoesNotInferDamage()
         {
             string tempDirectory = CreateTempDirectory();
 
             try
             {
-                string zipPath = Path.Combine(tempDirectory, "inferred-damage-no-health.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "inferred-damage-no-health.postbrief.kmz");
+                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-damage-disabled.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-damage-disabled.postbrief.kmz");
 
                 CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
 
                 var service = new PostBriefingService(
                     weaponResultInferenceOptions: new WeaponResultInferenceOptions
                     {
-                        EnableTerminalProximityDamageInference = true
+                        EnableTerminalProximityDamageInference = true,
+                        EnableTerminalProximityNearMissReporting = false
                     });
 
                 var result = service.CreatePostBriefingKml(zipPath, outputPath);
@@ -911,32 +912,16 @@ namespace DcsMissionReaderTests
                 AssertPlacemarkDescriptionContains(
                     kml,
                     Carrier.DisplayName,
-                    "Final Disposition:\nDamaged / Weapon Effect Recorded");
+                    "Final Disposition:\nSurvived / No Weapon Result Recorded");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
                     Carrier.DisplayName,
-                    "Damage Evidence:");
+                    "Weapons That Hit / Destroyed This Object:\n- None recorded");
 
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Inferred / recorded weapon hits: 1");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Last recorded hit: 2016-06-21T04:30:20.0000000Z");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Weapons That Hit / Destroyed This Object:");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    $"- {X22WeaponName} [901] from {CarrierKiller.DisplayName} at 2016-06-21T04:30:20.0000000Z");
+                Assert.DoesNotContain("Damaged / Weapon Effect Recorded", kml);
+                Assert.DoesNotContain("Near Miss", kml);
+                Assert.DoesNotContain("Inferred from unpaired opposing weapon removal near target", kml);
             }
             finally
             {
@@ -1185,6 +1170,8 @@ namespace DcsMissionReaderTests
                     Carrier.DisplayName,
                     "Weapons That Hit / Destroyed This Object:\n- None recorded");
 
+                Assert.DoesNotContain("Damaged / Weapon Effect Recorded", kml);
+                Assert.DoesNotContain("Near Miss", kml);
                 Assert.DoesNotContain("Inferred from unpaired opposing weapon removal near target", kml);
             }
             finally
@@ -1194,7 +1181,7 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
-        public void CreatePostBriefingKml_WithTerminalProximityEnabled_InferDamage()
+        public void CreatePostBriefingKml_WithTerminalProximityDamageInferenceEnabled_DoesNotInferDamage()
         {
             string tempDirectory = CreateTempDirectory();
 
@@ -1207,7 +1194,8 @@ namespace DcsMissionReaderTests
 
                 var inferenceOptions = new WeaponResultInferenceOptions
                 {
-                    EnableTerminalProximityDamageInference = true
+                    EnableTerminalProximityDamageInference = true,
+                    EnableTerminalProximityNearMissReporting = false
                 };
 
                 var service = new PostBriefingService(
@@ -1228,9 +1216,16 @@ namespace DcsMissionReaderTests
                 AssertPlacemarkDescriptionContains(
                     kml,
                     Carrier.DisplayName,
-                    "Damaged / Weapon Effect Recorded");
+                    "Final Disposition:\nSurvived / No Weapon Result Recorded");
 
-                Assert.Contains("Inferred from unpaired opposing weapon removal near target", kml);
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    Carrier.DisplayName,
+                    "Weapons That Hit / Destroyed This Object:\n- None recorded");
+
+                Assert.DoesNotContain("Damaged / Weapon Effect Recorded", kml);
+                Assert.DoesNotContain("Near Miss", kml);
+                Assert.DoesNotContain("Inferred from unpaired opposing weapon removal near target", kml);
             }
             finally
             {
@@ -1293,7 +1288,8 @@ namespace DcsMissionReaderTests
 
                 Assert.Contains($"Near Miss - {Carrier.DisplayName}", kml);
                 Assert.Contains("Terminal proximity only; not classified as damage", kml);
-                Assert.Contains("recorded as near miss because terminal proximity alone is not damage", kml);
+                Assert.Contains("terminal proximity alone is not damage", kml);
+                Assert.DoesNotContain("Damaged / Weapon Effect Recorded", kml);
             }
             finally
             {
@@ -1333,7 +1329,7 @@ namespace DcsMissionReaderTests
                     Carrier.DisplayName,
                     "Weapons That Hit / Destroyed This Object:\n- None recorded");
 
-                Assert.DoesNotContain("Health Remaining: Unknown / Not exported by Tacview", kml);
+                Assert.Contains($"Near Miss - {Carrier.DisplayName}", kml);
                 Assert.DoesNotContain("Damaged / Weapon Effect Recorded", kml);
             }
             finally
@@ -1425,7 +1421,7 @@ namespace DcsMissionReaderTests
         }
 
         [Fact]
-        public void CreatePostBriefingKml_WithRealCarrierAttack_AndTerminalProximityDamageEnabled_ShowsEightCarrierKh22Hits()
+        public void CreatePostBriefingKml_WithRealCarrierAttack_AndTerminalProximityDamageEnabled_DoesNotCreateInferredCarrierKh22Hits()
         {
             string tempDirectory = CreateTempDirectory();
 
@@ -1456,15 +1452,11 @@ namespace DcsMissionReaderTests
 
                 string kml = ReadKmlFromKmz(outputPath);
 
-                AssertObjectWeaponHitCount(
-                    kml,
-                    objectPlacemarkName: "Washington CSG-Washington",
-                    expectedHitCount: 8,
-                    expectedWeaponName: "X_22");
-
                 Assert.Equal(
                     0,
                     CountPlacemarkNameOccurrences(kml, "Near Miss - Washington CSG-Washington"));
+
+                Assert.DoesNotContain("Inferred from unpaired opposing weapon removal near target", kml);
             }
             finally
             {
