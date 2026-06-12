@@ -37,7 +37,12 @@ namespace DcsMissionReader.Services
 
             TacviewAcmiParseData acmiData = TacviewAcmiParser.ParseZippedAcmi(acmiZipFilePath);
 
-            AcmiParseResult parseResult = BuildPostBriefingParseResult(acmiData);
+            TacviewCombatReport lifecycleCombatReport =
+                TacviewLifecycleCombatReportService.BuildFromZippedAcmiFile(acmiZipFilePath);
+
+            AcmiParseResult parseResult = BuildPostBriefingParseResult(
+                acmiData,
+                lifecycleCombatReport);
 
             string kml = BuildKml(parseResult, options);
 
@@ -55,7 +60,8 @@ namespace DcsMissionReader.Services
             };
         }
         private AcmiParseResult BuildPostBriefingParseResult(
-            TacviewAcmiParseData acmiData)
+            TacviewAcmiParseData acmiData,
+            TacviewCombatReport lifecycleCombatReport)
         {
             List<TacviewObjectTrack> groupTracks = acmiData.Objects.Values
                 .Where(o => !ShouldSuppressFromObjectTracks(o))
@@ -64,19 +70,40 @@ namespace DcsMissionReader.Services
                 .ThenBy(o => o.ObjectId, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            List<TacviewWeaponEmployment> weaponEmployments = acmiData.Objects.Values
+            List<TacviewWeaponEmployment> oldWeaponEmployments = acmiData.Objects.Values
                 .Where(o => o.IsWeapon)
                 .Where(IsRelevantWeaponObject)
                 .Where(o => o.Start is not null)
                 .Select(o => PostBriefingWeaponEmploymentFactory.CreateWeaponEmployment(o, acmiData.Objects))
                 .ToList();
 
-            List<TacviewWeaponResult> weaponResults = acmiData.Events
+            List<TacviewWeaponResult> oldWeaponResults = acmiData.Events
                 .Where(PostBriefingWeaponEventResultFactory.IsWeaponResultEventType)
                 .Select(e => PostBriefingWeaponEventResultFactory.CreateWeaponResult(e, acmiData.Objects))
                 .ToList();
 
-            List<TacviewObjectTrack> weaponTracks = acmiData.Objects.Values
+            List<TacviewWeaponEmployment> lifecycleWeaponEmployments =
+                CreateWeaponEmploymentsFromLifecycleReport(
+                    lifecycleCombatReport,
+                    acmiData.Objects);
+
+            List<TacviewWeaponResult> lifecycleWeaponResults =
+                CreateWeaponResultsFromLifecycleReport(
+                    lifecycleCombatReport,
+                    acmiData.Objects,
+                    acmiData.ReferenceTimeUtc);
+
+            List<TacviewWeaponEmployment> weaponEmployments =
+                MergeWeaponEmployments(
+                    oldWeaponEmployments,
+                    lifecycleWeaponEmployments,
+                    oldWeaponResults,
+                    lifecycleWeaponResults);
+
+            List<TacviewWeaponResult> weaponResults =
+                MergeWeaponResults(
+                    oldWeaponResults,
+                    lifecycleWeaponResults); List<TacviewObjectTrack> weaponTracks = acmiData.Objects.Values
                 .Where(IsRelevantWeaponObject)
                 .Where(o => o.Samples.Count > 0)
                 .OrderBy(o => o.Name ?? o.ObjectId, StringComparer.OrdinalIgnoreCase)
@@ -705,6 +732,329 @@ namespace DcsMissionReader.Services
             builder.AppendElement("coordinates", FormatCoordinate(track.Start));
             builder.AppendLine("</Point>");
             builder.AppendLine("</Placemark>");
+        }
+
+        private static List<TacviewWeaponEmployment> CreateWeaponEmploymentsFromLifecycleReport(
+    TacviewCombatReport combatReport,
+    IReadOnlyDictionary<string, TacviewObjectTrack> objects)
+        {
+            return combatReport.WeaponLaunches
+                .Select(launch => CreateWeaponEmploymentFromLifecycleLaunch(launch, objects))
+                .Where(employment => employment is not null)
+                .Cast<TacviewWeaponEmployment>()
+                .ToList();
+        }
+
+        private static TacviewWeaponEmployment? CreateWeaponEmploymentFromLifecycleLaunch(
+            TacviewWeaponLaunch launch,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects)
+        {
+            if (string.IsNullOrWhiteSpace(launch.WeaponObjectId))
+            {
+                return null;
+            }
+
+            if (!objects.TryGetValue(launch.WeaponObjectId, out TacviewObjectTrack? weaponTrack))
+            {
+                return null;
+            }
+
+            if (!IsRelevantWeaponObject(weaponTrack))
+            {
+                return null;
+            }
+
+            TacviewPositionSample? launchPosition =
+                FindSampleClosestToTime(weaponTrack.Samples, launch.LaunchTimeSeconds)
+                ?? weaponTrack.Start;
+
+            if (launchPosition is null)
+            {
+                return null;
+            }
+
+            return new TacviewWeaponEmployment
+            {
+                WeaponObjectId = launch.WeaponObjectId,
+                WeaponName = launch.WeaponName ?? weaponTrack.Name,
+                WeaponType = launch.WeaponType ?? weaponTrack.Type,
+                ParentObjectId = launch.LauncherObjectId,
+                ParentName =
+                    launch.LauncherName
+                    ?? launch.LauncherPilot
+                    ?? launch.LauncherObjectId,
+                Position = launchPosition
+            };
+        }
+
+        private static List<TacviewWeaponResult> CreateWeaponResultsFromLifecycleReport(
+            TacviewCombatReport combatReport,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
+            DateTimeOffset? referenceTimeUtc)
+        {
+            return combatReport.TerminalEvents
+                .Where(IsLifecycleObjectEffectResult)
+                .Select(terminalEvent => CreateWeaponResultFromLifecycleTerminalEvent(
+                    terminalEvent,
+                    objects,
+                    referenceTimeUtc))
+                .Where(result => result is not null)
+                .Cast<TacviewWeaponResult>()
+                .ToList();
+        }
+
+        private static bool IsLifecycleObjectEffectResult(
+            TacviewWeaponTerminalEvent terminalEvent)
+        {
+            if (string.IsNullOrWhiteSpace(terminalEvent.WeaponObjectId)
+                || string.IsNullOrWhiteSpace(terminalEvent.TargetObjectId))
+            {
+                return false;
+            }
+
+            return terminalEvent.Outcome == TacviewTerminalOutcome.Hit
+                || terminalEvent.Outcome == TacviewTerminalOutcome.Kill
+                || terminalEvent.DestroyedTarget;
+        }
+
+        private static TacviewWeaponResult? CreateWeaponResultFromLifecycleTerminalEvent(
+            TacviewWeaponTerminalEvent terminalEvent,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
+            DateTimeOffset? referenceTimeUtc)
+        {
+            if (string.IsNullOrWhiteSpace(terminalEvent.WeaponObjectId)
+                || string.IsNullOrWhiteSpace(terminalEvent.TargetObjectId))
+            {
+                return null;
+            }
+
+            TacviewObjectTrack? weaponTrack = TryGetObjectTrack(
+                objects,
+                terminalEvent.WeaponObjectId);
+
+            TacviewObjectTrack? targetTrack = TryGetObjectTrack(
+                objects,
+                terminalEvent.TargetObjectId);
+
+            TacviewPositionSample? position = null;
+
+            if (targetTrack is not null)
+            {
+                position = FindSampleClosestToTime(
+                    targetTrack.Samples,
+                    terminalEvent.TerminalTimeSeconds);
+            }
+
+            if (position is null && weaponTrack is not null)
+            {
+                position = FindSampleClosestToTime(
+                    weaponTrack.Samples,
+                    terminalEvent.TerminalTimeSeconds);
+            }
+
+            string eventType =
+                terminalEvent.DestroyedTarget
+                || terminalEvent.Outcome == TacviewTerminalOutcome.Kill
+                    ? "Destroyed"
+                    : "Hit";
+
+            return new TacviewWeaponResult
+            {
+                EventType = eventType,
+                TimeSeconds = terminalEvent.TerminalTimeSeconds,
+                AbsoluteTimeUtc = ToAbsoluteTime(
+                    referenceTimeUtc,
+                    terminalEvent.TerminalTimeSeconds),
+                SourceObjectId = terminalEvent.WeaponObjectId,
+                SourceName = terminalEvent.WeaponName ?? weaponTrack?.Name,
+                TargetObjectId = terminalEvent.TargetObjectId,
+                TargetName =
+                    terminalEvent.TargetName
+                    ?? targetTrack?.Name
+                    ?? targetTrack?.Pilot
+                    ?? terminalEvent.TargetObjectId,
+                Outcome = terminalEvent.Outcome.ToString(),
+                Description = BuildLifecycleWeaponResultDescription(terminalEvent),
+                Position = position
+            };
+        }
+
+        private static TacviewObjectTrack? TryGetObjectTrack(
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
+            string? objectId)
+        {
+            if (string.IsNullOrWhiteSpace(objectId))
+            {
+                return null;
+            }
+
+            return objects.TryGetValue(objectId, out TacviewObjectTrack? track)
+                ? track
+                : null;
+        }
+
+        private static DateTimeOffset? ToAbsoluteTime(
+            DateTimeOffset? referenceTimeUtc,
+            double timeSeconds)
+        {
+            return referenceTimeUtc?.AddSeconds(timeSeconds);
+        }
+
+        private static string BuildLifecycleWeaponResultDescription(
+            TacviewWeaponTerminalEvent terminalEvent)
+        {
+            return
+                $"Lifecycle correlation result\n" +
+                $"Outcome: {terminalEvent.Outcome}\n" +
+                $"Correlation Method: {terminalEvent.CorrelationMethod}\n" +
+                $"Confidence: {terminalEvent.Confidence}\n" +
+                $"Weapon: {terminalEvent.WeaponName ?? terminalEvent.WeaponObjectId}\n" +
+                $"Launcher: {terminalEvent.LauncherName ?? terminalEvent.LauncherObjectId ?? "Unknown"}\n" +
+                $"Target: {terminalEvent.TargetName ?? terminalEvent.TargetObjectId ?? "Unknown"}\n" +
+                $"Target Distance: {(terminalEvent.TargetDistanceMeters?.ToString("F1", CultureInfo.InvariantCulture) ?? "Unknown")} m";
+        }
+
+        private static List<TacviewWeaponEmployment> MergeWeaponEmployments(
+            IReadOnlyList<TacviewWeaponEmployment> oldWeaponEmployments,
+            IReadOnlyList<TacviewWeaponEmployment> lifecycleWeaponEmployments,
+            IReadOnlyList<TacviewWeaponResult> oldWeaponResults,
+            IReadOnlyList<TacviewWeaponResult> lifecycleWeaponResults)
+        {
+            Dictionary<string, TacviewWeaponEmployment> lifecycleByWeaponId =
+                lifecycleWeaponEmployments
+                    .GroupBy(e => e.WeaponObjectId, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.First(),
+                        StringComparer.OrdinalIgnoreCase);
+
+            HashSet<string> oldObjectEffectWeaponIds = oldWeaponResults
+                .Where(result => IsObjectEffectWeaponResultType(result.EventType))
+                .Where(result => !string.IsNullOrWhiteSpace(result.SourceObjectId))
+                .Select(result => result.SourceObjectId!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            HashSet<string> lifecycleObjectEffectWeaponIds = lifecycleWeaponResults
+                .Where(result => IsObjectEffectWeaponResultType(result.EventType))
+                .Where(result => !string.IsNullOrWhiteSpace(result.SourceObjectId))
+                .Select(result => result.SourceObjectId!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            List<TacviewWeaponEmployment> merged = new();
+
+            foreach (TacviewWeaponEmployment oldEmployment in oldWeaponEmployments)
+            {
+                if (!lifecycleByWeaponId.TryGetValue(
+                        oldEmployment.WeaponObjectId,
+                        out TacviewWeaponEmployment? lifecycleEmployment))
+                {
+                    merged.Add(oldEmployment);
+                    continue;
+                }
+
+                // Existing Tacview parent data wins.
+                if (!string.IsNullOrWhiteSpace(oldEmployment.ParentObjectId)
+                    || !string.IsNullOrWhiteSpace(oldEmployment.ParentName))
+                {
+                    merged.Add(oldEmployment);
+                    continue;
+                }
+
+                // Critical compatibility rule:
+                // If Tacview already emitted an explicit object-effect event for this weapon,
+                // do NOT infer a missing shooter from nearby birth geometry.
+                // This preserves the existing "missing parent means Unknown" behavior.
+                if (oldObjectEffectWeaponIds.Contains(oldEmployment.WeaponObjectId))
+                {
+                    merged.Add(oldEmployment);
+                    continue;
+                }
+
+                // Lifecycle may fill shooter only when lifecycle is also supplying the
+                // object-effect result for this weapon.
+                if (!lifecycleObjectEffectWeaponIds.Contains(oldEmployment.WeaponObjectId))
+                {
+                    merged.Add(oldEmployment);
+                    continue;
+                }
+
+                merged.Add(new TacviewWeaponEmployment
+                {
+                    WeaponObjectId = oldEmployment.WeaponObjectId,
+                    WeaponName = oldEmployment.WeaponName ?? lifecycleEmployment.WeaponName,
+                    WeaponType = oldEmployment.WeaponType ?? lifecycleEmployment.WeaponType,
+                    ParentObjectId = lifecycleEmployment.ParentObjectId,
+                    ParentName = lifecycleEmployment.ParentName,
+                    Position = oldEmployment.Position
+                });
+            }
+
+            HashSet<string> mergedWeaponIds = merged
+                .Select(e => e.WeaponObjectId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (TacviewWeaponEmployment lifecycleEmployment in lifecycleWeaponEmployments)
+            {
+                if (mergedWeaponIds.Contains(lifecycleEmployment.WeaponObjectId))
+                {
+                    continue;
+                }
+
+                merged.Add(lifecycleEmployment);
+            }
+
+            return merged;
+        }
+
+        private static List<TacviewWeaponResult> MergeWeaponResults(
+            IReadOnlyList<TacviewWeaponResult> oldWeaponResults,
+            IReadOnlyList<TacviewWeaponResult> lifecycleWeaponResults)
+        {
+            List<TacviewWeaponResult> merged = new(oldWeaponResults);
+
+            foreach (TacviewWeaponResult lifecycleResult in lifecycleWeaponResults)
+            {
+                bool alreadyRecorded = merged.Any(existing =>
+                    IsEquivalentObjectEffectResult(existing, lifecycleResult));
+
+                if (alreadyRecorded)
+                {
+                    continue;
+                }
+
+                merged.Add(lifecycleResult);
+            }
+
+            return merged;
+        }
+
+        private static bool IsEquivalentObjectEffectResult(
+            TacviewWeaponResult existing,
+            TacviewWeaponResult candidate)
+        {
+            if (!IsObjectEffectWeaponResultType(existing.EventType)
+                || !IsObjectEffectWeaponResultType(candidate.EventType))
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(existing.TargetObjectId)
+                || string.IsNullOrWhiteSpace(candidate.TargetObjectId))
+            {
+                return false;
+            }
+
+            if (!existing.TargetObjectId.Equals(
+                    candidate.TargetObjectId,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            // Explicit Tacview result wins. If the old parser already found an object-effect
+            // result for the same target at the same time, lifecycle correlation must not add
+            // a second Hit/Destroyed/Damage result on top of it.
+            return Math.Abs(existing.TimeSeconds - candidate.TimeSeconds) <= 1.0;
         }
 
         private static List<TacViewWeaponEngagement> CreateWeaponEngagements(
