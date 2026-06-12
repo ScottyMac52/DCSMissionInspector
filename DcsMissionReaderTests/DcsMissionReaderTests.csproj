@@ -16,10 +16,14 @@
 
   <ItemGroup>
     <None Remove="TestData\Tacview-20260609-213932-DCS.zip.acmi" />
+    <None Remove="TestData\Tacview-20260610-013423-DCS.txt.acmi" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="TestData\Tacview-20260609-213932-DCS.zip.acmi">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="TestData\Tacview-20260610-013423-DCS.txt.acmi">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
