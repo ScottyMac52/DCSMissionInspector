@@ -36,13 +36,6 @@ namespace DcsMissionReader
 
             services.AddSingleton(configuration);
 
-            // WeaponResultInferenceOptions is registered as a singleton because it is a configuration class that holds settings for weapon result inference, and it does not hold any state that would require multiple instances. By registering it as a singleton, we ensure that there is only one instance of the WeaponResultInferenceOptions throughout the application's lifetime, which can be efficiently reused whenever needed. This also simplifies dependency management and ensures consistent behavior across the application when accessing weapon result inference settings during mission processing and post-briefing analysis.
-            services.AddSingleton(_ =>
-                configuration
-                    .GetSection(WeaponResultInferenceOptions.SectionName)
-                    .Get<WeaponResultInferenceOptions>()
-                ?? new WeaponResultInferenceOptions());
-
             // Command line options service should be a singleton since we only need to parse the options once and it doesn't hold any state that would require multiple instances. The same applies to the MissionProcessor and other services that are designed to be stateless or hold shared resources.
             services.AddSingleton<ICommandLineOptionsService, CommandLineOptionsService>();
 

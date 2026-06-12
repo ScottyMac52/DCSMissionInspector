@@ -9,14 +9,11 @@ namespace DcsMissionReader.Services
     public sealed class PostBriefingService : IPostBriefingService
     {
         private readonly IBriefingStylesService _briefingStylesService;
-        private readonly WeaponResultInferenceOptions _weaponResultInferenceOptions;
 
         public PostBriefingService(
-            IBriefingStylesService? briefingStylesService = null,
-            WeaponResultInferenceOptions? weaponResultInferenceOptions = null)
+            IBriefingStylesService? briefingStylesService = null)
         {
             _briefingStylesService = briefingStylesService ?? new BriefingStylesService();
-            _weaponResultInferenceOptions = weaponResultInferenceOptions ?? new WeaponResultInferenceOptions();
         }
         public PostBriefingKmlResult CreatePostBriefingKml(
         string acmiZipFilePath,
@@ -40,9 +37,7 @@ namespace DcsMissionReader.Services
 
             TacviewAcmiParseData acmiData = TacviewAcmiParser.ParseZippedAcmi(acmiZipFilePath);
 
-            AcmiParseResult parseResult = BuildPostBriefingParseResult(
-                acmiData,
-                _weaponResultInferenceOptions);
+            AcmiParseResult parseResult = BuildPostBriefingParseResult(acmiData);
 
             string kml = BuildKml(parseResult, options);
 
@@ -59,10 +54,8 @@ namespace DcsMissionReader.Services
                     + parseResult.UnmatchedWeaponResults.Count
             };
         }
-
         private AcmiParseResult BuildPostBriefingParseResult(
-            TacviewAcmiParseData acmiData,
-            WeaponResultInferenceOptions inferenceOptions)
+            TacviewAcmiParseData acmiData)
         {
             List<TacviewObjectTrack> groupTracks = acmiData.Objects.Values
                 .Where(o => !ShouldSuppressFromObjectTracks(o))
@@ -78,7 +71,7 @@ namespace DcsMissionReader.Services
                 .Select(o => PostBriefingWeaponEmploymentFactory.CreateWeaponEmployment(o, acmiData.Objects))
                 .ToList();
 
-            List<TacviewWeaponResult> explicitWeaponResults = acmiData.Events
+            List<TacviewWeaponResult> weaponResults = acmiData.Events
                 .Where(PostBriefingWeaponEventResultFactory.IsWeaponResultEventType)
                 .Select(e => PostBriefingWeaponEventResultFactory.CreateWeaponResult(e, acmiData.Objects))
                 .ToList();
@@ -89,45 +82,6 @@ namespace DcsMissionReader.Services
                 .OrderBy(o => o.Name ?? o.ObjectId, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(o => o.ObjectId, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-
-            List<TacviewWeaponResult> inferredDamageResults = new();
-
-            inferredDamageResults.AddRange(
-                CreateWeaponResultsFromHealthChanges(
-                    acmiData.HealthChanges,
-                    acmiData.Objects,
-                    weaponTracks,
-                    inferenceOptions));
-
-            HashSet<string> weaponIdsWithNonTimeoutResults =
-                BuildWeaponIdsWithNonTimeoutResults(
-                    explicitWeaponResults.Concat(inferredDamageResults),
-                    weaponTracks);
-
-            inferredDamageResults.AddRange(
-                CreateWeaponResultsFromUnpairedWeaponRemovals(
-                    acmiData.Removals,
-                    acmiData.Objects,
-                    weaponTracks,
-                    weaponIdsWithNonTimeoutResults,
-                    inferenceOptions));
-
-            weaponIdsWithNonTimeoutResults =
-                BuildWeaponIdsWithNonTimeoutResults(
-                    explicitWeaponResults.Concat(inferredDamageResults),
-                    weaponTracks);
-
-            List<TacviewWeaponResult> weaponResults = explicitWeaponResults
-                .Concat(inferredDamageResults)
-                .ToList();
-
-            weaponResults.AddRange(
-                CreateWeaponResultsFromRemovals(
-                    acmiData.Removals,
-                    acmiData.Objects,
-                    weaponTracks,
-                    weaponIdsWithNonTimeoutResults,
-                    inferenceOptions));
 
             List<TacViewWeaponEngagement> weaponEngagements = CreateWeaponEngagements(
                 weaponTracks,
@@ -239,325 +193,6 @@ namespace DcsMissionReader.Services
 
             return candidatePaths.FirstOrDefault(File.Exists);
         }
-
-        private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromRemovals(
-            IReadOnlyList<TacviewRemovalRecord> removals,
-            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
-            IReadOnlyList<TacviewObjectTrack> weaponTracks,
-            IReadOnlySet<string> weaponIdsWithNonTimeoutResults,
-            WeaponResultInferenceOptions inferenceOptions)
-        {
-            var results = new List<TacviewWeaponResult>();
-
-            Dictionary<string, TacviewObjectTrack> weaponTracksById = weaponTracks
-                .ToDictionary(w => w.ObjectId, StringComparer.OrdinalIgnoreCase);
-
-            HashSet<string> weaponIdsWithResults = new(
-                weaponIdsWithNonTimeoutResults,
-                StringComparer.OrdinalIgnoreCase);
-
-            results.AddRange(
-                CreateWeaponVsWeaponRemovalResults(
-                    removals,
-                    objects,
-                    weaponTracksById,
-                    weaponIdsWithResults,
-                    inferenceOptions));
-
-            List<TacviewRemovalRecord> targetRemovals = removals
-                .Where(r => objects.TryGetValue(r.ObjectId, out TacviewObjectTrack? removedObject)
-                    && !removedObject.IsWeapon
-                    && !IsSuppressedResultObject(removedObject))
-                .ToList();
-
-            foreach (TacviewRemovalRecord weaponRemoval in removals)
-            {
-                if (!weaponTracksById.TryGetValue(
-                        weaponRemoval.ObjectId,
-                        out TacviewObjectTrack? weapon))
-                {
-                    continue;
-                }
-
-                TacviewRemovalRecord? matchingTargetRemoval = targetRemovals
-                    .Where(r => Math.Abs(r.TimeSeconds - weaponRemoval.TimeSeconds) <= inferenceOptions.SameTimeRemovalWindowSeconds)
-                    .Where(r => !r.ObjectId.Equals(weaponRemoval.ObjectId, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(r => Math.Abs(r.TimeSeconds - weaponRemoval.TimeSeconds))
-                    .FirstOrDefault();
-
-                if (matchingTargetRemoval is not null
-                    && objects.TryGetValue(matchingTargetRemoval.ObjectId, out TacviewObjectTrack? target))
-                {
-                    results.Add(new TacviewWeaponResult
-                    {
-                        EventType = "Destroyed",
-                        TimeSeconds = weaponRemoval.TimeSeconds,
-                        AbsoluteTimeUtc = weaponRemoval.AbsoluteTimeUtc,
-                        SourceObjectId = weapon.ObjectId,
-                        SourceName = weapon.Name,
-                        TargetObjectId = target.ObjectId,
-                        TargetName = GetDisplayName(target),
-                        Outcome = "Object removed at same Tacview time as weapon",
-                        Description = $"Synthesized from Tacview removal records: -{weapon.ObjectId} and -{target.ObjectId}",
-                        Position = target.End ?? weapon.End
-                    });
-
-                    weaponIdsWithResults.Add(weapon.ObjectId);
-
-                    continue;
-                }
-
-                if (weaponIdsWithResults.Contains(weapon.ObjectId))
-                {
-                    continue;
-                }
-
-                results.Add(new TacviewWeaponResult
-                {
-                    EventType = "Timeout",
-                    TimeSeconds = weaponRemoval.TimeSeconds,
-                    AbsoluteTimeUtc = weaponRemoval.AbsoluteTimeUtc,
-                    SourceObjectId = weapon.ObjectId,
-                    SourceName = weapon.Name,
-                    TargetObjectId = null,
-                    TargetName = null,
-                    Outcome = "Weapon removed without matching target removal",
-                    Description = $"Synthesized from Tacview removal record: -{weapon.ObjectId}",
-                    Position = weapon.End
-                });
-            }
-
-            return results;
-        }
-
-        private static IReadOnlyList<TacviewWeaponResult> CreateWeaponVsWeaponRemovalResults(
-            IReadOnlyList<TacviewRemovalRecord> removals,
-            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
-            IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById,
-            ISet<string> weaponIdsWithResults,
-            WeaponResultInferenceOptions inferenceOptions)
-        {
-            var results = new List<TacviewWeaponResult>();
-            HashSet<string> consumedWeaponIds = new(StringComparer.OrdinalIgnoreCase);
-
-            List<TacviewRemovalRecord> weaponRemovals = removals
-                .Where(removal => weaponTracksById.ContainsKey(removal.ObjectId))
-                .OrderBy(removal => removal.TimeSeconds)
-                .ThenBy(removal => removal.ObjectId, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            foreach (TacviewRemovalRecord firstRemoval in weaponRemovals)
-            {
-                if (consumedWeaponIds.Contains(firstRemoval.ObjectId)
-                    || weaponIdsWithResults.Contains(firstRemoval.ObjectId))
-                {
-                    continue;
-                }
-
-                TacviewObjectTrack firstWeapon = weaponTracksById[firstRemoval.ObjectId];
-
-                TacviewPositionSample? firstPosition =
-                    firstWeapon.End
-                    ?? FindSampleClosestToTime(firstWeapon.Samples, firstRemoval.TimeSeconds);
-
-                if (firstPosition is null)
-                {
-                    continue;
-                }
-
-                WeaponInterceptMatch? bestMatch = null;
-
-                foreach (TacviewRemovalRecord secondRemoval in weaponRemovals)
-                {
-                    if (secondRemoval.ObjectId.Equals(firstRemoval.ObjectId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    if (consumedWeaponIds.Contains(secondRemoval.ObjectId)
-                        || weaponIdsWithResults.Contains(secondRemoval.ObjectId))
-                    {
-                        continue;
-                    }
-
-                    double timeDifference = Math.Abs(secondRemoval.TimeSeconds - firstRemoval.TimeSeconds);
-
-                    if (timeDifference > inferenceOptions.DefensivePairMaxTimeDifferenceSeconds)
-                    {
-                        continue;
-                    }
-
-                    TacviewObjectTrack secondWeapon = weaponTracksById[secondRemoval.ObjectId];
-
-                    if (!TryResolveInterceptorAndInterceptedWeapon(
-                            firstWeapon,
-                            secondWeapon,
-                            objects,
-                            out TacviewObjectTrack? interceptor,
-                            out TacviewObjectTrack? interceptedWeapon))
-                    {
-                        continue;
-                    }
-
-                    TacviewPositionSample? secondPosition =
-                        secondWeapon.End
-                        ?? FindSampleClosestToTime(secondWeapon.Samples, secondRemoval.TimeSeconds);
-
-                    if (secondPosition is null)
-                    {
-                        continue;
-                    }
-
-                    double distanceMeters = TacviewCombatClassifier.CalculateDistance3dMeters(
-                        firstPosition,
-                        secondPosition);
-
-                    if (distanceMeters > inferenceOptions.DefensivePairMaxDistanceMeters)
-                    {
-                        continue;
-                    }
-
-                    var match = new WeaponInterceptMatch(
-                        interceptor,
-                        interceptedWeapon,
-                        firstRemoval,
-                        secondRemoval,
-                        distanceMeters,
-                        timeDifference);
-
-                    if (bestMatch is null
-                        || match.DistanceMeters < bestMatch.DistanceMeters
-                        || (Math.Abs(match.DistanceMeters - bestMatch.DistanceMeters) < 0.001
-                            && match.TimeDifferenceSeconds < bestMatch.TimeDifferenceSeconds))
-                    {
-                        bestMatch = match;
-                    }
-                }
-
-                if (bestMatch is null)
-                {
-                    continue;
-                }
-
-                TacviewRemovalRecord sourceRemoval =
-                    bestMatch.Interceptor.ObjectId.Equals(bestMatch.FirstRemoval.ObjectId, StringComparison.OrdinalIgnoreCase)
-                        ? bestMatch.FirstRemoval
-                        : bestMatch.SecondRemoval;
-
-                results.Add(new TacviewWeaponResult
-                {
-                    EventType = "Destroyed",
-                    TimeSeconds = sourceRemoval.TimeSeconds,
-                    AbsoluteTimeUtc = sourceRemoval.AbsoluteTimeUtc,
-                    SourceObjectId = bestMatch.Interceptor.ObjectId,
-                    SourceName = bestMatch.Interceptor.Name,
-                    TargetObjectId = bestMatch.InterceptedWeapon.ObjectId,
-                    TargetName = bestMatch.InterceptedWeapon.Name,
-                    Outcome = "Weapon intercepted opposing strike weapon",
-                    Description = string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"Synthesized weapon-vs-weapon intercept from Tacview removal records: -{bestMatch.Interceptor.ObjectId} and -{bestMatch.InterceptedWeapon.ObjectId}; 3D distance {bestMatch.DistanceMeters:F0} m"),
-                    Position = bestMatch.InterceptedWeapon.End ?? bestMatch.Interceptor.End
-                });
-
-                consumedWeaponIds.Add(bestMatch.Interceptor.ObjectId);
-                consumedWeaponIds.Add(bestMatch.InterceptedWeapon.ObjectId);
-                weaponIdsWithResults.Add(bestMatch.Interceptor.ObjectId);
-                weaponIdsWithResults.Add(bestMatch.InterceptedWeapon.ObjectId);
-            }
-
-            return results;
-        }
-
-        private static bool TryResolveInterceptorAndInterceptedWeapon(
-            TacviewObjectTrack firstWeapon,
-            TacviewObjectTrack secondWeapon,
-            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
-            out TacviewObjectTrack? interceptor,
-            out TacviewObjectTrack? interceptedWeapon)
-        {
-            TacviewObjectTrack? firstLauncher = ResolveWeaponShooter(firstWeapon, objects);
-            TacviewObjectTrack? secondLauncher = ResolveWeaponShooter(secondWeapon, objects);
-
-            bool firstIsInterceptor =
-                TacviewCombatClassifier.IsDefensiveInterceptor(firstWeapon, firstLauncher);
-
-            bool secondIsInterceptor =
-                TacviewCombatClassifier.IsDefensiveInterceptor(secondWeapon, secondLauncher);
-
-            bool firstIsStrike =
-                TacviewCombatClassifier.IsOffensiveStrikeWeapon(firstWeapon, firstLauncher);
-
-            bool secondIsStrike =
-                TacviewCombatClassifier.IsOffensiveStrikeWeapon(secondWeapon, secondLauncher);
-
-            if (firstIsInterceptor && secondIsStrike && !secondIsInterceptor)
-            {
-                interceptor = firstWeapon;
-                interceptedWeapon = secondWeapon;
-                return true;
-            }
-
-            if (secondIsInterceptor && firstIsStrike && !firstIsInterceptor)
-            {
-                interceptor = secondWeapon;
-                interceptedWeapon = firstWeapon;
-                return true;
-            }
-
-            interceptor = null;
-            interceptedWeapon = null;
-            return false;
-        }
-
-        private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromHealthChanges(
-            IReadOnlyList<TacviewHealthChangeRecord> healthChanges,
-            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
-            IReadOnlyList<TacviewObjectTrack> weaponTracks,
-            WeaponResultInferenceOptions inferenceOptions)
-        {
-            var results = new List<TacviewWeaponResult>();
-
-            foreach (TacviewHealthChangeRecord healthChange in healthChanges)
-            {
-                if (!objects.TryGetValue(healthChange.ObjectId, out TacviewObjectTrack? target))
-                {
-                    continue;
-                }
-
-                InferredDamageMatch? match = FindBestWeaponForHealthDrop(
-                    healthChange,
-                    target,
-                    weaponTracks,
-                    inferenceOptions);
-
-                if (match is null)
-                {
-                    continue;
-                }
-
-                results.Add(new TacviewWeaponResult
-                {
-                    EventType = "Damage",
-                    TimeSeconds = healthChange.TimeSeconds,
-                    AbsoluteTimeUtc = healthChange.AbsoluteTimeUtc,
-                    SourceObjectId = match.Weapon.ObjectId,
-                    SourceName = match.Weapon.Name,
-                    TargetObjectId = target.ObjectId,
-                    TargetName = GetDisplayName(target),
-                    Outcome = string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"Inferred from target health drop {FormatHealth(healthChange.PreviousHealth)} -> {FormatHealth(healthChange.NewHealth)}"),
-                    Description = string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"Target health dropped from {FormatHealth(healthChange.PreviousHealth)} to {FormatHealth(healthChange.NewHealth)} near weapon {match.Weapon.ObjectId}; distance {match.DistanceMeters:F0} m"),
-                    Position = healthChange.Position ?? match.TargetPosition
-                });
-            }
-
-            return results;
-        }
-
         private static bool ShouldShowWeaponEngagementByDefault(TacViewWeaponEngagement engagement)
         {
             return engagement.Results.Any(result => IsDefaultVisibleWeaponResult(result));
@@ -574,346 +209,6 @@ namespace DcsMissionReader.Services
                 && !string.IsNullOrWhiteSpace(result.TargetObjectId)
                 && !string.IsNullOrWhiteSpace(result.TargetName);
         }
-
-        private static IReadOnlyList<TacviewWeaponResult> CreateWeaponResultsFromUnpairedWeaponRemovals(
-            IReadOnlyList<TacviewRemovalRecord> removals,
-            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
-            IReadOnlyList<TacviewObjectTrack> weaponTracks,
-            IReadOnlySet<string> weaponIdsWithNonTimeoutResults,
-            WeaponResultInferenceOptions inferenceOptions)
-        {
-            if (!inferenceOptions.EnableTerminalProximityNearMissReporting)
-            {
-                return Array.Empty<TacviewWeaponResult>();
-            }
-
-            var results = new List<TacviewWeaponResult>();
-
-            Dictionary<string, TacviewObjectTrack> weaponTracksById = weaponTracks
-                .ToDictionary(w => w.ObjectId, StringComparer.OrdinalIgnoreCase);
-
-            foreach (TacviewRemovalRecord weaponRemoval in removals)
-            {
-                if (!weaponTracksById.TryGetValue(
-                        weaponRemoval.ObjectId,
-                        out TacviewObjectTrack? weapon))
-                {
-                    continue;
-                }
-
-                if (weaponIdsWithNonTimeoutResults.Contains(weapon.ObjectId))
-                {
-                    continue;
-                }
-
-                if (HasSynchronizedTargetRemoval(
-                        weaponRemoval,
-                        removals,
-                        objects,
-                        inferenceOptions))
-                {
-                    continue;
-                }
-
-                InferredDamageMatch? match = FindBestUnpairedRemovalDamageTarget(
-                    weapon,
-                    weaponRemoval,
-                    removals,
-                    objects.Values,
-                    weaponTracksById,
-                    inferenceOptions);
-
-                if (match is null)
-                {
-                    continue;
-                }
-
-                results.Add(new TacviewWeaponResult
-                {
-                    EventType = "NearMiss",
-                    TimeSeconds = weaponRemoval.TimeSeconds,
-                    AbsoluteTimeUtc = weaponRemoval.AbsoluteTimeUtc,
-                    SourceObjectId = weapon.ObjectId,
-                    SourceName = weapon.Name,
-                    TargetObjectId = match.Target.ObjectId,
-                    TargetName = GetDisplayName(match.Target),
-                    Outcome = "Terminal proximity only; not classified as damage",
-                    Description = string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"Weapon {weapon.ObjectId} ended near target {match.Target.ObjectId}; distance {match.DistanceMeters:F0} m; terminal proximity alone is not damage"),
-                    Position = match.TargetPosition
-                });
-            }
-
-            return results;
-        }
-
-        private static bool ShouldPromoteTerminalProximityToDamage(TacviewObjectTrack target)
-        {
-            return TacviewCombatClassifier.GetTargetDomain(target) == TacviewTargetDomain.Sea;
-        }
-
-        private static HashSet<string> BuildWeaponIdsWithNonTimeoutResults(
-            IEnumerable<TacviewWeaponResult> results,
-            IReadOnlyList<TacviewObjectTrack> weaponTracks)
-        {
-            HashSet<string> weaponIds = weaponTracks
-                .Select(track => track.ObjectId)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            HashSet<string> resultWeaponIds = new(StringComparer.OrdinalIgnoreCase);
-
-            foreach (TacviewWeaponResult result in results)
-            {
-                if (result.EventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (!string.IsNullOrWhiteSpace(result.SourceObjectId)
-                    && weaponIds.Contains(result.SourceObjectId))
-                {
-                    resultWeaponIds.Add(result.SourceObjectId);
-                }
-
-                if (!string.IsNullOrWhiteSpace(result.TargetObjectId)
-                    && weaponIds.Contains(result.TargetObjectId))
-                {
-                    resultWeaponIds.Add(result.TargetObjectId);
-                }
-            }
-
-            return resultWeaponIds;
-        }
-
-        private static InferredDamageMatch? FindBestWeaponForHealthDrop(
-            TacviewHealthChangeRecord healthChange,
-            TacviewObjectTrack target,
-            IReadOnlyList<TacviewObjectTrack> weaponTracks,
-            WeaponResultInferenceOptions inferenceOptions)
-        {
-            TacviewPositionSample? targetPosition =
-                healthChange.Position
-                ?? target.End
-                ?? FindSampleClosestToTime(target.Samples, healthChange.TimeSeconds);
-
-            if (targetPosition is null)
-            {
-                return null;
-            }
-
-            return weaponTracks
-                .Where(weapon => weapon.End is not null)
-                .Where(weapon => IsPotentialDamageTargetForWeapon(weapon, target))
-                .Select(weapon => new InferredDamageMatch(
-                    weapon,
-                    target,
-                    targetPosition,
-                    TacviewCombatClassifier.CalculateDistance3dMeters(weapon.End!, targetPosition),
-                    healthChange.TimeSeconds - weapon.End!.TimeSeconds))
-                .Where(match => match.DistanceMeters <= inferenceOptions.HealthDropMaxDamageDistanceMeters)
-                .Where(match => match.DeltaTimeSeconds >= -inferenceOptions.HealthDropMaxWeaponTimeAfterDamageSeconds
-                    && match.DeltaTimeSeconds <= inferenceOptions.HealthDropMaxWeaponTimeBeforeDamageSeconds)
-                .OrderBy(match => match.DistanceMeters)
-                .ThenBy(match => Math.Abs(match.DeltaTimeSeconds))
-                .FirstOrDefault();
-        }
-
-        private static InferredDamageMatch? FindBestUnpairedRemovalDamageTarget(
-            TacviewObjectTrack weapon,
-            TacviewRemovalRecord weaponRemoval,
-            IReadOnlyList<TacviewRemovalRecord> removals,
-            IEnumerable<TacviewObjectTrack> objects,
-            IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById,
-            WeaponResultInferenceOptions inferenceOptions)
-        {
-            TacviewPositionSample? weaponPosition =
-                weapon.End
-                ?? FindSampleClosestToTime(weapon.Samples, weaponRemoval.TimeSeconds);
-
-            if (weaponPosition is null)
-            {
-                return null;
-            }
-
-            Dictionary<string, TacviewObjectTrack> objectsById = objects.ToDictionary(o => o.ObjectId, StringComparer.OrdinalIgnoreCase);
-            TacviewObjectTrack? launcher = ResolveWeaponShooter(weapon, objectsById);
-
-            if (!IsTerminalProximityDamageCandidate(weapon, launcher))
-            {
-                return null;
-            }
-
-            InferredDamageMatch? bestMatch = null;
-
-            foreach (TacviewObjectTrack target in objects)
-            {
-                if (target.ObjectId.Equals(weapon.ObjectId, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (target.IsWeapon)
-                {
-                    continue;
-                }
-
-                if (target.Samples.Count == 0)
-                {
-                    continue;
-                }
-
-                if (IsSuppressedResultObject(target))
-                {
-                    continue;
-                }
-
-                if (!IsPotentialDamageTargetForWeapon(weapon, target))
-                {
-                    continue;
-                }
-
-                TacviewPositionSample? targetPosition =
-                    FindSampleClosestToTime(target.Samples, weaponRemoval.TimeSeconds);
-
-                if (targetPosition is null)
-                {
-                    continue;
-                }
-
-                if (launcher is not null && IsSameTacviewSide(launcher, target))
-                {
-                    continue;
-                }
-
-                double targetTimeDifference = Math.Abs(targetPosition.TimeSeconds - weaponRemoval.TimeSeconds);
-
-                if (targetTimeDifference > inferenceOptions.UnpairedRemovalMaxTargetSampleTimeDifferenceSeconds)
-                {
-                    continue;
-                }
-
-                double distanceMeters = TacviewCombatClassifier.CalculateDistance3dMeters(weaponPosition, targetPosition);
-
-                if (distanceMeters > inferenceOptions.UnpairedRemovalMaxInferredDamageDistanceMeters)
-                {
-                    continue;
-                }
-
-                if (HasNearbyDefensiveWeaponRemoval(
-                     weapon,
-                     weaponPosition,
-                     weaponRemoval,
-                     target,
-                     removals,
-                     objects,
-                     weaponTracksById,
-                     inferenceOptions))
-                {
-                    continue;
-                }
-
-                var match = new InferredDamageMatch(
-                    weapon,
-                    target,
-                    targetPosition,
-                    distanceMeters,
-                    weaponRemoval.TimeSeconds - weaponPosition.TimeSeconds);
-
-                if (bestMatch is null
-                    || match.DistanceMeters < bestMatch.DistanceMeters
-                    || (Math.Abs(match.DistanceMeters - bestMatch.DistanceMeters) < 0.001
-                        && Math.Abs(match.DeltaTimeSeconds) < Math.Abs(bestMatch.DeltaTimeSeconds)))
-                {
-                    bestMatch = match;
-                }
-            }
-
-            return bestMatch;
-        }
-
-        private static bool HasSynchronizedTargetRemoval(
-            TacviewRemovalRecord weaponRemoval,
-            IReadOnlyList<TacviewRemovalRecord> removals,
-            IReadOnlyDictionary<string, TacviewObjectTrack> objects,
-            WeaponResultInferenceOptions inferenceOptions)
-        {
-            return removals
-                .Where(r => Math.Abs(r.TimeSeconds - weaponRemoval.TimeSeconds) <= inferenceOptions.SameTimeRemovalWindowSeconds)
-                .Where(r => !r.ObjectId.Equals(weaponRemoval.ObjectId, StringComparison.OrdinalIgnoreCase))
-                .Any(r => objects.TryGetValue(r.ObjectId, out TacviewObjectTrack? removedObject)
-                    && !removedObject.IsWeapon
-                    && !IsSuppressedResultObject(removedObject));
-        }
-
-        private static bool HasNearbyDefensiveWeaponRemoval(
-            TacviewObjectTrack weapon,
-            TacviewPositionSample weaponPosition,
-            TacviewRemovalRecord weaponRemoval,
-            TacviewObjectTrack target,
-            IReadOnlyList<TacviewRemovalRecord> removals,
-            IEnumerable<TacviewObjectTrack> objects,
-            IReadOnlyDictionary<string, TacviewObjectTrack> weaponTracksById,
-            WeaponResultInferenceOptions inferenceOptions)
-        {
-            Dictionary<string, TacviewObjectTrack> objectsById = objects
-                .ToDictionary(o => o.ObjectId, StringComparer.OrdinalIgnoreCase);
-
-            TacviewObjectTrack? inboundLauncher = ResolveWeaponShooter(weapon, objectsById);
-
-            if (!IsTerminalProximityDamageCandidate(weapon, inboundLauncher))
-            {
-                return false;
-            }
-
-            foreach (TacviewRemovalRecord otherRemoval in removals)
-            {
-                if (otherRemoval.ObjectId.Equals(weaponRemoval.ObjectId, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                double timeDifferenceSeconds = Math.Abs(otherRemoval.TimeSeconds - weaponRemoval.TimeSeconds);
-
-                if (timeDifferenceSeconds > inferenceOptions.DefensivePairMaxTimeDifferenceSeconds)
-                {
-                    continue;
-                }
-
-                if (!weaponTracksById.TryGetValue(otherRemoval.ObjectId, out TacviewObjectTrack? otherWeapon))
-                {
-                    continue;
-                }
-
-                TacviewObjectTrack? defensiveLauncher = ResolveWeaponShooter(otherWeapon, objectsById);
-
-                if (!TacviewCombatClassifier.IsDefensiveInterceptor(otherWeapon, defensiveLauncher))
-                {
-                    continue;
-                }
-
-                TacviewPositionSample? otherWeaponPosition =
-                    otherWeapon.End
-                    ?? FindSampleClosestToTime(otherWeapon.Samples, otherRemoval.TimeSeconds);
-
-                if (otherWeaponPosition is null)
-                {
-                    continue;
-                }
-
-                double distanceMeters = TacviewCombatClassifier.CalculateDistance3dMeters(
-                    weaponPosition,
-                    otherWeaponPosition);
-
-                if (distanceMeters <= inferenceOptions.DefensivePairMaxDistanceMeters)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         private static bool IsObjectEffectWeaponResultType(string eventType)
         {
             return eventType.Equals("Destroyed", StringComparison.OrdinalIgnoreCase)
@@ -924,33 +219,8 @@ namespace DcsMissionReader.Services
 
         private static bool IsFailedOrDiagnosticWeaponResultType(string eventType)
         {
-            return eventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase)
-                || eventType.Equals("NearMiss", StringComparison.OrdinalIgnoreCase);
+            return eventType.Equals("Timeout", StringComparison.OrdinalIgnoreCase);
         }
-
-        private static bool IsPotentialDamageTargetForWeapon(
-            TacviewObjectTrack weapon,
-            TacviewObjectTrack target)
-        {
-            if (target.IsWeapon)
-            {
-                return false;
-            }
-
-            if (IsSuppressedResultObject(target))
-            {
-                return false;
-            }
-
-            TacviewTargetDomain targetDomain = TacviewCombatClassifier.GetTargetDomain(target);
-
-            return targetDomain is
-                TacviewTargetDomain.Air
-                or TacviewTargetDomain.Sea
-                or TacviewTargetDomain.Ground
-                or TacviewTargetDomain.Static;
-        }
-
         private static bool IsSuppressedResultObject(TacviewObjectTrack track)
         {
             string combined = $"{track.Name} {track.Type} {track.Group}";
@@ -1026,35 +296,29 @@ namespace DcsMissionReader.Services
                 && !IsJettisonedStore(combined)
                 && !IsGunRoundOrShell(combined);
         }
-
         private static TacviewObjectTrack? ResolveWeaponShooter(
-    TacviewObjectTrack weapon,
-    IReadOnlyDictionary<string, TacviewObjectTrack> objects)
+            TacviewObjectTrack weapon,
+            IReadOnlyDictionary<string, TacviewObjectTrack> objects)
         {
-            if (!string.IsNullOrWhiteSpace(weapon.ParentObjectId))
+            if (string.IsNullOrWhiteSpace(weapon.ParentObjectId))
             {
-                string parentId = weapon.ParentObjectId.Trim();
-
-                if (objects.TryGetValue(parentId, out TacviewObjectTrack? directParent))
-                {
-                    return directParent;
-                }
-
-                string normalizedParentId = NormalizeTacviewObjectId(parentId);
-
-                TacviewObjectTrack? normalizedParent = objects
-                    .FirstOrDefault(pair =>
-                        NormalizeTacviewObjectId(pair.Key)
-                            .Equals(normalizedParentId, StringComparison.OrdinalIgnoreCase))
-                    .Value;
-
-                if (normalizedParent is not null)
-                {
-                    return normalizedParent;
-                }
+                return null;
             }
 
-            return FindClosestLikelyShooterAtLaunch(weapon, objects.Values);
+            string parentId = weapon.ParentObjectId.Trim();
+
+            if (objects.TryGetValue(parentId, out TacviewObjectTrack? directParent))
+            {
+                return directParent;
+            }
+
+            string normalizedParentId = NormalizeTacviewObjectId(parentId);
+
+            return objects
+                .FirstOrDefault(pair =>
+                    NormalizeTacviewObjectId(pair.Key)
+                        .Equals(normalizedParentId, StringComparison.OrdinalIgnoreCase))
+                .Value;
         }
 
         private static string NormalizeTacviewObjectId(string value)
@@ -1065,74 +329,6 @@ namespace DcsMissionReader.Services
                 .Trim('{', '}')
                 .Trim();
         }
-
-        private static TacviewObjectTrack? FindClosestLikelyShooterAtLaunch(
-            TacviewObjectTrack weapon,
-            IEnumerable<TacviewObjectTrack> objects)
-        {
-            if (weapon.Start is null)
-            {
-                return null;
-            }
-
-            const double maxShooterDistanceMeters = 2_000.0;
-            const double maxTimeDifferenceSeconds = 5.0;
-
-            TacviewObjectTrack? bestObject = null;
-            double bestDistanceMeters = double.MaxValue;
-
-            foreach (TacviewObjectTrack candidate in objects)
-            {
-                if (candidate.ObjectId.Equals(weapon.ObjectId, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (candidate.IsWeapon)
-                {
-                    continue;
-                }
-
-                if (candidate.Samples.Count == 0)
-                {
-                    continue;
-                }
-
-                TacviewPositionSample? candidateSample =
-                    FindSampleClosestToTime(candidate.Samples, weapon.Start.TimeSeconds);
-
-                if (candidateSample is null)
-                {
-                    continue;
-                }
-
-                double timeDifference = Math.Abs(candidateSample.TimeSeconds - weapon.Start.TimeSeconds);
-
-                if (timeDifference > maxTimeDifferenceSeconds)
-                {
-                    continue;
-                }
-
-                double distanceMeters = CalculateDistanceMeters(
-                    weapon.Start,
-                    candidateSample);
-
-                if (distanceMeters > maxShooterDistanceMeters)
-                {
-                    continue;
-                }
-
-                if (distanceMeters < bestDistanceMeters)
-                {
-                    bestDistanceMeters = distanceMeters;
-                    bestObject = candidate;
-                }
-            }
-
-            return bestObject;
-        }
-
-
         private static TacviewPositionSample? FindSampleClosestToTime(
             IReadOnlyList<TacviewPositionSample> samples,
             double timeSeconds)
@@ -1209,7 +405,7 @@ namespace DcsMissionReader.Services
                 string shooterName =
                     engagement.Employment.ParentName
                     ?? engagement.Employment.ParentObjectId
-                    ?? "Unknown Shooter";
+                    ?? "Unknown";
 
                 foreach (TacviewWeaponResult result in engagement.Results)
                 {
@@ -1608,29 +804,7 @@ namespace DcsMissionReader.Services
                 ? null
                 : candidates[0].Track.ObjectId;
         }
-
-        private static double CalculateDistanceMeters(
-            TacviewPositionSample first,
-            TacviewPositionSample second)
-        {
-            const double earthRadiusMeters = 6371000.0;
-
-            double lat1 = DegreesToRadians(first.Latitude);
-            double lat2 = DegreesToRadians(second.Latitude);
-            double deltaLat = DegreesToRadians(second.Latitude - first.Latitude);
-            double deltaLon = DegreesToRadians(second.Longitude - first.Longitude);
-
-            double a =
-                Math.Sin(deltaLat / 2.0) * Math.Sin(deltaLat / 2.0)
-                + Math.Cos(lat1) * Math.Cos(lat2)
-                * Math.Sin(deltaLon / 2.0) * Math.Sin(deltaLon / 2.0);
-
-            double c = 2.0 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1.0 - a));
-
-            return earthRadiusMeters * c;
-        }
-
-        private static double DegreesToRadians(double degrees)
+private static double DegreesToRadians(double degrees)
         {
             return degrees * Math.PI / 180.0;
         }
@@ -1788,7 +962,7 @@ namespace DcsMissionReader.Services
             string shooterName =
                 engagement.Employment.ParentName
                 ?? engagement.Employment.ParentObjectId
-                ?? "Unknown Shooter";
+                ?? "Unknown";
 
             string folderName = string.Create(
                 CultureInfo.InvariantCulture,
@@ -1852,7 +1026,7 @@ namespace DcsMissionReader.Services
             string shooterName =
                 employment.ParentName
                 ?? employment.ParentObjectId
-                ?? "Unknown Shooter";
+                ?? "Unknown";
 
             string weaponName = string.IsNullOrWhiteSpace(employment.WeaponName)
                 ? employment.WeaponObjectId
@@ -2139,15 +1313,6 @@ namespace DcsMissionReader.Services
                 ?? result.SourceObjectId
                 ?? "Unknown";
 
-            if (result.EventType.Equals("NearMiss", StringComparison.OrdinalIgnoreCase))
-            {
-                string targetName = string.IsNullOrWhiteSpace(result.TargetName)
-                    ? "Unknown Target"
-                    : result.TargetName;
-
-                return $"Near Miss - {targetName}";
-            }
-
             return $"{result.EventType} - {subject}";
         }
 
@@ -2261,7 +1426,7 @@ namespace DcsMissionReader.Services
 
                     builder.AppendLine();
                     builder.AppendLine("Damage Evidence:");
-                    builder.AppendLine($"Inferred / recorded weapon hits: {disposition.WeaponHits.Count}");
+                    builder.AppendLine($"Tacview-recorded weapon hits: {disposition.WeaponHits.Count}");
                     builder.AppendLine($"Last recorded hit: {FormatTime(lastHit.HitTimeUtc, lastHit.HitTimeSeconds ?? 0)}");
                 }
             }
@@ -2460,39 +1625,6 @@ namespace DcsMissionReader.Services
 
             return "neutral";
         }
-
-        private static bool IsTerminalProximityDamageCandidate(
-            TacviewObjectTrack weapon,
-            TacviewObjectTrack? launcher)
-        {
-            TacviewWeaponRole role = TacviewCombatClassifier.GetWeaponRole(weapon, launcher);
-
-            return role is TacviewWeaponRole.OffensiveStrikeWeapon
-                or TacviewWeaponRole.AirToSurface
-                or TacviewWeaponRole.SurfaceToSurface;
-        }
-
-        private static bool IsSameTacviewSide(
-            TacviewObjectTrack first,
-            TacviewObjectTrack second)
-        {
-            if (!string.IsNullOrWhiteSpace(first.Coalition)
-                && !string.IsNullOrWhiteSpace(second.Coalition)
-                && first.Coalition.Equals(second.Coalition, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            if (!string.IsNullOrWhiteSpace(first.Color)
-                && !string.IsNullOrWhiteSpace(second.Color)
-                && first.Color.Equals(second.Color, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            return false;
-        }
-
         private static bool IsExplicitBlueCoalition(string coalition)
         {
             return coalition.Equals("Blue", StringComparison.OrdinalIgnoreCase)
@@ -2966,13 +2098,6 @@ namespace DcsMissionReader.Services
                 || value.Contains("projectile", StringComparison.OrdinalIgnoreCase);
         }
 
-        private sealed record InferredDamageMatch(
-            TacviewObjectTrack Weapon,
-            TacviewObjectTrack Target,
-            TacviewPositionSample TargetPosition,
-            double DistanceMeters,
-            double DeltaTimeSeconds);
-
         private sealed record AcmiParseResult(
             TacviewMissionInfo Mission,
             IReadOnlyList<TacviewObjectTrack> GroupTracks,
@@ -2995,14 +2120,6 @@ namespace DcsMissionReader.Services
             double? HitTimeSeconds,
             string Outcome,
             string Description);
-
-        private sealed record WeaponInterceptMatch(
-    TacviewObjectTrack Interceptor,
-    TacviewObjectTrack InterceptedWeapon,
-    TacviewRemovalRecord FirstRemoval,
-    TacviewRemovalRecord SecondRemoval,
-    double DistanceMeters,
-    double TimeDifferenceSeconds);
     }
 
     internal static class StringBuilderXmlExtensions

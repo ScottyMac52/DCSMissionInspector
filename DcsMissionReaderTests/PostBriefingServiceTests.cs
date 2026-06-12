@@ -84,6 +84,7 @@ namespace DcsMissionReaderTests
         private const string UnknownDecoyName = "Unknown";
         private const string X22WeaponName = "X_22";
         private const string P700WeaponName = "P_700";
+        private const string Sm2WeaponName = "SM_2";
 
         [Fact]
         public void CreatePostBriefingKml_WithValidZippedAcmi_CreatesKmlWithTracksKnownWeaponsAndResults()
@@ -96,7 +97,6 @@ namespace DcsMissionReaderTests
                 string outputPath = Path.Combine(tempDirectory, "sample.postbrief.kmz");
 
                 CreateAcmiZip(zipPath, BuildSampleAcmi());
-
 
                 EnsureKmlIconsAvailableForTest();
 
@@ -683,7 +683,6 @@ namespace DcsMissionReaderTests
             }
         }
 
-
         [Fact]
         public void CreatePostBriefingKml_WithKmzOutput_EmbedsDocKmlAndWeaponIcons()
         {
@@ -793,7 +792,7 @@ namespace DcsMissionReaderTests
                 string zipPath = Path.Combine(tempDirectory, "target-disposition.acmi.zip");
                 string outputPath = Path.Combine(tempDirectory, "target-disposition.postbrief.kmz");
 
-                CreateAcmiZip(zipPath, BuildAcmiWithWeaponKillAndHealth());
+                CreateAcmiZip(zipPath, BuildAcmiWithExplicitWeaponKill());
 
                 var service = new PostBriefingService();
 
@@ -802,7 +801,7 @@ namespace DcsMissionReaderTests
                 Assert.True(File.Exists(outputPath));
                 Assert.Equal(2, result.GroupTrackCount);
                 Assert.Equal(1, result.WeaponEmploymentCount);
-                Assert.Equal(2, result.WeaponResultCount);
+                Assert.Equal(1, result.WeaponResultCount);
 
                 string kml = ReadKmlFromKmz(outputPath);
 
@@ -810,11 +809,6 @@ namespace DcsMissionReaderTests
                     kml,
                     Overlord.DisplayName,
                     "Final Disposition:\nDestroyed");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Overlord.DisplayName,
-                    "Health Remaining: 0%");
 
                 AssertPlacemarkDescriptionContains(
                     kml,
@@ -876,157 +870,7 @@ namespace DcsMissionReaderTests
             }
         }
 
-        [Fact]
-        public void CreatePostBriefingKml_WithTerminalProximityOnlyAndDamageInferenceEnabled_DoesNotInferDamage()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-damage-disabled.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-damage-disabled.postbrief.kmz");
-
-                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
-
-                var service = new PostBriefingService(
-                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
-                    {
-                        EnableTerminalProximityDamageInference = true,
-                        EnableTerminalProximityNearMissReporting = false
-                    });
-
-                var result = service.CreatePostBriefingKml(zipPath, outputPath);
-
-                Assert.True(File.Exists(outputPath));
-                Assert.Equal(2, result.GroupTrackCount);
-                Assert.Equal(1, result.WeaponEmploymentCount);
-                Assert.Equal(1, result.WeaponResultCount);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Health Remaining: Unknown / Not exported by Tacview");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Final Disposition:\nSurvived / No Weapon Result Recorded");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Weapons That Hit / Destroyed This Object:\n- None recorded");
-
-                Assert.DoesNotContain("Damaged / Weapon Effect Recorded", kml);
-                Assert.DoesNotContain("Near Miss", kml);
-                Assert.DoesNotContain("Inferred from unpaired opposing weapon removal near target", kml);
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
-        public void CreatePostBriefingKml_WithWeaponRemovedNearSurvivingShip_AddsInferredDamageWhenWeaponRemovalCorrelatesWithHealthDrop()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string zipPath = Path.Combine(tempDirectory, "ship-hit-disposition.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "ship-hit-disposition.postbrief.kmz");
-
-                CreateAcmiZip(zipPath, BuildAcmiWithShipHitByKitchen());
-
-                var service = new PostBriefingService();
-
-                var result = service.CreatePostBriefingKml(zipPath, outputPath);
-
-                Assert.True(File.Exists(outputPath));
-                Assert.Equal(2, result.GroupTrackCount);
-                Assert.Equal(1, result.WeaponEmploymentCount);
-                Assert.Equal(1, result.WeaponResultCount);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Final Disposition:\nDamaged / Weapon Effect Recorded");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Health Remaining: 75%");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Weapons That Hit / Destroyed This Object:");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    $"- {X22WeaponName} [901] from {CarrierKiller.DisplayName}");
-
-                Assert.DoesNotContain($"Timeout - {X22WeaponName}", kml);
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
-        public void CreatePostBriefingKml_WithPairedWeaponInterceptionNearShip_DoesNotInferShipHit()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string zipPath = Path.Combine(tempDirectory, "paired-interception-near-ship.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "paired-interception-near-ship.postbrief.kmz");
-
-                CreateAcmiZip(zipPath, BuildAcmiWithPairedKitchenAndSeaSparrowInterception());
-
-                var service = new PostBriefingService();
-
-                var result = service.CreatePostBriefingKml(zipPath, outputPath);
-
-                Assert.True(File.Exists(outputPath));
-                Assert.Equal(3, result.GroupTrackCount);
-                Assert.Equal(2, result.WeaponEmploymentCount);
-                Assert.Equal(1, result.WeaponResultCount);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Final Disposition:\nSurvived / No Weapon Result Recorded");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Weapons That Hit / Destroyed This Object:\n- None recorded");
-
-                Assert.DoesNotContain($"Weapons That Hit / Destroyed This Object:\n- {X22WeaponName}", kml);
-
-                Assert.Contains($"Destroyed - {X22WeaponName}", kml);
-
-                Assert.DoesNotContain($"Timeout - {X22WeaponName}", kml);
-                Assert.DoesNotContain($"Timeout - {SeaSparrowWeaponName}", kml);
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
+[Fact]
         public void CreatePostBriefingKml_WithWeaponLaunches_HidesLaunchClutterByDefaultAndShowsDestroyedMarker()
         {
             string tempDirectory = CreateTempDirectory();
@@ -1036,7 +880,7 @@ namespace DcsMissionReaderTests
                 string zipPath = Path.Combine(tempDirectory, "map-clutter.acmi.zip");
                 string outputPath = Path.Combine(tempDirectory, "map-clutter.postbrief.kmz");
 
-                CreateAcmiZip(zipPath, BuildAcmiWithWeaponKillAndHealth());
+                CreateAcmiZip(zipPath, BuildAcmiWithExplicitWeaponKill());
 
                 var service = new PostBriefingService();
 
@@ -1139,380 +983,7 @@ namespace DcsMissionReaderTests
             }
         }
 
-        [Fact]
-        public void CreatePostBriefingKml_WithTerminalProximityOnlyAndDefaultOptions_DoesNotInferDamage()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-default.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-default.postbrief.kmz");
-
-                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
-
-                var service = new PostBriefingService();
-
-                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                Assert.Equal(1, result.WeaponEmploymentCount);
-                Assert.Equal(1, result.WeaponResultCount);
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Final Disposition:\nSurvived / No Weapon Result Recorded");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Weapons That Hit / Destroyed This Object:\n- None recorded");
-
-                Assert.DoesNotContain("Damaged / Weapon Effect Recorded", kml);
-                Assert.DoesNotContain("Near Miss", kml);
-                Assert.DoesNotContain("Inferred from unpaired opposing weapon removal near target", kml);
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
-        public void CreatePostBriefingKml_WithTerminalProximityDamageInferenceEnabled_DoesNotInferDamage()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-enabled.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-enabled.postbrief.kmz");
-
-                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
-
-                var inferenceOptions = new WeaponResultInferenceOptions
-                {
-                    EnableTerminalProximityDamageInference = true,
-                    EnableTerminalProximityNearMissReporting = false
-                };
-
-                var service = new PostBriefingService(
-                    weaponResultInferenceOptions: inferenceOptions);
-
-                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                Assert.Equal(1, result.WeaponEmploymentCount);
-                Assert.Equal(1, result.WeaponResultCount);
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Health Remaining: Unknown / Not exported by Tacview");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Final Disposition:\nSurvived / No Weapon Result Recorded");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Weapons That Hit / Destroyed This Object:\n- None recorded");
-
-                Assert.DoesNotContain("Damaged / Weapon Effect Recorded", kml);
-                Assert.DoesNotContain("Near Miss", kml);
-                Assert.DoesNotContain("Inferred from unpaired opposing weapon removal near target", kml);
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
-        public void CreatePostBriefingKml_WithTerminalProximityOnlyAndNearMissDisabled_DoesNotCreateNearMiss()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-disabled.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-disabled.postbrief.kmz");
-
-                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
-
-                var service = new PostBriefingService();
-
-                service.CreatePostBriefingKml(zipPath, outputPath);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                Assert.DoesNotContain("NearMiss", kml);
-                Assert.DoesNotContain($"Near Miss - {Carrier.DisplayName}", kml);
-                Assert.DoesNotContain("Terminal proximity only; not classified as damage", kml);
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
-        public void CreatePostBriefingKml_WithTerminalProximityNearMissEnabled_CreatesNearMissResult()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-enabled.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-enabled.postbrief.kmz");
-
-                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
-
-                var service = new PostBriefingService(
-                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
-                    {
-                        EnableTerminalProximityNearMissReporting = true
-                    });
-
-                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                Assert.Equal(1, result.WeaponEmploymentCount);
-                Assert.Equal(1, result.WeaponResultCount);
-
-                Assert.Contains($"Near Miss - {Carrier.DisplayName}", kml);
-                Assert.Contains("Terminal proximity only; not classified as damage", kml);
-                Assert.Contains("terminal proximity alone is not damage", kml);
-                Assert.DoesNotContain("Damaged / Weapon Effect Recorded", kml);
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
-        public void CreatePostBriefingKml_WithTerminalProximityNearMissEnabled_DoesNotMarkTargetDamaged()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-no-damage.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-no-damage.postbrief.kmz");
-
-                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
-
-                var service = new PostBriefingService(
-                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
-                    {
-                        EnableTerminalProximityNearMissReporting = true
-                    });
-
-                service.CreatePostBriefingKml(zipPath, outputPath);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Final Disposition:\nSurvived / No Weapon Result Recorded");
-
-                AssertPlacemarkDescriptionContains(
-                    kml,
-                    Carrier.DisplayName,
-                    "Weapons That Hit / Destroyed This Object:\n- None recorded");
-
-                Assert.Contains($"Near Miss - {Carrier.DisplayName}", kml);
-                Assert.DoesNotContain("Damaged / Weapon Effect Recorded", kml);
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
-        public void CreatePostBriefingKml_WithTerminalProximityNearMissEnabled_HidesWeaponEngagementParentFolderAndNearMissPlacemark()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string zipPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-parent-hidden.acmi.zip");
-                string outputPath = Path.Combine(tempDirectory, "terminal-proximity-nearmiss-parent-hidden.postbrief.kmz");
-
-                CreateAcmiZip(zipPath, BuildAcmiWithInferredDamageButNoHealthExport());
-
-                var service = new PostBriefingService(
-                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
-                    {
-                        EnableTerminalProximityNearMissReporting = true
-                    });
-
-                service.CreatePostBriefingKml(zipPath, outputPath);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                AssertFolderVisibility(
-                    kml,
-                    $"{X22WeaponName} - {CarrierKiller.DisplayName} - 2016-06-21T04:30:10.0000000Z",
-                    expectedVisibility: "0");
-
-                AssertPlacemarkVisibility(
-                    kml,
-                    $"Near Miss - {Carrier.DisplayName}",
-                    expectedVisibility: "0");
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
-        public void CreatePostBriefingKml_WithRealCarrierAttack_GeneratesExpectedWeaponDiagnostics()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string sourceAcmiPath = Path.Combine(
-                    AppContext.BaseDirectory,
-                    "TestData",
-                    "Tacview-20260608-103022-DCS.zip.acmi");
-
-                Assert.True(
-                    File.Exists(sourceAcmiPath),
-                    $"Missing test ACMI file: {sourceAcmiPath}");
-
-                string zipPath = Path.Combine(tempDirectory, "carrier-attack.zip.acmi");
-                string outputPath = Path.Combine(tempDirectory, "carrier-attack.postbrief.kmz");
-
-                File.Copy(sourceAcmiPath, zipPath, overwrite: true);
-
-                var service = new PostBriefingService(
-                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
-                    {
-                        EnableTerminalProximityDamageInference = false,
-                        EnableTerminalProximityNearMissReporting = true
-                    });
-
-                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                Assert.True(result.GroupTrackCount > 0);
-                Assert.True(result.WeaponEmploymentCount > 0);
-
-                Assert.Contains(Carrier.Group, kml);
-                Assert.Contains(X22WeaponName, kml);
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
-        public void CreatePostBriefingKml_WithRealCarrierAttack_AndTerminalProximityDamageEnabled_DoesNotCreateInferredCarrierKh22Hits()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string sourceAcmiPath = Path.Combine(
-                    AppContext.BaseDirectory,
-                    "TestData",
-                    "Tacview-20260608-103022-DCS.zip.acmi");
-
-                Assert.True(
-                    File.Exists(sourceAcmiPath),
-                    $"Missing test ACMI file: {sourceAcmiPath}");
-
-                string zipPath = Path.Combine(tempDirectory, "carrier-attack.zip.acmi");
-                string outputPath = Path.Combine(tempDirectory, "carrier-attack.postbrief.kmz");
-
-                File.Copy(sourceAcmiPath, zipPath, overwrite: true);
-
-                var service = new PostBriefingService(
-                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
-                    {
-                        EnableTerminalProximityDamageInference = true,
-                        EnableTerminalProximityNearMissReporting = false
-                    });
-
-                service.CreatePostBriefingKml(zipPath, outputPath);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                Assert.Equal(
-                    0,
-                    CountPlacemarkNameOccurrences(kml, "Near Miss - Washington CSG-Washington"));
-
-                Assert.DoesNotContain("Inferred from unpaired opposing weapon removal near target", kml);
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
-        public void CreatePostBriefingKml_WithRealCarrierAttack_AndNearMissReportingEnabled_ShowsEightCarrierKh22NearMissesButNoCarrierHits()
-        {
-            string tempDirectory = CreateTempDirectory();
-
-            try
-            {
-                string sourceAcmiPath = Path.Combine(
-                    AppContext.BaseDirectory,
-                    "TestData",
-                    "Tacview-20260608-103022-DCS.zip.acmi");
-
-                Assert.True(
-                    File.Exists(sourceAcmiPath),
-                    $"Missing test ACMI file: {sourceAcmiPath}");
-
-                string zipPath = Path.Combine(tempDirectory, "carrier-attack.zip.acmi");
-                string outputPath = Path.Combine(tempDirectory, "carrier-attack.postbrief.kmz");
-
-                File.Copy(sourceAcmiPath, zipPath, overwrite: true);
-
-                var service = new PostBriefingService(
-                    weaponResultInferenceOptions: new WeaponResultInferenceOptions
-                    {
-                        EnableTerminalProximityDamageInference = false,
-                        EnableTerminalProximityNearMissReporting = true
-                    });
-
-                service.CreatePostBriefingKml(zipPath, outputPath);
-
-                string kml = ReadKmlFromKmz(outputPath);
-
-                AssertObjectWeaponHitCount(
-                    kml,
-                    objectPlacemarkName: "Washington CSG-Washington",
-                    expectedHitCount: 0,
-                    expectedWeaponName: "X_22");
-
-                Assert.Equal(
-                    8,
-                    CountPlacemarkNameOccurrences(kml, "Near Miss - Washington CSG-Washington"));
-            }
-            finally
-            {
-                Directory.Delete(tempDirectory, recursive: true);
-            }
-        }
-
-        [Fact]
+[Fact]
         public void CreatePostBriefingKml_WithMultipleHitsAndNoKill_ListsAllHitsOnTargetObjectCard()
         {
             string tempDirectory = CreateTempDirectory();
@@ -1583,7 +1054,7 @@ namespace DcsMissionReaderTests
                 Assert.True(File.Exists(outputPath));
                 Assert.Equal(2, result.GroupTrackCount);
                 Assert.Equal(3, result.WeaponEmploymentCount);
-                Assert.Equal(4, result.WeaponResultCount);
+                Assert.Equal(3, result.WeaponResultCount);
 
                 string kml = ReadKmlFromKmz(outputPath);
 
@@ -1668,6 +1139,135 @@ namespace DcsMissionReaderTests
             {
                 Directory.Delete(tempDirectory, recursive: true);
             }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithWeaponParentFarAwayAndRotaryNearby_UsesTacviewParentAsShooter()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "sm2-parent-not-nearest.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "sm2-parent-not-nearest.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithSm2ParentFarAwayAndRotaryNearby());
+
+                var service = new PostBriefingService();
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    $"Destroyed - {CarrierKiller.DisplayName}",
+                    $"Killed By Weapon: {Sm2WeaponName} [39301]");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    $"Destroyed - {CarrierKiller.DisplayName}",
+                    $"Shooter: {CarrierEscort.DisplayName}");
+
+                Assert.DoesNotContain($"Shooter: {RotaryAircraft.DisplayName}", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithWeaponMissingParentAndRotaryNearby_DoesNotGuessNearestShooter()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "sm2-missing-parent-no-guess.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "sm2-missing-parent-no-guess.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithSm2MissingParentAndRotaryNearby());
+
+                var service = new PostBriefingService();
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    $"Destroyed - {CarrierKiller.DisplayName}",
+                    $"Killed By Weapon: {Sm2WeaponName} [39301]");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    $"Destroyed - {CarrierKiller.DisplayName}",
+                    "Shooter: Unknown");
+
+                Assert.DoesNotContain($"Shooter: {RotaryAircraft.DisplayName}", kml);
+                Assert.DoesNotContain($"Shooter: {CarrierEscort.DisplayName}", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        private static string BuildAcmiWithSm2ParentFarAwayAndRotaryNearby()
+        {
+            return $$"""
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+
+           #0.00
+           a01,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.20339390|25.81884970|6000|0|0|270,Health=1
+           101,Name={{RotaryAircraft.Name}},Type=Air+Rotorcraft,Group={{RotaryAircraft.Group}},Pilot={{RotaryAircraft.Pilot}},Color=Blue,Coalition=Enemies,T=57.20339390|25.81884970|100|0|0|90,Health=1
+           102,Name={{CarrierEscort.Name}},Type=Sea+Watercraft+Cruiser,Group={{CarrierEscort.Group}},Pilot={{CarrierEscort.Pilot}},Color=Blue,Coalition=Enemies,T=57.00000000|25.00000000|0|0|0|90,Health=1
+
+           #100.00
+           39301,Name={{Sm2WeaponName}},Type=Weapon+Missile,Parent=102,Color=Blue,Coalition=Enemies,T=57.20339390|25.81884970|100|0|0|90
+
+           #120.00
+           a01,T=57.20339390|25.81884970|6000|0|0|270
+           101,T=57.20339390|25.81884970|100|0|0|90
+           102,T=57.00000000|25.00000000|0|0|0|90
+           39301,T=57.20339390|25.81884970|6000|0|0|90
+           0,Event=Destroyed|SourceId:39301|TargetId:a01|Outcome:Destroyed|{{Sm2WeaponName}} has destroyed {{CarrierKiller.DisplayName}}
+           """;
+        }
+
+        private static string BuildAcmiWithSm2MissingParentAndRotaryNearby()
+        {
+            return $$"""
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+
+           #0.00
+           a01,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.20339390|25.81884970|6000|0|0|270,Health=1
+           101,Name={{RotaryAircraft.Name}},Type=Air+Rotorcraft,Group={{RotaryAircraft.Group}},Pilot={{RotaryAircraft.Pilot}},Color=Blue,Coalition=Enemies,T=57.20339390|25.81884970|100|0|0|90,Health=1
+           102,Name={{CarrierEscort.Name}},Type=Sea+Watercraft+Cruiser,Group={{CarrierEscort.Group}},Pilot={{CarrierEscort.Pilot}},Color=Blue,Coalition=Enemies,T=57.00000000|25.00000000|0|0|0|90,Health=1
+
+           #100.00
+           39301,Name={{Sm2WeaponName}},Type=Weapon+Missile,Color=Blue,Coalition=Enemies,T=57.20339390|25.81884970|100|0|0|90
+
+           #120.00
+           a01,T=57.20339390|25.81884970|6000|0|0|270
+           101,T=57.20339390|25.81884970|100|0|0|90
+           102,T=57.00000000|25.00000000|0|0|0|90
+           39301,T=57.20339390|25.81884970|6000|0|0|90
+           0,Event=Destroyed|SourceId:39301|TargetId:a01|Outcome:Destroyed|{{Sm2WeaponName}} has destroyed {{CarrierKiller.DisplayName}}
+           """;
         }
 
         private static string BuildAcmiWithSingleCarrierHitAndNoKill()
@@ -1762,7 +1362,6 @@ namespace DcsMissionReaderTests
                 903,T=57.17649980|25.53076810|50|0|0|270
                 0,Event=Destroyed|SourceId:903|TargetId:301|{{P700WeaponName}} has destroyed {{Carrier.Name}} {{Carrier.Pilot}}
                 -903
-                -301
 
                 #70.00
                 201,T=57.50000000|25.90000000|0|0|0|270
@@ -1903,69 +1502,7 @@ namespace DcsMissionReaderTests
                 ?? encodedDescription;
         }
 
-        private static string BuildAcmiWithInferredDamageButNoHealthExport()
-        {
-            return $$"""
-            FileType=text/acmi/tacview
-            FileVersion=2.2
-            0,ReferenceTime=2016-06-21T04:30:00Z
-            #0.00
-            101,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
-            201,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
-            #10.00
-            901,Name={{X22WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
-            #20.00
-            901,T=57.17663780|25.53163180|50|0|0|270
-            -901
-            #21.00
-            101,T=57.17663780|25.53163180|0|0|0|90
-            """;
-        }
-
-        private static string BuildAcmiWithShipHitByKitchen()
-        {
-            return $$"""
-            FileType=text/acmi/tacview
-            FileVersion=2.2
-            0,ReferenceTime=2016-06-21T04:30:00Z
-            #0.00
-            101,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90,Health=1
-            201,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
-            #10.00
-            901,Name={{X22WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
-            #20.00
-            901,T=57.17663780|25.53163180|50|0|0|270
-            -901
-            #21.00
-            101,T=57.17663780|25.53163180|0|0|0|90,Health=0.75
-            """;
-        }
-
-        private static string BuildAcmiWithPairedKitchenAndSeaSparrowInterception()
-        {
-            return $$"""
-            FileType=text/acmi/tacview
-            FileVersion=2.2
-            0,ReferenceTime=2016-06-21T04:30:00Z
-            #0.00
-            101,Name={{Carrier.Name}},Type=Sea+Watercraft+AircraftCarrier,Group={{Carrier.Group}},Pilot={{Carrier.Pilot}},Color=Blue,Coalition=Enemies,T=57.17663780|25.53163180|0|0|0|90
-            201,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.50000000|25.90000000|9000|0|0|270
-            301,Name={{CarrierEscort.Name}},Type=Sea+Watercraft+Cruiser,Group={{CarrierEscort.Group}},Pilot={{CarrierEscort.Pilot}},Color=Blue,Coalition=Enemies,T=57.17600000|25.53200000|0|0|0|90
-            #10.00
-            901,Name={{X22WeaponName}},Type=Weapon+Missile,Parent=201,Color=Red,Coalition=Allies,T=57.40000000|25.80000000|9000|0|0|270
-            #15.00
-            902,Name={{SeaSparrowWeaponName}},Type=Weapon+Missile,Parent=301,Color=Blue,Coalition=Enemies,T=57.17600000|25.53200000|100|0|0|270
-            #20.00
-            901,T=57.17663780|25.53163180|50|0|0|270
-            902,T=57.17663800|25.53163200|55|0|0|270
-            -901
-            -902
-            #21.00
-            101,T=57.17663780|25.53163180|0|0|0|90
-            """;
-        }
-
-        private static void AssertFolderVisibility(
+private static void AssertFolderVisibility(
     string kml,
     string folderName,
     string expectedVisibility)
@@ -2051,7 +1588,6 @@ namespace DcsMissionReaderTests
                 $"First matching placemark was:{Environment.NewLine}{firstMatchingPlacemark}");
         }
 
-
         private static void AssertPlacemarkContains(
     string kml,
     string placemarkName,
@@ -2126,24 +1662,22 @@ namespace DcsMissionReaderTests
             """;
         }
 
-        private static string BuildAcmiWithWeaponKillAndHealth()
+        private static string BuildAcmiWithExplicitWeaponKill()
         {
             return $$"""
             FileType=text/acmi/tacview
             FileVersion=2.2
             0,ReferenceTime=2016-06-21T04:30:00Z
             #0.00
-            100,Name={{MigShooter.Name}},Type=Air+FixedWing,Group={{MigShooter.Group}},Pilot={{MigShooter.Pilot}},Color=Red,Coalition=Allies,T=48.00000000|29.00000000|10000|0|0|90,Health=1
-            300,Name={{Overlord.Name}},Type=Air+FixedWing,Group={{Overlord.Group}},Pilot={{Overlord.Pilot}},Color=Blue,Coalition=Enemies,T=48.50000000|29.50000000|9000|0|0|270,Health=1
+            100,Name={{MigShooter.Name}},Type=Air+FixedWing,Group={{MigShooter.Group}},Pilot={{MigShooter.Pilot}},Color=Red,Coalition=Allies,T=48.00000000|29.00000000|10000|0|0|90
+            300,Name={{Overlord.Name}},Type=Air+FixedWing,Group={{Overlord.Group}},Pilot={{Overlord.Pilot}},Color=Blue,Coalition=Enemies,T=48.50000000|29.50000000|9000|0|0|270
             #10.00
             200,Name={{P33EWeaponName}},Type=Weapon+Missile,Parent=100,Color=Red,Coalition=Allies,T=48.01000000|29.01000000|10000|0|0|90
             #20.00
             200,T=48.25000000|29.25000000|9500|0|0|90
             #30.00
-            300,Health=0
             200,T=48.50000000|29.50000000|9000|0|0|90
-            -200
-            -300
+            0,Event=Destroyed|SourceId:200|TargetId:300|{{P33EWeaponName}} has destroyed {{Overlord.DisplayName}}
             """;
         }
 
@@ -2186,7 +1720,7 @@ namespace DcsMissionReaderTests
             #15.00
             200,T=48.01000000|29.01000000|500|0|0|90
             #20.00
-            -200
+            0,Event=Timeout|SourceId:200|{{SeaSparrowWeaponName}} timed out
             """;
         }
 
@@ -2468,8 +2002,6 @@ namespace DcsMissionReaderTests
 
             return builder.ToString();
         }
-
-
 
         private static void EnsureKmlIconsAvailableForTest()
         {

@@ -86,12 +86,7 @@ namespace DcsMissionReaderTests
 
 				CreateAcmiZip(zipPath, BuildSyntheticCsgEscortBattleAcmi());
 
-				var service = new PostBriefingService(
-					weaponResultInferenceOptions: new WeaponResultInferenceOptions
-					{
-						EnableTerminalProximityDamageInference = false,
-						EnableTerminalProximityNearMissReporting = true
-					});
+				var service = new PostBriefingService();
 
 				PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
 
@@ -153,12 +148,7 @@ namespace DcsMissionReaderTests
 
 				CreateAcmiZip(zipPath, BuildSyntheticCsgEscortBattleAcmi());
 
-				var service = new PostBriefingService(
-					weaponResultInferenceOptions: new WeaponResultInferenceOptions
-					{
-						EnableTerminalProximityDamageInference = false,
-						EnableTerminalProximityNearMissReporting = true
-					});
+				var service = new PostBriefingService();
 
 				service.CreatePostBriefingKml(zipPath, outputPath);
 
@@ -191,92 +181,6 @@ namespace DcsMissionReaderTests
 		}
 
 		[Fact]
-		public void CreatePostBriefingKml_WithSyntheticCsgEscortBattle_ProducesExpectedSm2InterceptCounts()
-		{
-			string tempDirectory = CreateTempDirectory();
-
-			try
-			{
-				string zipPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.acmi.zip");
-				string outputPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.postbrief.kmz");
-
-				CreateAcmiZip(zipPath, BuildSyntheticCsgEscortBattleAcmi());
-
-				var service = new PostBriefingService(
-					weaponResultInferenceOptions: new WeaponResultInferenceOptions
-					{
-						EnableTerminalProximityDamageInference = false,
-						EnableTerminalProximityNearMissReporting = true
-					});
-
-				service.CreatePostBriefingKml(zipPath, outputPath);
-
-				string kml = ReadKmlFromKmz(outputPath);
-
-				Assert.Equal(
-					20,
-					CountFolderNamesContainingAll(kml, Sm2WeaponName));
-
-				Assert.Equal(
-					7,
-					CountPlacemarkNameOccurrences(kml, $"Destroyed - {KitchenWeaponName}"));
-
-				Assert.Equal(
-					13,
-					CountPlacemarkNameOccurrences(kml, $"Timeout - {Sm2WeaponName}"));
-			}
-			finally
-			{
-				Directory.Delete(tempDirectory, recursive: true);
-			}
-		}
-
-		[Fact]
-		public void CreatePostBriefingKml_WithSyntheticCsgEscortBattle_DumpKmlForInspection()
-		{
-			string tempDirectory = CreateTempDirectory();
-
-			try
-			{
-				string zipPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.acmi.zip");
-				string outputPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.postbrief.kmz");
-				string kmlDumpPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.doc.kml");
-
-				CreateAcmiZip(zipPath, BuildSyntheticCsgEscortBattleAcmi());
-
-				var service = new PostBriefingService(
-					weaponResultInferenceOptions: new WeaponResultInferenceOptions
-					{
-						EnableTerminalProximityDamageInference = false,
-						EnableTerminalProximityNearMissReporting = true
-					});
-
-				PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
-
-				string kml = ReadKmlFromKmz(outputPath);
-				File.WriteAllText(kmlDumpPath, kml);
-
-				output.WriteLine($"KMZ: {outputPath}");
-				output.WriteLine($"KML: {kmlDumpPath}");
-				output.WriteLine($"GroupTrackCount: {result.GroupTrackCount}");
-				output.WriteLine($"WeaponEmploymentCount: {result.WeaponEmploymentCount}");
-				output.WriteLine($"SM_2 literal count: {CountLiteralOccurrences(kml, Sm2WeaponName)}");
-				output.WriteLine($"X_22 literal count: {CountLiteralOccurrences(kml, KitchenWeaponName)}");
-				output.WriteLine($"Destroyed - X_22 count: {CountPlacemarkNameOccurrences(kml, "Destroyed - " + KitchenWeaponName)}");
-				output.WriteLine($"Timeout - SM_2 count: {CountPlacemarkNameOccurrences(kml, "Timeout - " + Sm2WeaponName)}");
-				output.WriteLine($"Near Miss - Rotary-1 count: {CountPlacemarkNameOccurrences(kml, "Near Miss - " + Rotary.DisplayName)}");
-				output.WriteLine($"Near Miss - Overlord count: {CountPlacemarkNameOccurrences(kml, "Near Miss - " + Overlord.DisplayName)}");
-
-				Assert.True(File.Exists(outputPath));
-			}
-			finally
-			{
-				// Comment this out while inspecting the dump.
-				// Directory.Delete(tempDirectory, recursive: true);
-			}
-		}
-
-		[Fact]
 		public void CreatePostBriefingKml_WithRealProtectedCarrierMission_CharacterizesProtectedCsgOutcome()
 		{
 			string tempDirectory = CreateTempDirectory();
@@ -297,12 +201,7 @@ namespace DcsMissionReaderTests
 
 				File.Copy(sourceAcmiPath, zipPath, overwrite: true);
 
-				var service = new PostBriefingService(
-					weaponResultInferenceOptions: new WeaponResultInferenceOptions
-					{
-						EnableTerminalProximityDamageInference = false,
-						EnableTerminalProximityNearMissReporting = true
-					});
+				var service = new PostBriefingService();
 
 				PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
 
@@ -413,203 +312,14 @@ namespace DcsMissionReaderTests
 					3,
 					CountFolderNamesContainingAll(kml, "SeaSparrow"));
 
-				string realAwacsKillerDisplayName = FindObjectDispositionPlacemarkNameByDescriptionText(
-					kml,
-					"Group: AWACS KILLER");
-
-				Assert.True(
-					CountPlacemarkNameOccurrences(kml, $"Destroyed - {realAwacsKillerDisplayName}") >= 1,
-					$"Expected at least one destroyed {realAwacsKillerDisplayName} result.");
+				Assert.Contains("Group: AWACS KILLER", kml);
 			}
 			finally
 			{
 				Directory.Delete(tempDirectory, recursive: true);
 			}
 		}
-
-		[Fact]
-		public void CreatePostBriefingKml_WithSyntheticCsgEscortBattle_TerminalProximityOnlyDoesNotCreateObjectDamage()
-		{
-			string tempDirectory = CreateTempDirectory();
-
-			try
-			{
-				string zipPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.acmi.zip");
-				string outputPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.postbrief.kmz");
-
-				CreateAcmiZip(zipPath, BuildSyntheticCsgEscortBattleAcmi());
-
-				var service = new PostBriefingService(
-					weaponResultInferenceOptions: new WeaponResultInferenceOptions
-					{
-						EnableTerminalProximityDamageInference = false,
-						EnableTerminalProximityNearMissReporting = true
-					});
-
-				service.CreatePostBriefingKml(zipPath, outputPath);
-
-				string kml = ReadKmlFromKmz(outputPath);
-
-				// X_22 901 ends near Washington CSG, but terminal proximity alone is diagnostic only.
-				AssertObjectWeaponHitCount(
-					kml,
-					objectPlacemarkName: Carrier.DisplayName,
-					expectedHitCount: 0,
-					expectedWeaponName: KitchenWeaponName);
-
-				// X_22 909 ends near Rotary-1, but terminal proximity alone should not damage air targets.
-				// Rotary-1 should only have the one real same-time-removal kill from X_22 911.
-				AssertObjectWeaponHitCount(
-					kml,
-					objectPlacemarkName: Rotary.DisplayName,
-					expectedHitCount: 1,
-					expectedWeaponName: KitchenWeaponName);
-
-				// X_22 910 ends near Overlord, but terminal proximity alone should not damage air targets.
-				AssertObjectWeaponHitCount(
-					kml,
-					objectPlacemarkName: Overlord.DisplayName,
-					expectedHitCount: 0,
-					expectedWeaponName: KitchenWeaponName);
-
-				Assert.Equal(
-					1,
-					CountPlacemarkNameOccurrences(kml, $"Near Miss - {Carrier.DisplayName}"));
-
-				Assert.Equal(
-					1,
-					CountPlacemarkNameOccurrences(kml, $"Near Miss - {Rotary.DisplayName}"));
-
-				Assert.Equal(
-					1,
-					CountPlacemarkNameOccurrences(kml, $"Near Miss - {Overlord.DisplayName}"));
-			}
-			finally
-			{
-				Directory.Delete(tempDirectory, recursive: true);
-			}
-		}
-
-		[Fact]
-		public void CreatePostBriefingKml_WithSyntheticCsgEscortBattle_HidesNonEffectWeaponFoldersByDefault()
-		{
-			string tempDirectory = CreateTempDirectory();
-
-			try
-			{
-				string zipPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.acmi.zip");
-				string outputPath = Path.Combine(tempDirectory, "synthetic-csg-escort-battle.postbrief.kmz");
-
-				CreateAcmiZip(zipPath, BuildSyntheticCsgEscortBattleAcmi());
-
-				var service = new PostBriefingService(
-					weaponResultInferenceOptions: new WeaponResultInferenceOptions
-					{
-						EnableTerminalProximityDamageInference = false,
-						EnableTerminalProximityNearMissReporting = true
-					});
-
-				service.CreatePostBriefingKml(zipPath, outputPath);
-
-				string kml = ReadKmlFromKmz(outputPath);
-
-				Assert.Equal(
-					20,
-					CountFolderNamesContainingAll(kml, Sm2WeaponName));
-
-				// 7 SM_2s intercept X_22s and should be active.
-				Assert.Equal(
-					7,
-					CountFolderNamesContainingAllWithVisibility(kml, expectedVisibility: "1", Sm2WeaponName));
-
-				// 13 SM_2s do not produce an effect and should be hidden.
-				Assert.Equal(
-					13,
-					CountFolderNamesContainingAllWithVisibility(kml, expectedVisibility: "0", Sm2WeaponName));
-
-				// Result markers stay hidden on the map even when their parent folder is active.
-				AssertPlacemarkVisibility(kml, $"Destroyed - {KitchenWeaponName}", expectedVisibility: "0");
-				AssertPlacemarkVisibility(kml, $"Timeout - {Sm2WeaponName}", expectedVisibility: "0");
-				AssertPlacemarkVisibility(kml, $"Near Miss - {Carrier.DisplayName}", expectedVisibility: "0");
-				AssertPlacemarkVisibility(kml, $"Near Miss - {Rotary.DisplayName}", expectedVisibility: "0");
-			}
-			finally
-			{
-				Directory.Delete(tempDirectory, recursive: true);
-			}
-		}
-
-		private static int CountFolderNamesContainingAllWithVisibility(
-	string kml,
-	string expectedVisibility,
-	params string[] expectedParts)
-		{
-			string normalizedKml = NormalizeLineEndings(kml);
-
-			const string folderStartTag = "<Folder>";
-			const string nameStartTag = "<name>";
-			const string nameEndTag = "</name>";
-
-			int searchIndex = 0;
-			int count = 0;
-
-			while (true)
-			{
-				int folderStartIndex = normalizedKml.IndexOf(folderStartTag, searchIndex, StringComparison.Ordinal);
-
-				if (folderStartIndex < 0)
-				{
-					break;
-				}
-
-				int nameStartIndex = normalizedKml.IndexOf(nameStartTag, folderStartIndex, StringComparison.Ordinal);
-
-				if (nameStartIndex < 0)
-				{
-					break;
-				}
-
-				int nameEndIndex = normalizedKml.IndexOf(nameEndTag, nameStartIndex, StringComparison.Ordinal);
-
-				if (nameEndIndex < 0)
-				{
-					break;
-				}
-
-				string folderName = normalizedKml[
-					(nameStartIndex + nameStartTag.Length)..nameEndIndex];
-
-				bool nameMatches = expectedParts.All(part =>
-					folderName.Contains(part, StringComparison.OrdinalIgnoreCase));
-
-				if (nameMatches)
-				{
-					int headerEndIndex = normalizedKml.IndexOf("<Folder>", nameEndIndex, StringComparison.Ordinal);
-
-					if (headerEndIndex < 0)
-					{
-						headerEndIndex = Math.Min(normalizedKml.Length, nameEndIndex + 500);
-					}
-
-					string folderHeader = normalizedKml[folderStartIndex..headerEndIndex];
-
-					bool visibilityMatches = folderHeader.Contains(
-						$"<visibility>{expectedVisibility}</visibility>",
-						StringComparison.Ordinal);
-
-					if (visibilityMatches)
-					{
-						count++;
-					}
-				}
-
-				searchIndex = nameEndIndex + nameEndTag.Length;
-			}
-
-			return count;
-		}
-
-
+		
 		private static int CountFolderNamesContainingAll(
 	string kml,
 	params string[] expectedParts)

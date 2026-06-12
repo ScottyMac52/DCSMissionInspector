@@ -84,6 +84,7 @@ namespace DcsMissionReaderTests
         private const string UnknownDecoyName = "Unknown";
         private const string X22WeaponName = "X_22";
         private const string P700WeaponName = "P_700";
+        private const string Sm2WeaponName = "SM_2";
 
         [Fact]
         public void CreatePostBriefingKml_WithValidZippedAcmi_CreatesKmlWithTracksKnownWeaponsAndResults()
@@ -1138,6 +1139,135 @@ namespace DcsMissionReaderTests
             {
                 Directory.Delete(tempDirectory, recursive: true);
             }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithWeaponParentFarAwayAndRotaryNearby_UsesTacviewParentAsShooter()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "sm2-parent-not-nearest.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "sm2-parent-not-nearest.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithSm2ParentFarAwayAndRotaryNearby());
+
+                var service = new PostBriefingService();
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    $"Destroyed - {CarrierKiller.DisplayName}",
+                    $"Killed By Weapon: {Sm2WeaponName} [39301]");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    $"Destroyed - {CarrierKiller.DisplayName}",
+                    $"Shooter: {CarrierEscort.DisplayName}");
+
+                Assert.DoesNotContain($"Shooter: {RotaryAircraft.DisplayName}", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void CreatePostBriefingKml_WithWeaponMissingParentAndRotaryNearby_DoesNotGuessNearestShooter()
+        {
+            string tempDirectory = CreateTempDirectory();
+
+            try
+            {
+                string zipPath = Path.Combine(tempDirectory, "sm2-missing-parent-no-guess.acmi.zip");
+                string outputPath = Path.Combine(tempDirectory, "sm2-missing-parent-no-guess.postbrief.kmz");
+
+                CreateAcmiZip(zipPath, BuildAcmiWithSm2MissingParentAndRotaryNearby());
+
+                var service = new PostBriefingService();
+
+                PostBriefingKmlResult result = service.CreatePostBriefingKml(zipPath, outputPath);
+
+                Assert.True(File.Exists(outputPath));
+                Assert.Equal(1, result.WeaponEmploymentCount);
+                Assert.Equal(1, result.WeaponResultCount);
+
+                string kml = ReadKmlFromKmz(outputPath);
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    $"Destroyed - {CarrierKiller.DisplayName}",
+                    $"Killed By Weapon: {Sm2WeaponName} [39301]");
+
+                AssertPlacemarkDescriptionContains(
+                    kml,
+                    $"Destroyed - {CarrierKiller.DisplayName}",
+                    "Shooter: Unknown");
+
+                Assert.DoesNotContain($"Shooter: {RotaryAircraft.DisplayName}", kml);
+                Assert.DoesNotContain($"Shooter: {CarrierEscort.DisplayName}", kml);
+            }
+            finally
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
+
+        private static string BuildAcmiWithSm2ParentFarAwayAndRotaryNearby()
+        {
+            return $$"""
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+
+           #0.00
+           a01,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.20339390|25.81884970|6000|0|0|270,Health=1
+           101,Name={{RotaryAircraft.Name}},Type=Air+Rotorcraft,Group={{RotaryAircraft.Group}},Pilot={{RotaryAircraft.Pilot}},Color=Blue,Coalition=Enemies,T=57.20339390|25.81884970|100|0|0|90,Health=1
+           102,Name={{CarrierEscort.Name}},Type=Sea+Watercraft+Cruiser,Group={{CarrierEscort.Group}},Pilot={{CarrierEscort.Pilot}},Color=Blue,Coalition=Enemies,T=57.00000000|25.00000000|0|0|0|90,Health=1
+
+           #100.00
+           39301,Name={{Sm2WeaponName}},Type=Weapon+Missile,Parent=102,Color=Blue,Coalition=Enemies,T=57.20339390|25.81884970|100|0|0|90
+
+           #120.00
+           a01,T=57.20339390|25.81884970|6000|0|0|270
+           101,T=57.20339390|25.81884970|100|0|0|90
+           102,T=57.00000000|25.00000000|0|0|0|90
+           39301,T=57.20339390|25.81884970|6000|0|0|90
+           0,Event=Destroyed|SourceId:39301|TargetId:a01|Outcome:Destroyed|{{Sm2WeaponName}} has destroyed {{CarrierKiller.DisplayName}}
+           """;
+        }
+
+        private static string BuildAcmiWithSm2MissingParentAndRotaryNearby()
+        {
+            return $$"""
+           FileType=text/acmi/tacview
+           FileVersion=2.2
+           0,ReferenceTime=2016-06-21T04:30:00Z
+
+           #0.00
+           a01,Name={{CarrierKiller.Name}},Type=Air+FixedWing,Group={{CarrierKiller.Group}},Pilot={{CarrierKiller.Pilot}},Color=Red,Coalition=Allies,T=57.20339390|25.81884970|6000|0|0|270,Health=1
+           101,Name={{RotaryAircraft.Name}},Type=Air+Rotorcraft,Group={{RotaryAircraft.Group}},Pilot={{RotaryAircraft.Pilot}},Color=Blue,Coalition=Enemies,T=57.20339390|25.81884970|100|0|0|90,Health=1
+           102,Name={{CarrierEscort.Name}},Type=Sea+Watercraft+Cruiser,Group={{CarrierEscort.Group}},Pilot={{CarrierEscort.Pilot}},Color=Blue,Coalition=Enemies,T=57.00000000|25.00000000|0|0|0|90,Health=1
+
+           #100.00
+           39301,Name={{Sm2WeaponName}},Type=Weapon+Missile,Color=Blue,Coalition=Enemies,T=57.20339390|25.81884970|100|0|0|90
+
+           #120.00
+           a01,T=57.20339390|25.81884970|6000|0|0|270
+           101,T=57.20339390|25.81884970|100|0|0|90
+           102,T=57.00000000|25.00000000|0|0|0|90
+           39301,T=57.20339390|25.81884970|6000|0|0|90
+           0,Event=Destroyed|SourceId:39301|TargetId:a01|Outcome:Destroyed|{{Sm2WeaponName}} has destroyed {{CarrierKiller.DisplayName}}
+           """;
         }
 
         private static string BuildAcmiWithSingleCarrierHitAndNoKill()

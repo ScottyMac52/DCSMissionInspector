@@ -66,7 +66,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Remove="appsettings.json" />
 		<None Remove="CSS\report.css" />
 		<None Remove="Data\KmlIcons\bomb.png" />
 		<None Remove="Data\KmlIcons\explode.png" />
@@ -78,9 +77,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Content Include="appsettings.json">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
 		<Content Include="CSS\report.css">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
