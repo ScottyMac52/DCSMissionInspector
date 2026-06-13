@@ -214,6 +214,28 @@ namespace DcsMissionReader.Services
                 dictionary,
                 new DcsTerrainProjection
                 {
+                    Name = "GermanyCW",
+                    Projection = ProjectionKind.TransverseMercator,
+                    CentralMeridianDegrees = 21.0,
+                    FalseEasting = 35427.619999985734,
+                    FalseNorthing = -6061633.128000011,
+                    ScaleFactor = 0.9996,
+                    AxisMapping = DcsAxisMapping.XIsNorthing_ZIsEasting,
+                    IsValidated = true,
+                    SourceNote = "Public PyDCS-derived generated Transverse Mercator projection."
+                },
+                "GermanyCW",
+                "Germany CW",
+                "ColdWarGermany",
+                "Cold War Germany",
+                "Germany Cold War",
+                "German Cold War",
+                "Germany");
+
+            Register(
+                dictionary,
+                new DcsTerrainProjection
+                {
                     Name = "TheChannel",
                     Projection = ProjectionKind.TransverseMercator,
                     CentralMeridianDegrees = 3.0,
