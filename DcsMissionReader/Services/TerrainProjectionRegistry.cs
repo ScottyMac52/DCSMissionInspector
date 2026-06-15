@@ -250,6 +250,45 @@ namespace DcsMissionReader.Services
                 "Channel",
                 "The Channel");
 
+            Register(
+                dictionary,
+                new DcsTerrainProjection
+                {
+                    Name = "Kola",
+                    Projection = ProjectionKind.TransverseMercator,
+                    CentralMeridianDegrees = 21.0,
+                    FalseEasting = -62702.00000000087,
+                    FalseNorthing = -7543624.999999979,
+                    ScaleFactor = 0.9996,
+                    AxisMapping = DcsAxisMapping.XIsNorthing_ZIsEasting,
+                    IsValidated = true,
+                    SourceNote = "Public PyDCS-generated Transverse Mercator projection."
+                },
+                "Kola");
+
+            Register(
+                dictionary,
+                new DcsTerrainProjection
+                {
+                    Name = "Afghanistan",
+                    Projection = ProjectionKind.TransverseMercator,
+                    CentralMeridianDegrees = 63.0,
+                    FalseEasting = -300149.9999999864,
+                    FalseNorthing = -3759657.000000049,
+                    ScaleFactor = 0.9996,
+                    AxisMapping = DcsAxisMapping.XIsNorthing_ZIsEasting,
+                    IsValidated = false,
+                    SourceNote = "Public DCSProjector/Briefing Room Transverse Mercator projection; should be validated against known DCS mission coordinates."
+                },
+                "Afghanistan",
+                "AfghanistanSW",
+                "Afghanistan Southwest",
+                "Southwest Afghanistan",
+                "AfghanistanEast",
+                "East Afghanistan",
+                "AfghanistanNorth",
+                "North Afghanistan");
+
             return new ReadOnlyDictionary<string, DcsTerrainProjection>(dictionary);
         }
 
