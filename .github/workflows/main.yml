@@ -18,6 +18,7 @@ jobs:
       app_project: ${{ steps.discover.outputs.APP_PROJECT }}
       app_name: ${{ steps.discover.outputs.APP_NAME }}
       artifact_base_name: ${{ steps.discover.outputs.ARTIFACT_BASE_NAME }}
+      build_mode: ${{ steps.discover.outputs.BUILD_MODE }}
 
     steps:
       - name: Checkout code
@@ -110,23 +111,6 @@ jobs:
               $_.IsExecutableProject -and 
               $skipProjects -notcontains $_.BaseName 
           })
-          
-          if ($appProjects.Count -eq 0) {
-            $nonTestProjects = @($projectInfo | Where-Object { -not $_.IsTestProject })
-
-            if ($nonTestProjects.Count -eq 1) {
-              $appProjects = $nonTestProjects
-              Write-Warning "No project with OutputType Exe or WinExe was found. Falling back to the only non-test project."
-            } else {
-              Write-Host ""
-              Write-Host "Non-test projects found:"
-              foreach ($nonTestProject in $nonTestProjects) {
-                Write-Host "  $($nonTestProject.RelativePath)"
-              }
-
-              throw "No executable app project was found. Expected exactly one non-test project with OutputType Exe or WinExe."
-            }
-          }
 
           if ($appProjects.Count -gt 1) {
             Write-Host ""
@@ -141,13 +125,41 @@ jobs:
           $solutionRelativePath = Resolve-Path $solutionFile.FullName -Relative
           $solutionRelativePath = $solutionRelativePath.TrimStart('.\')
 
-          $appProjectPath = $appProjects[0].RelativePath.TrimStart('.\')
-          $appName = $appProjects[0].BaseName
-          $artifactBaseName = $appName -replace '[^a-zA-Z0-9._-]', '_'
+          if ($appProjects.Count -eq 1) {
+            $buildMode = "Executable"
+            $appProjectPath = $appProjects[0].RelativePath.TrimStart('.\')
+            $appName = $appProjects[0].BaseName
+            $artifactBaseName = $appName -replace '[^a-zA-Z0-9._-]', '_'
+
+            Write-Host ""
+            Write-Host "Selected app project:"
+            Write-Host "  $appProjectPath"
+          } else {
+            $nonTestProjects = @($projectInfo | Where-Object {
+                -not $_.IsTestProject -and
+                $skipProjects -notcontains $_.BaseName
+            })
+
+            if ($nonTestProjects.Count -eq 0) {
+              throw "No non-test projects were found."
+            }
+
+            $buildMode = "Library"
+            $appProjectPath = ""
+            $appName = $solutionFile.BaseName
+            $artifactBaseName = $appName -replace '[^a-zA-Z0-9._-]', '_'
+
+            Write-Host ""
+            Write-Host "No executable app project was found. Library build mode selected."
+            Write-Host "Non-test projects included in the library artifact:"
+            foreach ($nonTestProject in $nonTestProjects) {
+              Write-Host "  $($nonTestProject.RelativePath)"
+            }
+          }
 
           Write-Host ""
-          Write-Host "Selected app project:"
-          Write-Host "  $appProjectPath"
+          Write-Host "Build mode:"
+          Write-Host "  $buildMode"
           Write-Host ""
           Write-Host "Application name:"
           Write-Host "  $appName"
@@ -159,6 +171,7 @@ jobs:
           "APP_PROJECT=$appProjectPath" >> $env:GITHUB_OUTPUT
           "APP_NAME=$appName" >> $env:GITHUB_OUTPUT
           "ARTIFACT_BASE_NAME=$artifactBaseName" >> $env:GITHUB_OUTPUT
+          "BUILD_MODE=$buildMode" >> $env:GITHUB_OUTPUT
 
       - name: Restore dependencies
         shell: pwsh
@@ -307,6 +320,7 @@ jobs:
           Write-Host "Assembly/File Version: $version"
           
       - name: Dotnet Publish
+        if: ${{ needs.test.outputs.build_mode == 'Executable' }}
         shell: pwsh
         run: |
           dotnet publish "${{ needs.test.outputs.app_project }}" `
@@ -319,6 +333,60 @@ jobs:
             -p:FileVersion=${{ steps.versioning.outputs.FILE_VERSION }} `
             -p:AssemblyVersion=${{ steps.versioning.outputs.VERSION }} `
             -o ./publish
+
+      - name: Dotnet Build Library Artifacts
+        if: ${{ needs.test.outputs.build_mode == 'Library' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          # === SKIP LIST ===
+          # Any project BaseName listed here will be completely ignored
+          # for library artifact packaging.
+          $skipProjects = @(
+              "LuaParser"
+          )
+          # =================
+
+          dotnet restore "${{ needs.test.outputs.solution_file }}"
+
+          dotnet build "${{ needs.test.outputs.solution_file }}" `
+            --no-restore `
+            -c Release `
+            -p:Version=${{ steps.versioning.outputs.VERSION }} `
+            -p:FileVersion=${{ steps.versioning.outputs.FILE_VERSION }} `
+            -p:AssemblyVersion=${{ steps.versioning.outputs.VERSION }}
+
+          New-Item -ItemType Directory -Path ./publish -Force | Out-Null
+
+          $projects = @(Get-ChildItem -Path . -Recurse -Filter *.csproj -File |
+            Where-Object {
+              $_.FullName -notmatch '\\bin\\' -and
+              $_.FullName -notmatch '\\obj\\'
+            })
+
+          foreach ($project in $projects) {
+            $content = Get-Content $project.FullName -Raw
+
+            $isTestProject =
+              $content -match '<IsTestProject>\s*true\s*</IsTestProject>' -or
+              $content -match 'Microsoft\.NET\.Test\.Sdk' -or
+              $project.BaseName -match '(?i)(test|tests)$'
+
+            if ($isTestProject -or $skipProjects -contains $project.BaseName) {
+              continue
+            }
+
+            $releasePath = Join-Path $project.DirectoryName 'bin\Release'
+
+            if (-not (Test-Path $releasePath)) {
+              throw "Release output was not found for project '$($project.BaseName)' at '$releasePath'."
+            }
+
+            $projectPublishPath = Join-Path './publish' $project.BaseName
+            New-Item -ItemType Directory -Path $projectPublishPath -Force | Out-Null
+            Copy-Item -Path (Join-Path $releasePath '*') -Destination $projectPublishPath -Recurse -Force
+          }
 
       - name: Prepare Artifacts
         shell: pwsh
